@@ -29,6 +29,14 @@ public class AuthService {
         if (userRepository.existsByLoginId(req.getLoginId())) {
             throw new RuntimeException("이미 존재하는 아이디입니다.");
         }
+        if (userRepository.existsByEmail(req.getEmail())) {
+            throw new RuntimeException("이미 사용 중인 이메일입니다.");
+        }
+
+        // 3. 전화번호 중복 체크 (추가)
+        if (userRepository.existsByPhoneNumber(req.getPhoneNumber().trim())) {
+            throw new RuntimeException("이미 등록된 전화번호입니다.");
+        }
 
         // 2. 1인 1계정(CI/DI) 중복 체크
         if (userRepository.existsByCiDi(req.getCiDi())) {
