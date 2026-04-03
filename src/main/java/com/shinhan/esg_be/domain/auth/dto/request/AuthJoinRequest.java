@@ -1,12 +1,13 @@
 package com.shinhan.esg_be.domain.auth.dto.request;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 
 @Getter
 @NoArgsConstructor
@@ -32,7 +33,8 @@ public class AuthJoinRequest {
     private String phoneNumber;
 
     @NotNull(message = "생년월일은 필수입니다.")
-    private LocalDateTime birthdate;
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    private LocalDate birthdate;
 
     @NotBlank(message = "본인인증 정보는 필수입니다.")
     private String ciDi;

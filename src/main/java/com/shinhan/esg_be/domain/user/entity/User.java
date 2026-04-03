@@ -14,7 +14,7 @@ import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -41,7 +41,7 @@ public class User extends BaseTimeEntity {
     private String phoneNumber;
 
     @Column(nullable = false)
-    private LocalDateTime birthdate;
+    private LocalDate birthdate;
 
     @Column(nullable = false, unique = true)
     private String email;
@@ -84,7 +84,7 @@ public class User extends BaseTimeEntity {
     @Column(name = "is_linked", nullable = false)
     private Boolean isLinked = false;
     public static User create(String loginId, String password, String name, String email,
-                              String phoneNumber, LocalDateTime birthdate, String ciDi) {
+                              String phoneNumber, LocalDate birthdate, String ciDi) {
         User user = new User();
         user.loginId = loginId;
         user.password = password;
