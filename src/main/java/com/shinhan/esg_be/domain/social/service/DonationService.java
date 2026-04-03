@@ -19,10 +19,7 @@ public class DonationService {
     private final DonationRepository donationRepository;
 
     public DonationResponse getDonations() {
-        List<DonationItemResponse> donations = donationRepository.findActiveDonationList(LocalDate.now().atStartOfDay())
-                .stream()
-                .map(DonationItemResponse::from)
-                .toList();
+        List<DonationItemResponse> donations = donationRepository.findActiveDonationList(LocalDate.now().atStartOfDay());
 
         long totalDonationAmount = donations.stream()
                 .mapToLong(DonationItemResponse::getCurrentAmount)

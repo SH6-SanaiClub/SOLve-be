@@ -1,13 +1,10 @@
 package com.shinhan.esg_be.domain.social.dto.response;
 
-import com.shinhan.esg_be.domain.social.repository.DonationListProjection;
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
 
 @Getter
-@AllArgsConstructor
 public class DonationItemResponse {
 
     private final Long donationId;
@@ -21,24 +18,32 @@ public class DonationItemResponse {
     private final LocalDateTime startDate;
     private final LocalDateTime endDate;
 
-    public static DonationItemResponse from(DonationListProjection projection) {
-        long targetAmount = projection.getTargetAmount() == null ? 0L : projection.getTargetAmount();
-        long currentAmount = projection.getCurrentAmount() == null ? 0L : projection.getCurrentAmount();
-        int progressPercentage = targetAmount == 0
+    public DonationItemResponse(
+            Long donationId,
+            String name,
+            String description,
+            Long targetAmount,
+            Long currentAmount,
+            String imageUrl,
+            Long participantCount,
+            LocalDateTime startDate,
+            LocalDateTime endDate
+    ) {
+        long safeTargetAmount = targetAmount == null ? 0L : targetAmount;
+        long safeCurrentAmount = currentAmount == null ? 0L : currentAmount;
+        int progressPercentage = safeTargetAmount == 0
                 ? 0
-                : (int) Math.min(100, Math.round((double) currentAmount * 100 / targetAmount));
+                : (int) Math.min(100, Math.round((double) safeCurrentAmount * 100 / safeTargetAmount));
 
-        return new DonationItemResponse(
-                projection.getDonationId(),
-                projection.getName(),
-                projection.getDescription(),
-                projection.getTargetAmount(),
-                projection.getCurrentAmount(),
-                projection.getImageUrl(),
-                projection.getParticipantCount(),
-                progressPercentage,
-                projection.getStartDate(),
-                projection.getEndDate()
-        );
+        this.donationId = donationId;
+        this.name = name;
+        this.description = description;
+        this.targetAmount = targetAmount;
+        this.currentAmount = currentAmount;
+        this.imageUrl = imageUrl;
+        this.participantCount = participantCount;
+        this.progressPercentage = progressPercentage;
+        this.startDate = startDate;
+        this.endDate = endDate;
     }
 }
