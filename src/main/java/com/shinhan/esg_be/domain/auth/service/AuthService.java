@@ -44,7 +44,7 @@ public class AuthService {
                 encodedPassword,
                 req.getName(),
                 req.getEmail(),
-                req.getPhoneNumber(),
+                req.getPhoneNumber().trim(),
                 req.getBirthdate(),
                 req.getCiDi()
         );

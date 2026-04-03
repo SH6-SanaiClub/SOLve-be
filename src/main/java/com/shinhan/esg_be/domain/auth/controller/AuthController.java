@@ -20,23 +20,19 @@ public class AuthController {
 
     private final AuthService authService;
 
-    /**
-     * 회원가입 API
-     */
     @PostMapping("/join")
     public ResponseEntity<String> join(@RequestBody @Valid AuthJoinRequest req) {
         authService.join(req);
         return ResponseEntity.status(HttpStatus.CREATED).body("회원가입이 완료되었습니다.");
     }
 
-    /**
-     * 로그인 API
-     */
+
     @PostMapping("/login")
     public ResponseEntity<TokenResponse> login(@RequestBody @Valid AuthLoginRequest req) {
         TokenResponse tokenResponse = authService.login(req);
         return ResponseEntity.ok(tokenResponse);
     }
+
     @PostMapping("/logout")
     public ResponseEntity<String> logout() {
         // 1. 보통 여기서 Redis에 해당 토큰을 '블랙리스트'로 등록하는 로직이 들어갑니다.
