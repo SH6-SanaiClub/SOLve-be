@@ -7,9 +7,12 @@ import com.shinhan.esg_be.domain.user.entity.User;
 import com.shinhan.esg_be.domain.user.repository.UserRepository;
 import com.shinhan.esg_be.global.security.JwtTokenProvider; // 1. 추가 확인
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
@@ -60,9 +63,9 @@ public class AuthService {
         userRepository.save(user);
     }
 
-    /**
-     * 로그인 로직 (토큰 반환)
-     */
+    private final StringRedisTemplate redisTemplate;
+
+    @Transactional
     public TokenResponse login(AuthLoginRequest req) {
         // 1. 아이디 확인
         User user = userRepository.findByLoginId(req.getLoginId())
@@ -75,6 +78,11 @@ public class AuthService {
 
         // 3. 토큰 생성 및 응답 DTO 반환
         String token = jwtTokenProvider.createToken(user.getLoginId());
+        redisTemplate.opsForValue().set(
+                "RT:" + user.getLoginId(),
+                token,
+                1, TimeUnit.HOURS // 1시간 뒤 자동 삭제
+        );
         return new TokenResponse(token);
     }
 }

@@ -3,13 +3,13 @@ POST http://localhost:8080/api/auth/join
 Content-Type: application/json
 
 {
-  "loginId": "user_03",
-  "password": "password1234",
-  "name": "신한",
-  "email": "user03@shinhan.com",
-  "phoneNumber": "010-1111-5222",
-  "birthdate": "1995-01-02T00:00:00",
-  "ciDi": "UNIQUE_CERT_KEY_012"
+  "loginId": "sohee",
+  "password": "password",
+  "name": "이소희",
+  "email": "sohee@shinhan.com",
+  "phoneNumber": "010-1122-3344",
+  "birthdate": "2003-11-21T00:00:00",
+  "ciDi": "1"
 }
 
 
@@ -50,8 +50,8 @@ POST http://localhost:8080/api/auth/login
 Content-Type: application/json
 
 {
-  "loginId": "user_01",
-  "password": "password1234"
+  "loginId": "sohee",
+  "password": "password"
 }
 
 > {%
