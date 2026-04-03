@@ -1,0 +1,46 @@
+### 1. [회원가입] 새로운 유저 등록
+# 아이디를 중복되지 않게 'shinhan_test_02'로 변경했습니다.
+POST http://localhost:8080/api/auth/join
+Content-Type: application/json
+
+{
+  "loginId": "shinhan_test_02",
+  "password": "password5678",
+  "name": "박신한",
+  "email": "park@shinhan.com",
+  "phoneNumber": "010-9999-8888",
+  "birthdate": "1998-12-25T00:00:00",
+  "ciDi": "NEW_USER_CI_DI_56789"
+}
+
+
+### 2. [로그인] 토큰 자동 저장
+# 이 요청을 실행하면 아래 {% ... %} 스크립트가
+# 'my_access_token'이라는 변수에 토큰을 자동으로 딱 저장합니다!
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "loginId": "shinhan_test_02",
+  "password": "password5678"
+}
+
+> {%
+    // 서버가 준 accessToken을 인텔리제이 변수에 저장
+    client.global.set("my_access_token", response.body.accessToken);
+    client.log("✅ 토큰이 자동으로 저장되었습니다!");
+%}
+
+
+### 3. [조회] 저장된 토큰 사용하기
+# 이제 아래 Authorization 부분에 아무것도 직접 입력하지 마세요.
+# {{my_access_token}}이 알아서 2번에서 받은 값을 채워넣습니다.
+GET http://localhost:8080/api/users/me
+Authorization: Bearer {{my_access_token}}
+Content-Type: application/json
+
+
+### 4. [로그아웃]
+POST http://localhost:8080/api/auth/logout
+Authorization: Bearer {{my_access_token}}
+Content-Type: application/json
