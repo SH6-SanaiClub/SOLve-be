@@ -27,6 +27,9 @@ public class Donation extends BaseTimeEntity {
     @Column(nullable = false)
     private String name;
 
+    @Column(nullable = false)
+    private String summary;
+
     @Column(nullable = false, columnDefinition = "TEXT")
     private String description;
 
