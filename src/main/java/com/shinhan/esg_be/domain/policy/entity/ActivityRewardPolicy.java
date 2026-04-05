@@ -2,7 +2,7 @@ package com.shinhan.esg_be.domain.policy.entity;
 
 import com.shinhan.esg_be.global.common.BaseTimeEntity;
 import com.shinhan.esg_be.global.common.enums.ActivityType;
-import com.shinhan.esg_be.global.common.enums.EsgCategory;
+import com.shinhan.esg_be.global.common.enums.ScoreCategory;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -33,8 +33,8 @@ public class ActivityRewardPolicy extends BaseTimeEntity {
     private ActivityType activityType;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "score_category", nullable = false, length = 10)
-    private EsgCategory scoreCategory;
+    @Column(name = "score_category", nullable = false, length = 20)
+    private ScoreCategory scoreCategory;
 
     @Column(name = "score_value", nullable = false)
     private Integer scoreValue = 0;
