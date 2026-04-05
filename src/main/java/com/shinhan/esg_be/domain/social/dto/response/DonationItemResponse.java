@@ -9,7 +9,7 @@ public class DonationItemResponse {
 
     private final Long donationId;
     private final String name;
-    private final String description;
+    private final String summary;
     private final Long targetAmount;
     private final Long currentAmount;
     private final String imageUrl;
@@ -21,7 +21,7 @@ public class DonationItemResponse {
     public DonationItemResponse(
             Long donationId,
             String name,
-            String description,
+            String summary,
             Long targetAmount,
             Long currentAmount,
             String imageUrl,
@@ -37,7 +37,7 @@ public class DonationItemResponse {
 
         this.donationId = donationId;
         this.name = name;
-        this.description = description;
+        this.summary = summary;
         this.targetAmount = targetAmount;
         this.currentAmount = currentAmount;
         this.imageUrl = imageUrl;

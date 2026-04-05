@@ -17,7 +17,7 @@ public interface DonationRepository extends JpaRepository<Donation, Long> {
             select new com.shinhan.esg_be.domain.social.dto.response.DonationItemResponse(
                 d.donationId,
                 d.name,
-                d.description,
+                d.summary,
                 d.targetAmount,
                 d.currentAmount,
                 d.imageUrl,
@@ -29,7 +29,7 @@ public interface DonationRepository extends JpaRepository<Donation, Long> {
             left join UserDonation ud on ud.donation = d
             where d.isActive = true
               and d.endDate >= :baseDateTime
-            group by d.donationId, d.name, d.description, d.targetAmount, d.currentAmount,
+            group by d.donationId, d.name, d.summary, d.targetAmount, d.currentAmount,
                      d.imageUrl, d.startDate, d.endDate, d.isActive
             order by d.endDate asc
             """)
