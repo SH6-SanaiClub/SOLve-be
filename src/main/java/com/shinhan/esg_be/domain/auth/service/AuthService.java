@@ -5,7 +5,7 @@ import com.shinhan.esg_be.domain.auth.dto.request.AuthLoginRequest;
 import com.shinhan.esg_be.domain.auth.dto.response.TokenResponse;
 import com.shinhan.esg_be.domain.user.entity.User;
 import com.shinhan.esg_be.domain.user.repository.UserRepository;
-import com.shinhan.esg_be.global.security.JwtTokenProvider; // 1. 추가 확인
+import com.shinhan.esg_be.global.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -16,40 +16,33 @@ import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true) // 기본적으로 읽기 전용으로 설정하여 성능 최적화
+@Transactional(readOnly = true)
 public class AuthService {
+
+    private static final String REFRESH_TOKEN_PREFIX = "RT:";
 
     private final UserRepository userRepository;
     private final BCryptPasswordEncoder passwordEncoder;
-    private final JwtTokenProvider jwtTokenProvider; // 2. 토큰 발행을 위해 주입 필수!
+    private final JwtTokenProvider jwtTokenProvider;
+    private final StringRedisTemplate redisTemplate;
 
-    /**
-     * 회원가입 로직
-     */
-    @Transactional // 저장 로직이므로 쓰기 권한 활성화
+    @Transactional
     public void join(AuthJoinRequest req) {
-        // 1. 아이디 중복 체크
         if (userRepository.existsByLoginId(req.getLoginId())) {
             throw new RuntimeException("이미 존재하는 아이디입니다.");
         }
         if (userRepository.existsByEmail(req.getEmail())) {
             throw new RuntimeException("이미 사용 중인 이메일입니다.");
         }
-
-        // 3. 전화번호 중복 체크 (추가)
         if (userRepository.existsByPhoneNumber(req.getPhoneNumber().trim())) {
             throw new RuntimeException("이미 등록된 전화번호입니다.");
         }
-
-        // 2. 1인 1계정(CI/DI) 중복 체크
         if (userRepository.existsByCiDi(req.getCiDi())) {
-            throw new RuntimeException("이미 가입된 본인인증 정보가 존재합니다.");
+            throw new RuntimeException("이미 가입한 본인인증 정보가 존재합니다.");
         }
 
-        // 3. 비밀번호 암호화
         String encodedPassword = passwordEncoder.encode(req.getPassword());
 
-        // 4. 유저 엔티티 생성 및 DB 저장
         User user = User.create(
                 req.getLoginId(),
                 encodedPassword,
@@ -63,26 +56,59 @@ public class AuthService {
         userRepository.save(user);
     }
 
-    private final StringRedisTemplate redisTemplate;
-
     @Transactional
     public TokenResponse login(AuthLoginRequest req) {
-        // 1. 아이디 확인
         User user = userRepository.findByLoginId(req.getLoginId())
                 .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
 
-        // 2. 비밀번호 확인
         if (!passwordEncoder.matches(req.getPassword(), user.getPassword())) {
             throw new RuntimeException("비밀번호가 일치하지 않습니다.");
         }
 
-        // 3. 토큰 생성 및 응답 DTO 반환
-        String token = jwtTokenProvider.createToken(user.getLoginId());
+        return issueTokenPair(user.getLoginId());
+    }
+
+    @Transactional
+    public TokenResponse reissue(String refreshToken) {
+        if (!jwtTokenProvider.validateToken(refreshToken) || !jwtTokenProvider.isRefreshToken(refreshToken)) {
+            throw new RuntimeException("유효하지 않은 리프레시 토큰입니다.");
+        }
+
+        String loginId = jwtTokenProvider.getLoginId(refreshToken);
+        String savedRefreshToken = redisTemplate.opsForValue().get(getRefreshTokenKey(loginId));
+
+        if (savedRefreshToken == null || !savedRefreshToken.equals(refreshToken)) {
+            throw new RuntimeException("저장된 리프레시 토큰과 일치하지 않습니다.");
+        }
+
+        return issueTokenPair(loginId);
+    }
+
+    @Transactional
+    public void logout(String refreshToken) {
+        if (!jwtTokenProvider.validateToken(refreshToken) || !jwtTokenProvider.isRefreshToken(refreshToken)) {
+            throw new RuntimeException("유효하지 않은 리프레시 토큰입니다.");
+        }
+
+        String loginId = jwtTokenProvider.getLoginId(refreshToken);
+        redisTemplate.delete(getRefreshTokenKey(loginId));
+    }
+
+    private TokenResponse issueTokenPair(String loginId) {
+        String accessToken = jwtTokenProvider.createAccessToken(loginId);
+        String refreshToken = jwtTokenProvider.createRefreshToken(loginId);
+
         redisTemplate.opsForValue().set(
-                "RT:" + user.getLoginId(),
-                token,
-                1, TimeUnit.HOURS // 1시간 뒤 자동 삭제
+                getRefreshTokenKey(loginId),
+                refreshToken,
+                jwtTokenProvider.getRefreshTokenValidityInMilliseconds(),
+                TimeUnit.MILLISECONDS
         );
-        return new TokenResponse(token);
+
+        return new TokenResponse(accessToken, refreshToken);
+    }
+
+    private String getRefreshTokenKey(String loginId) {
+        return REFRESH_TOKEN_PREFIX + loginId;
     }
 }

@@ -83,6 +83,8 @@ public class User extends BaseTimeEntity {
 
     @Column(name = "is_linked", nullable = false)
     private Boolean isLinked = false;
+
+
     public static User create(String loginId, String password, String name, String email,
                               String phoneNumber, LocalDate birthdate, String ciDi) {
         User user = new User();

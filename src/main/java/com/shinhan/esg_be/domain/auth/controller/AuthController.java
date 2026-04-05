@@ -2,6 +2,7 @@ package com.shinhan.esg_be.domain.auth.controller;
 
 import com.shinhan.esg_be.domain.auth.dto.request.AuthJoinRequest;
 import com.shinhan.esg_be.domain.auth.dto.request.AuthLoginRequest;
+import com.shinhan.esg_be.domain.auth.dto.request.RefreshTokenRequest;
 import com.shinhan.esg_be.domain.auth.dto.response.TokenResponse;
 import com.shinhan.esg_be.domain.auth.service.AuthService;
 import jakarta.validation.Valid;
@@ -26,16 +27,19 @@ public class AuthController {
         return ResponseEntity.status(HttpStatus.CREATED).body("회원가입이 완료되었습니다.");
     }
 
-
     @PostMapping("/login")
     public ResponseEntity<TokenResponse> login(@RequestBody @Valid AuthLoginRequest req) {
-        TokenResponse tokenResponse = authService.login(req);
-        return ResponseEntity.ok(tokenResponse);
+        return ResponseEntity.ok(authService.login(req));
+    }
+
+    @PostMapping("/reissue")
+    public ResponseEntity<TokenResponse> reissue(@RequestBody @Valid RefreshTokenRequest req) {
+        return ResponseEntity.ok(authService.reissue(req.getRefreshToken()));
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<String> logout() {
-        // 1. 보통 여기서 Redis에 해당 토큰을 '블랙리스트'로 등록하는 로직이 들어갑니다.
-        return ResponseEntity.ok("로그아웃 되었습니다. 브라우저의 토큰을 삭제해주세요.");
+    public ResponseEntity<String> logout(@RequestBody @Valid RefreshTokenRequest req) {
+        authService.logout(req.getRefreshToken());
+        return ResponseEntity.ok("로그아웃이 완료되었습니다.");
     }
 }

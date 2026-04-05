@@ -27,7 +27,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String token = resolveToken(request);
 
         // 2. 토큰이 있고 유효하다면 인증 처리
-        if (token != null && jwtTokenProvider.validateToken(token)) {
+        if (token != null
+                && jwtTokenProvider.validateToken(token)
+                && jwtTokenProvider.isAccessToken(token)) {
             String loginId = jwtTokenProvider.getLoginId(token);
 
             // 시큐리티 전용 인증 객체 생성 (권한은 일단 빈 리스트로 설정)

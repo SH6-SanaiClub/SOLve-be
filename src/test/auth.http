@@ -1,79 +1,52 @@
-### 1. [회원가입] 정상 등록 (첫 번째 유저)
+### 1. 회원가입
 POST http://localhost:8080/api/auth/join
 Content-Type: application/json
 
 {
-  "loginId": "sohee",
-  "password": "password",
+  "loginId": "sohi",
+  "password": "pw",
   "name": "이소희",
-  "email": "sohee@shinhan.com",
-  "phoneNumber": "010-1122-3344",
-  "birthdate": "2003-11-21T00:00:00",
+  "email": "sohe@shinhan.com",
+  "phoneNumber": "010-1422-3345",
+  "birthdate": "2003-11-21",
   "ciDi": "1"
 }
 
-
-### 2. [중복 체크] 동일한 아이디로 가입 시도
-# 결과: "이미 존재하는 아이디입니다." 에러가 나야 정상
-POST http://localhost:8080/api/auth/join
-Content-Type: application/json
-
-{
-  "loginId": "user_01",
-  "password": "password9999",
-  "name": "이신한",
-  "email": "other@shinhan.com",
-  "phoneNumber": "010-0000-0000",
-  "birthdate": "1990-01-01T00:00:00",
-  "ciDi": "UNIQUE_CERT_KEY_999"
-}
-
-
-### 3. [1인 1계정 체크] 아이디는 다르지만 같은 본인인증 정보(CI/DI)로 가입 시도
-# 결과: "이미 가입된 본인인증 정보가 존재합니다." 에러가 나야 함 (설계 핵심!)
-POST http://localhost:8080/api/auth/join
-Content-Type: application/json
-
-{
-  "loginId": "user_02",
-  "password": "password1234",
-  "name": "김신한(부정가입시도)",
-  "email": "hacker@shinhan.com",
-  "phoneNumber": "010-1111-2222",
-  "birthdate": "1995-04-02T00:00:00",
-  "ciDi": "UNIQUE_CERT_KEY_001"
-}
-
-
-### 4. [로그인] 가입된 정보로 토큰 발급
+### 2. 로그인 후 access/refresh token 저장
 POST http://localhost:8080/api/auth/login
 Content-Type: application/json
 
 {
-  "loginId": "sohee",
-  "password": "password"
+  "loginId": "sohi",
+  "password": "pw"
 }
 
 > {%
     client.global.set("access_token", response.body.accessToken);
-    client.log("✅ 로그인 성공! 토큰이 저장되었습니다.");
+    client.global.set("refresh_token", response.body.refreshToken);
 %}
 
-
-### 5. [인증 확인] 내 정보 조회
+### 3. access token으로 인증
 GET http://localhost:8080/api/users/me
 Authorization: Bearer {{access_token}}
 
-### [실패 테스트] 하이픈 없는 번호
-POST http://localhost:8080/api/auth/join
+### 4. refresh token으로 access/refresh 재발급
+POST http://localhost:8080/api/auth/reissue
 Content-Type: application/json
 
 {
-  "loginId": "testsuser1",
-  "password": "password1",
-  "name": "홍길동1",
-  "email": "test@test1.com",
-  "phoneNumber": "010-4433-5678",
-  "birthdate": "1995-04-07T00:00:00",
-  "ciDi": "UNIQUE_KEY_009"
+  "refreshToken": "{{refresh_token}}"
+}
+
+> {%
+    client.global.set("access_token", response.body.accessToken);
+    client.global.set("refresh_token", response.body.refreshToken);
+%}
+
+### 5. 로그아웃
+POST http://localhost:8080/api/auth/logout
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refresh_token}}"
 }

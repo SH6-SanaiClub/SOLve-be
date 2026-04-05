@@ -5,8 +5,8 @@ spring:
     name: esg-be
   data:
     redis:
-      host: localhost
-      port: 6379
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
 
   datasource:
     url: ${DB_URL}
@@ -21,6 +21,8 @@ spring:
 
 server:
   port: 8080
+
 jwt:
-  secret: ${JWT_SECRET} # 실제 값은 .env 파일에 넣음
-  expiration: 86400000 # 토큰 만료 시간
+  secret: ${JWT_SECRET}
+  access-expiration: ${JWT_ACCESS_EXPIRATION:1800000}
+  refresh-expiration: ${JWT_REFRESH_EXPIRATION:1209600000}
