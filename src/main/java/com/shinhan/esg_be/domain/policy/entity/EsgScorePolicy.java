@@ -1,7 +1,7 @@
 package com.shinhan.esg_be.domain.policy.entity;
 
 import com.shinhan.esg_be.global.common.BaseTimeEntity;
-import com.shinhan.esg_be.global.common.enums.EsgCategory;
+import com.shinhan.esg_be.global.common.enums.ScoreCategory;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -26,30 +26,24 @@ public class EsgScorePolicy extends BaseTimeEntity {
     private Long scoreRuleId;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 10)
-    private EsgCategory category;
+    @Column(nullable = false, length = 20)
+    private ScoreCategory category;
 
-    @Column(name = "monthly_max_score", nullable = false)
+    @Column(name = "monthly_max_score")
     private Integer monthlyMaxScore;
 
-    @Column(name = "consecutive_target_months", nullable = false)
+    @Column(name = "max_score", nullable = false)
+    private Integer maxScore;
+
+    @Column(name = "consecutive_target_months")
     private Integer consecutiveTargetMonths;
 
-    @Column(name = "consecutive_bonus_score", nullable = false)
+    @Column(name = "consecutive_bonus_score")
     private Integer consecutiveBonusScore;
 
     @Column(name = "is_active", nullable = false)
     private Boolean isActive;
 
-    @Column(name = "base_e_score", nullable = false)
-    private Integer baseEScore = 50;
-
-    @Column(name = "base_s_score", nullable = false)
-    private Integer baseSScore = 250;
-
-    @Column(name = "base_g_activity_score", nullable = false)
-    private Integer baseGActivityScore = 100;
-
-    @Column(name = "base_g_repayment_score", nullable = false)
-    private Integer baseGRepaymentScore = 100;
+    @Column(name = "base_score", nullable = false)
+    private Integer baseScore;
 }
