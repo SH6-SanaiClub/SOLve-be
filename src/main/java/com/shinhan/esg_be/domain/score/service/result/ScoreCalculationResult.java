@@ -1,6 +1,6 @@
 package com.shinhan.esg_be.domain.score.service.result;
 
-import com.shinhan.esg_be.domain.score.entity.enums.ScoreCategory;
+import com.shinhan.esg_be.global.common.enums.ScoreCategory;
 
 public record ScoreCalculationResult(
         ScoreCategory scoreCategory,
