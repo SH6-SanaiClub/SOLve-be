@@ -2,10 +2,12 @@ package com.shinhan.esg_be.domain.score.service;
 
 import com.shinhan.esg_be.domain.score.service.command.ScoreCalculationCommand;
 import com.shinhan.esg_be.domain.score.service.result.ScoreCalculationResult;
+import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 
+@Service
 public class ScoreCalculatorService {
 
     // 월 한도와 포인트 정책을 반영해 점수 계산 결과를 만든다.

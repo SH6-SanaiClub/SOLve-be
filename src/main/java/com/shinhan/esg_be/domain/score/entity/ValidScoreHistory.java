@@ -59,4 +59,22 @@ public class ValidScoreHistory {
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    public static ValidScoreHistory create(
+            User user,
+            ScoreCategory category,
+            int changeAmount,
+            ActivityType reason,
+            LocalDateTime validUntil,
+            int scoreAfter
+    ) {
+        ValidScoreHistory validScoreHistory = new ValidScoreHistory();
+        validScoreHistory.user = user;
+        validScoreHistory.category = category;
+        validScoreHistory.changeAmount = changeAmount;
+        validScoreHistory.reason = reason;
+        validScoreHistory.validUntil = validUntil;
+        validScoreHistory.scoreAfter = scoreAfter;
+        return validScoreHistory;
+    }
 }

@@ -59,4 +59,22 @@ public class ExpiredScoreHistory {
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    public static ExpiredScoreHistory create(
+            User user,
+            ScoreCategory category,
+            int changeAmount,
+            ActivityType reason,
+            LocalDateTime validUntil,
+            int scoreAfter
+    ) {
+        ExpiredScoreHistory expiredScoreHistory = new ExpiredScoreHistory();
+        expiredScoreHistory.user = user;
+        expiredScoreHistory.category = category;
+        expiredScoreHistory.changeAmount = changeAmount;
+        expiredScoreHistory.reason = reason;
+        expiredScoreHistory.validUntil = validUntil;
+        expiredScoreHistory.scoreAfter = scoreAfter;
+        return expiredScoreHistory;
+    }
 }

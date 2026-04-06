@@ -1,6 +1,7 @@
 package com.shinhan.esg_be.domain.stat.entity;
 
 import com.shinhan.esg_be.domain.user.entity.User;
+import com.shinhan.esg_be.global.common.enums.ScoreCategory;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -61,4 +62,38 @@ public class UserMonthlyStat {
     @LastModifiedDate
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    public static UserMonthlyStat create(User user) {
+        UserMonthlyStat userMonthlyStat = new UserMonthlyStat();
+        userMonthlyStat.user = user;
+        return userMonthlyStat;
+    }
+
+    public void addScore(ScoreCategory scoreCategory, int scoreDelta) {
+        if (scoreDelta == 0) {
+            return;
+        }
+
+        switch (scoreCategory) {
+            case E -> monthlyEScore += scoreDelta;
+            case S -> monthlySScore += scoreDelta;
+            case G_ACTIVITY -> monthlyGScore += scoreDelta;
+            case G_REPAYMENT -> {
+            }
+        }
+    }
+
+    public int getMonthlyScore(ScoreCategory scoreCategory) {
+        return switch (scoreCategory) {
+            case E -> monthlyEScore;
+            case S -> monthlySScore;
+            case G_ACTIVITY, G_REPAYMENT -> monthlyGScore;
+        };
+    }
+
+    public void resetMonthlyScores() {
+        monthlyEScore = 0;
+        monthlySScore = 0;
+        monthlyGScore = 0;
+    }
 }
