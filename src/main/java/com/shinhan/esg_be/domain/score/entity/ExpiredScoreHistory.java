@@ -1,8 +1,8 @@
 package com.shinhan.esg_be.domain.score.entity;
 
-import com.shinhan.esg_be.domain.score.entity.enums.ScoreCategory;
 import com.shinhan.esg_be.domain.user.entity.User;
 import com.shinhan.esg_be.global.common.enums.ActivityType;
+import com.shinhan.esg_be.global.common.enums.ScoreCategory;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
