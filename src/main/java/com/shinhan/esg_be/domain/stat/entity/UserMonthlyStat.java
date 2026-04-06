@@ -91,6 +91,18 @@ public class UserMonthlyStat {
         };
     }
 
+    public void updateEConsecutiveMaxScore(int consecutiveCount) {
+        this.consecutiveEMaxScore = consecutiveCount;
+    }
+
+    public void updateSConsecutiveMaxScore(int consecutiveCount) {
+        this.consecutiveSMaxScore = consecutiveCount;
+    }
+
+    public void updateGConsecutiveMaxScore(int consecutiveCount) {
+        this.consecutiveGMaxScore = consecutiveCount;
+    }
+
     public void resetMonthlyScores() {
         monthlyEScore = 0;
         monthlySScore = 0;

@@ -14,12 +14,13 @@ import com.shinhan.esg_be.domain.stat.entity.UserMonthlyStat;
 import com.shinhan.esg_be.domain.stat.repository.UserMonthlyStatRepository;
 import com.shinhan.esg_be.domain.user.entity.User;
 import com.shinhan.esg_be.domain.user.repository.UserRepository;
+import com.shinhan.esg_be.global.common.enums.ActivityType;
 import com.shinhan.esg_be.global.common.enums.ScoreCategory;
+import com.shinhan.esg_be.global.common.enums.ScoreReason;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Service
@@ -36,6 +37,7 @@ public class ScoreService {
 
     @Transactional
     public ApplyActivityScoreResult applyActivityScore(ApplyActivityScoreCommand command) {
+        // 활동 정책과 점수 정책을 함께 조회해 실제 반영 값을 계산한다.
         User user = userRepository.findById(command.userId())
                 .orElseThrow(() -> new IllegalArgumentException("User not found."));
 
@@ -63,6 +65,7 @@ public class ScoreService {
                 )
         );
 
+        // 반영 점수가 있을 때만 사용자 점수, 월 통계, 유효 점수 이력을 갱신한다.
         if (calculationResult.appliedScore() > 0) {
             user.applyScore(scoreCategory, calculationResult.appliedScore());
             user.updateLastActivityDate(resolveActivityDateTime(command.activityDateTime()));
@@ -70,12 +73,12 @@ public class ScoreService {
 
             validScoreHistoryRepository.save(
                     ValidScoreHistory.create(
-                            user,
-                            scoreCategory,
-                            calculationResult.appliedScore(),
-                            command.activityType(),
-                            resolveActivityDateTime(command.activityDateTime()).plusYears(1),
-                            calculationResult.newScore()
+                        user,
+                        scoreCategory,
+                        calculationResult.appliedScore(),
+                        mapToScoreReason(command.activityType()),
+                        resolveActivityDateTime(command.activityDateTime()).plusYears(1),
+                        calculationResult.newScore()
                     )
             );
         }
@@ -99,5 +102,16 @@ public class ScoreService {
 
     private LocalDateTime resolveActivityDateTime(LocalDateTime activityDateTime) {
         return activityDateTime == null ? LocalDateTime.now() : activityDateTime;
+    }
+
+    private ScoreReason mapToScoreReason(ActivityType activityType) {
+        return switch (activityType) {
+            case DONATION -> ScoreReason.DONATION;
+            case VOLUNTEER -> ScoreReason.VOLUNTEER;
+            case PURCHASE -> ScoreReason.PURCHASE;
+            case QUIZ -> ScoreReason.QUIZ;
+            case PHOTO -> ScoreReason.PHOTO;
+            case LOAN_REPAY -> ScoreReason.LOAN_REPAY;
+        };
     }
 }
