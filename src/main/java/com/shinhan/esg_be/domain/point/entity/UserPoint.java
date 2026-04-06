@@ -4,6 +4,7 @@ import com.shinhan.esg_be.domain.point.entity.enums.PointCategory;
 import com.shinhan.esg_be.domain.user.entity.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
@@ -13,7 +14,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import jakarta.persistence.EntityListeners;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -43,7 +43,7 @@ public class UserPoint {
     private User user;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @Column(nullable = false, length = 40)
     private PointCategory category;
 
     @Column(name = "changed_amount", nullable = false)
@@ -55,4 +55,20 @@ public class UserPoint {
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    public static UserPoint create(
+            User user,
+            Item item,
+            PointCategory category,
+            long changedAmount,
+            long pointAfter
+    ) {
+        UserPoint userPoint = new UserPoint();
+        userPoint.user = user;
+        userPoint.item = item;
+        userPoint.category = category;
+        userPoint.changedAmount = changedAmount;
+        userPoint.pointAfter = pointAfter;
+        return userPoint;
+    }
 }

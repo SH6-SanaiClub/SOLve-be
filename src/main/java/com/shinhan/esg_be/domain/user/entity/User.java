@@ -100,6 +100,13 @@ public class User extends BaseTimeEntity {
         recalculateGrade();
     }
 
+    public void applyPoint(int pointDelta) {
+        if (pointDelta == 0) {
+            return;
+        }
+        totalPoints += pointDelta;
+    }
+
     public void updateLastActivityDate(LocalDateTime activityDateTime) {
         this.lastActivityDate = activityDateTime;
     }

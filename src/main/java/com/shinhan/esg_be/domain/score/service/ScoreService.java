@@ -37,7 +37,6 @@ public class ScoreService {
 
     @Transactional
     public ApplyActivityScoreResult applyActivityScore(ApplyActivityScoreCommand command) {
-        // 활동 정책과 점수 정책을 함께 조회해 실제 반영 값을 계산한다.
         User user = userRepository.findById(command.userId())
                 .orElseThrow(() -> new IllegalArgumentException("User not found."));
 
@@ -51,6 +50,7 @@ public class ScoreService {
         UserMonthlyStat userMonthlyStat = userMonthlyStatRepository.findByUser(user)
                 .orElseGet(() -> userMonthlyStatRepository.save(UserMonthlyStat.create(user)));
 
+        LocalDateTime activityDateTime = resolveActivityDateTime(command.activityDateTime());
         ScoreCalculationResult calculationResult = scoreCalculatorService.calculateActivity(
                 new ScoreCalculationCommand(
                         scoreCategory,
@@ -59,27 +59,23 @@ public class ScoreService {
                         defaultIfNull(activityRewardPolicy.getScoreValue()),
                         userMonthlyStat.getMonthlyScore(scoreCategory),
                         defaultIfNull(esgScorePolicy.getMonthlyMaxScore()),
-                        isMonthlyCapTarget(scoreCategory),
-                        activityRewardPolicy.getPointValue(),
-                        activityRewardPolicy.getPointRate(),
-                        command.amount()
+                        isMonthlyCapTarget(scoreCategory)
                 )
         );
 
-        // 반영 점수가 있을 때만 사용자 점수, 월 통계, 유효 점수 이력을 갱신한다.
         if (calculationResult.appliedScore() > 0) {
             user.applyScore(scoreCategory, calculationResult.appliedScore());
-            user.updateLastActivityDate(resolveActivityDateTime(command.activityDateTime()));
+            user.updateLastActivityDate(activityDateTime);
             userMonthlyStat.addScore(scoreCategory, calculationResult.appliedScore());
 
             validScoreHistoryRepository.save(
                     ValidScoreHistory.create(
-                        user,
-                        scoreCategory,
-                        calculationResult.appliedScore(),
-                        mapToScoreReason(command.activityType()),
-                        resolveActivityDateTime(command.activityDateTime()).plusYears(1),
-                        calculationResult.newScore()
+                            user,
+                            scoreCategory,
+                            calculationResult.appliedScore(),
+                            mapToScoreReason(command.activityType()),
+                            activityDateTime.plusYears(1),
+                            calculationResult.newScore()
                     )
             );
         }
@@ -110,7 +106,7 @@ public class ScoreService {
             case DONATION -> ScoreReason.DONATION;
             case VOLUNTEER -> ScoreReason.VOLUNTEER;
             case PURCHASE -> ScoreReason.PURCHASE;
-            case QUIZ -> ScoreReason.QUIZ;
+            case QUIZ_CORRECT, QUIZ_WRONG -> ScoreReason.QUIZ;
             case PHOTO -> ScoreReason.PHOTO;
             case LOAN_REPAY -> ScoreReason.LOAN_REPAY;
         };

@@ -6,7 +6,6 @@ public record ScoreCalculationResult(
         ScoreCategory scoreCategory,
         int appliedScore,
         int newScore,
-        int appliedPoint,
         int monthlyScoreAfter,
         boolean cappedByMonthlyLimit
 ) {
