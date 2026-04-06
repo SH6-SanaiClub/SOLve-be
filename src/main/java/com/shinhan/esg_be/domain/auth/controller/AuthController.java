@@ -9,10 +9,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -41,5 +38,10 @@ public class AuthController {
     public ResponseEntity<String> logout(@RequestBody @Valid RefreshTokenRequest req) {
         authService.logout(req.getRefreshToken());
         return ResponseEntity.ok("로그아웃이 완료되었습니다.");
+    }
+
+    @GetMapping("/check-id")
+    public ResponseEntity<Boolean> checkId(@RequestParam String loginId) {
+        return ResponseEntity.ok(authService.checkLoginIdDuplicate(loginId));
     }
 }

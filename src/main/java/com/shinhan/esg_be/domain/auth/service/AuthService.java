@@ -107,7 +107,9 @@ public class AuthService {
 
         return new TokenResponse(accessToken, refreshToken);
     }
-
+    public boolean checkLoginIdDuplicate(String loginId) {
+        return userRepository.existsByLoginId(loginId);
+    }
     private String getRefreshTokenKey(String loginId) {
         return REFRESH_TOKEN_PREFIX + loginId;
     }
