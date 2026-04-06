@@ -101,6 +101,46 @@ class ScoreExpirationServiceTest {
         assertThat(expiredScoreHistories).isEmpty();
     }
 
+    @Test
+    @DisplayName("초기 점수와 어뷰징 감점은 만료 대상에서 제외한다")
+    void excludeInitialScoreAndAbuseFromExpiration() {
+        User user = userRepository.save(createUser("expire-user-3", 45, 250, 100, 100));
+        validScoreHistoryRepository.save(
+                ValidScoreHistory.create(
+                        user,
+                        ScoreCategory.E,
+                        5,
+                        ScoreReason.ABUSE,
+                        LocalDateTime.of(2026, 4, 1, 0, 0),
+                        45
+                )
+        );
+        validScoreHistoryRepository.save(
+                ValidScoreHistory.create(
+                        user,
+                        ScoreCategory.E,
+                        50,
+                        ScoreReason.INITIAL_SCORE,
+                        LocalDateTime.of(2026, 4, 1, 0, 0),
+                        50
+                )
+        );
+
+        int expiredCount = scoreExpirationService.expireUserScores(
+                user.getUserId(),
+                LocalDateTime.of(2026, 4, 6, 0, 0)
+        );
+
+        User savedUser = userRepository.findById(user.getUserId()).orElseThrow();
+        List<ValidScoreHistory> validScoreHistories = validScoreHistoryRepository.findAll();
+        List<ExpiredScoreHistory> expiredScoreHistories = expiredScoreHistoryRepository.findAll();
+
+        assertThat(expiredCount).isZero();
+        assertThat(savedUser.getEScore()).isEqualTo(45);
+        assertThat(validScoreHistories).hasSize(2);
+        assertThat(expiredScoreHistories).isEmpty();
+    }
+
     private User createUser(String loginId, int eScore, int sScore, int gActivityScore, int gRepaymentScore) {
         User user = newInstance(User.class);
         ReflectionTestUtils.setField(user, "loginId", loginId);

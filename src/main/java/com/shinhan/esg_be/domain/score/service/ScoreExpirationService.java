@@ -12,6 +12,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
+
+import static com.shinhan.esg_be.global.common.enums.ScoreReason.ABUSE;
+import static com.shinhan.esg_be.global.common.enums.ScoreReason.INITIAL_SCORE;
 
 @Service
 @RequiredArgsConstructor
@@ -28,7 +32,11 @@ public class ScoreExpirationService {
                 .orElseThrow(() -> new IllegalArgumentException("User not found."));
 
         LocalDateTime baseDateTime = expiredAt == null ? LocalDateTime.now() : expiredAt;
-        List<ValidScoreHistory> expiredScores = validScoreHistoryRepository.findByUserAndValidUntilBefore(user, baseDateTime);
+        List<ValidScoreHistory> expiredScores = validScoreHistoryRepository.findByUserAndValidUntilBefore(user, baseDateTime)
+                .stream()
+                .filter(validScoreHistory -> validScoreHistory.getReason() != INITIAL_SCORE)
+                .filter(validScoreHistory -> validScoreHistory.getReason() != ABUSE)
+                .collect(Collectors.toList());
         if (expiredScores.isEmpty()) {
             return 0;
         }

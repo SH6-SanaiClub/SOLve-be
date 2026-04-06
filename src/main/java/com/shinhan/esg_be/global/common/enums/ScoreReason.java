@@ -1,6 +1,7 @@
 package com.shinhan.esg_be.global.common.enums;
 
 public enum ScoreReason {
+    INITIAL_SCORE,
     DONATION,
     VOLUNTEER,
     PURCHASE,
