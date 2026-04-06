@@ -7,6 +7,7 @@ import java.math.BigDecimal;
 public record ScoreCalculationCommand(
         ScoreCategory scoreCategory,
         int currentScore,
+        int maxScore,
         int scoreValue,
         int monthlyCurrentScore,
         int monthlyMaxScore,

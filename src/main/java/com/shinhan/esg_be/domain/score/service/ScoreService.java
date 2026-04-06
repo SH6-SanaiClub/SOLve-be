@@ -55,6 +55,7 @@ public class ScoreService {
                 new ScoreCalculationCommand(
                         scoreCategory,
                         user.getScore(scoreCategory),
+                        defaultIfNull(esgScorePolicy.getMaxScore()),
                         defaultIfNull(activityRewardPolicy.getScoreValue()),
                         userMonthlyStat.getMonthlyScore(scoreCategory),
                         defaultIfNull(esgScorePolicy.getMonthlyMaxScore()),

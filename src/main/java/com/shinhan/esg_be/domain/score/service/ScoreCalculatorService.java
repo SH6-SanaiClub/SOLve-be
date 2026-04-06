@@ -16,15 +16,21 @@ public class ScoreCalculatorService {
             throw new IllegalArgumentException("ScoreCalculationCommand must not be null.");
         }
 
-        int appliedScore = command.scoreValue();
+        int appliedScore = Math.max(0, command.scoreValue());
         boolean isCapped = false;
 
-        if (command.applyMonthlyCap() && command.scoreValue() > 0) {
+        if (command.applyMonthlyCap() && appliedScore > 0) {
             int remaining = Math.max(0, command.monthlyMaxScore() - command.monthlyCurrentScore());
-            if (command.scoreValue() > remaining) {
+            if (appliedScore > remaining) {
                 appliedScore = remaining;
                 isCapped = true;
             }
+        }
+
+        int remainingTotalScore = Math.max(0, command.maxScore() - command.currentScore());
+        if (appliedScore > remainingTotalScore) {
+            appliedScore = remainingTotalScore;
+            isCapped = true;
         }
 
         int newScore = command.currentScore() + appliedScore;
