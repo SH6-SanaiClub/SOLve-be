@@ -33,16 +33,9 @@ public interface UserDonationRepository extends JpaRepository<UserDonation, Long
             @Param("since") LocalDateTime since
     );
 
-    // 최근 14일 특정 캠페인 기부 횟수 (피로도 감점)
-    @Query("""
-            SELECT COUNT(ud) FROM UserDonation ud
-            WHERE ud.user.userId = :userId
-              AND ud.donation.donationId = :donationId
-              AND ud.createdAt >= :since
-            """)
-    long countRecentByDonation(
-            @Param("userId") Long userId,
-            @Param("donationId") Long donationId,
-            @Param("since") LocalDateTime since
+    long countByUser_UserIdAndDonation_DonationIdAndCreatedAtAfter(
+            Long userId,
+            Long donationId,
+            LocalDateTime since
     );
 }

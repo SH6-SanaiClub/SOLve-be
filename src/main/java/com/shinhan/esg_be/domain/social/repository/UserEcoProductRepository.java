@@ -20,16 +20,9 @@ public interface UserEcoProductRepository extends JpaRepository<UserEcoProduct, 
             @Param("since") LocalDateTime since
     );
 
-    // 최근 14일 특정 상품 구매 횟수 (피로도 감점)
-    @Query("""
-            SELECT COUNT(uep) FROM UserEcoProduct uep
-            WHERE uep.user.userId = :userId
-              AND uep.ecoProduct.productId = :productId
-              AND uep.createdAt >= :since
-            """)
-    long countRecentByProduct(
-            @Param("userId") Long userId,
-            @Param("productId") Long productId,
-            @Param("since") LocalDateTime since
+    long countByUser_UserIdAndEcoProduct_ProductIdAndCreatedAtAfter(
+            Long userId,
+            Long productId,
+            LocalDateTime since
     );
 }
