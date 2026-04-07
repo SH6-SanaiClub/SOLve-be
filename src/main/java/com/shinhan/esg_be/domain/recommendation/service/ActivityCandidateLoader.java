@@ -28,6 +28,8 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class ActivityCandidateLoader {
 
+    private static final double QUIZ_EXPECTED_CORRECT_RATE = 0.5;
+
     private final ActivityRepository activityRepository;
     private final DonationRepository donationRepository;
     private final VolunteerRepository volunteerRepository;
@@ -137,17 +139,21 @@ public class ActivityCandidateLoader {
             }
         }
 
-        // G 활동 - 퀴즈 (QUIZ)
-        ActivityRewardPolicy quizPolicy = policyMap.get(ActivityType.QUIZ);
-        if (quizPolicy != null) {
+        // G 활동 - 퀴즈 (QUIZ_CORRECT / QUIZ_WRONG 정책을 단일 QUIZ 후보로 합성)
+        ActivityRewardPolicy quizCorrectPolicy = policyMap.get(ActivityType.QUIZ_CORRECT);
+        ActivityRewardPolicy quizWrongPolicy = policyMap.get(ActivityType.QUIZ_WRONG);
+        if (quizCorrectPolicy != null || quizWrongPolicy != null) {
+            int scoreValue = resolveQuizScoreValue(quizCorrectPolicy, quizWrongPolicy);
+            int pointValue = resolveQuizExpectedPointValue(quizCorrectPolicy, quizWrongPolicy);
             quizRepository.findTodayActiveQuiz(now).ifPresent(q ->
                     candidates.add(ActivityCandidateDto.builder()
-                            .activityType(ActivityType.QUIZ.name())
+                            // 추천 파이프라인에서는 단일 타입 "QUIZ"로 처리
+                            .activityType("QUIZ")
                             .referenceId(q.getQuizId())
                             .name("오늘의 금융 퀴즈")
                             .scoreCategory("G")
-                            .scoreValue(quizPolicy.getScoreValue())
-                            .pointValue(quizPolicy.getPointValue() != null ? quizPolicy.getPointValue() : 0)
+                            .scoreValue(scoreValue)
+                            .pointValue(pointValue)
                             .pointRate(0.0)
                             .difficultyIndex(1.0)
                             .isActive(Boolean.TRUE.equals(q.getIsActive()))
@@ -159,5 +165,39 @@ public class ActivityCandidateLoader {
         }
 
         return candidates;
+    }
+
+    private int resolveQuizScoreValue(
+            ActivityRewardPolicy quizCorrectPolicy,
+            ActivityRewardPolicy quizWrongPolicy
+    ) {
+        if (quizCorrectPolicy != null && quizCorrectPolicy.getScoreValue() != null) {
+            return quizCorrectPolicy.getScoreValue();
+        }
+        if (quizWrongPolicy != null && quizWrongPolicy.getScoreValue() != null) {
+            return quizWrongPolicy.getScoreValue();
+        }
+        return 0;
+    }
+
+    private int resolveQuizExpectedPointValue(
+            ActivityRewardPolicy quizCorrectPolicy,
+            ActivityRewardPolicy quizWrongPolicy
+    ) {
+        int correctPoint = quizCorrectPolicy != null && quizCorrectPolicy.getPointValue() != null
+                ? quizCorrectPolicy.getPointValue() : 0;
+        int wrongPoint = quizWrongPolicy != null && quizWrongPolicy.getPointValue() != null
+                ? quizWrongPolicy.getPointValue() : 0;
+
+        if (quizCorrectPolicy == null) {
+            return wrongPoint;
+        }
+        if (quizWrongPolicy == null) {
+            return correctPoint;
+        }
+
+        double expected = correctPoint * QUIZ_EXPECTED_CORRECT_RATE
+                + wrongPoint * (1.0 - QUIZ_EXPECTED_CORRECT_RATE);
+        return (int) Math.round(expected);
     }
 }
