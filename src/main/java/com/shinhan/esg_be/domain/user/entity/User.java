@@ -3,6 +3,7 @@ package com.shinhan.esg_be.domain.user.entity;
 import com.shinhan.esg_be.domain.user.entity.enums.Grade;
 import com.shinhan.esg_be.domain.user.entity.enums.UserType;
 import com.shinhan.esg_be.global.common.BaseTimeEntity;
+import com.shinhan.esg_be.global.common.enums.ScoreCategory;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -14,7 +15,7 @@ import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -37,16 +38,16 @@ public class User extends BaseTimeEntity {
     @Column(nullable = false)
     private String name;
 
-    @Column(name = "phone_number", nullable = false)
+    @Column(name = "phone_number", unique = true, nullable = false)
     private String phoneNumber;
 
     @Column(nullable = false)
-    private LocalDateTime birthdate;
+    private LocalDate birthdate;
 
     @Column(nullable = false, unique = true)
     private String email;
 
-    @Column(name = "ci_di", nullable = false)
+    @Column(name = "ci_di", unique = true, nullable = false)
     private String ciDi;
 
     @Enumerated(EnumType.STRING)
@@ -83,4 +84,111 @@ public class User extends BaseTimeEntity {
 
     @Column(name = "is_linked", nullable = false)
     private Boolean isLinked = false;
+
+    public static User create(String loginId, String password, String name, String email,
+                              String phoneNumber, LocalDate birthdate, String ciDi) {
+        User user = new User();
+        user.loginId = loginId;
+        user.password = password;
+        user.name = name;
+        user.email = email;
+        user.phoneNumber = phoneNumber;
+        user.birthdate = birthdate;
+        user.ciDi = ciDi;
+        user.eScore = 50;
+        user.sScore = 250;
+        user.gActivityScore = 100;
+        user.gRepaymentScore = 100;
+        user.userType = UserType.ALL_ROUNDER;
+        user.currentGrade = Grade.SEED;
+        user.abuseCount = 0;
+        user.totalPoints = 0;
+        user.isActive = true;
+        user.isLinked = false;
+
+        return user;
+    }
+  
+    public void applyScore(ScoreCategory scoreCategory, int scoreDelta) {
+        if (scoreDelta == 0) {
+            return;
+        }
+
+        switch (scoreCategory) {
+            case E -> eScore += scoreDelta;
+            case S -> sScore += scoreDelta;
+            case G_ACTIVITY -> gActivityScore += scoreDelta;
+            case G_REPAYMENT -> gRepaymentScore += scoreDelta;
+        }
+
+        recalculateGrade();
+    }
+
+    public void initializeScore(ScoreCategory scoreCategory, int score) {
+        switch (scoreCategory) {
+            case E -> eScore = score;
+            case S -> sScore = score;
+            case G_ACTIVITY -> gActivityScore = score;
+            case G_REPAYMENT -> gRepaymentScore = score;
+        }
+
+        recalculateGrade();
+    }
+
+    public void applyPoint(int pointDelta) {
+        if (pointDelta == 0) {
+            return;
+        }
+        totalPoints += pointDelta;
+    }
+
+    public void increaseAbuseCount() {
+        abuseCount += 1;
+    }
+
+    public void blockLoan() {
+        // Loan blocking is currently derived from abuseCount.
+    }
+
+    public boolean getIsLoanBlocked() {
+        return abuseCount > 0;
+    }
+
+    public void updateLastActivityDate(LocalDateTime activityDateTime) {
+        this.lastActivityDate = activityDateTime;
+    }
+
+    public int getScore(ScoreCategory scoreCategory) {
+        return switch (scoreCategory) {
+            case E -> eScore;
+            case S -> sScore;
+            case G_ACTIVITY -> gActivityScore;
+            case G_REPAYMENT -> gRepaymentScore;
+        };
+    }
+
+    public int getTotalScore() {
+        return eScore + sScore + gActivityScore + gRepaymentScore;
+    }
+
+    public void recalculateGrade() {
+        int totalScore = getTotalScore();
+        if (totalScore >= 900) {
+            currentGrade = Grade.EARTH;
+            return;
+        }
+        if (totalScore >= 800) {
+            currentGrade = Grade.FOREST;
+            return;
+        }
+        if (totalScore >= 700) {
+            currentGrade = Grade.TREE;
+            return;
+        }
+        if (totalScore >= 600) {
+            currentGrade = Grade.SPROUT;
+            return;
+        }
+        currentGrade = Grade.SEED;
+    }
 }

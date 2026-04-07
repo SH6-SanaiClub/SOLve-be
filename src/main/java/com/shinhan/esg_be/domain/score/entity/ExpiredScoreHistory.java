@@ -1,8 +1,8 @@
 package com.shinhan.esg_be.domain.score.entity;
 
 import com.shinhan.esg_be.domain.user.entity.User;
-import com.shinhan.esg_be.global.common.enums.ActivityType;
 import com.shinhan.esg_be.global.common.enums.ScoreCategory;
+import com.shinhan.esg_be.global.common.enums.ScoreReason;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -48,7 +48,7 @@ public class ExpiredScoreHistory {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
-    private ActivityType reason;
+    private ScoreReason reason;
 
     @Column(name = "valid_until", nullable = false)
     private LocalDateTime validUntil;
@@ -59,4 +59,22 @@ public class ExpiredScoreHistory {
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    public static ExpiredScoreHistory create(
+            User user,
+            ScoreCategory category,
+            int changeAmount,
+            ScoreReason reason,
+            LocalDateTime validUntil,
+            int scoreAfter
+    ) {
+        ExpiredScoreHistory expiredScoreHistory = new ExpiredScoreHistory();
+        expiredScoreHistory.user = user;
+        expiredScoreHistory.category = category;
+        expiredScoreHistory.changeAmount = changeAmount;
+        expiredScoreHistory.reason = reason;
+        expiredScoreHistory.validUntil = validUntil;
+        expiredScoreHistory.scoreAfter = scoreAfter;
+        return expiredScoreHistory;
+    }
 }

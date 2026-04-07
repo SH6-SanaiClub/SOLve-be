@@ -135,7 +135,8 @@ public class SharedBikeVerificationValidator {
                 || searchText.contains("이용 상세정보")
                 || searchText.contains("이용 상세")
                 || searchText.contains("이용내역")
-                || (searchText.contains("출발") && searchText.contains("도착"));
+                || (searchText.contains("출발") && searchText.contains("도착"))
+                || (searchText.contains("대여장소") && searchText.contains("반납장소"));
     }
 
     private boolean hasAmountEvidence(ParsedEnvironmentData parsedData) {

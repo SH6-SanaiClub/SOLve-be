@@ -16,10 +16,16 @@ import com.shinhan.esg_be.domain.environment.service.validator.EvRentalVerificat
 import com.shinhan.esg_be.domain.environment.service.validator.SharedBikeVerificationValidator;
 import com.shinhan.esg_be.domain.environment.service.validator.TumblerVerificationValidator;
 import com.shinhan.esg_be.domain.environment.service.validator.ValidationResult;
+import com.shinhan.esg_be.domain.reward.service.RewardService;
+import com.shinhan.esg_be.domain.reward.service.command.ApplyActivityRewardCommand;
+import com.shinhan.esg_be.domain.reward.service.result.ApplyActivityRewardResult;
 import com.shinhan.esg_be.domain.user.entity.User;
 import com.shinhan.esg_be.domain.user.repository.UserRepository;
+import com.shinhan.esg_be.global.common.enums.ActivityType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -39,6 +45,7 @@ import static org.springframework.http.HttpStatus.BAD_GATEWAY;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.CONFLICT;
 import static org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR;
+import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
 @Service
 @Slf4j
@@ -50,6 +57,7 @@ public class EnvironmentVerificationService {
     private static final long MAX_IMAGE_FILE_SIZE_BYTES = 10L * 1024L * 1024L;
 
     private final AzureDocumentIntelligenceClient azureDocumentIntelligenceClient;
+    private final RewardService rewardService;
     private final UserRepository userRepository;
     private final EnvironmentActivityRepository environmentActivityRepository;
     private final UserEnvironmentActivityRepository userEnvironmentActivityRepository;
@@ -94,6 +102,7 @@ public class EnvironmentVerificationService {
         JsonNode rawResult = analyze(image, modelId);
         ParsedEnvironmentData parsedData = parse(activityType, rawResult);
         logParsedData(activityType, parsedData);
+
         ValidationResult validationResult = validate(activityType, parsedData);
         log.info(
                 "Environment verification result: activityType={}, approved={}, reason={}",
@@ -101,14 +110,16 @@ public class EnvironmentVerificationService {
                 validationResult.approved(),
                 validationResult.reason()
         );
+
         UserEnvironmentActivity savedActivity = saveVerification(
                 user,
                 environmentActivity,
                 parsedData,
                 validationResult
         );
+        int rewardPoint = applyReward(user, savedActivity, validationResult);
 
-        return buildResponse(savedActivity.getActId(), activityType, validationResult);
+        return buildResponse(savedActivity.getActId(), activityType, validationResult.approved(), rewardPoint);
     }
 
     private void validateImage(MultipartFile image) {
@@ -176,6 +187,29 @@ public class EnvironmentVerificationService {
         return userEnvironmentActivityRepository.save(userEnvironmentActivity);
     }
 
+    private int applyReward(
+            User user,
+            UserEnvironmentActivity savedActivity,
+            ValidationResult validationResult
+    ) {
+        if (!validationResult.approved()) {
+            return 0;
+        }
+
+        ApplyActivityRewardResult rewardResult = rewardService.applyActivityReward(
+                new ApplyActivityRewardCommand(
+                        user.getUserId(),
+                        ActivityType.PHOTO,
+                        null,
+                        savedActivity.getCreatedAt() != null
+                                ? savedActivity.getCreatedAt()
+                                : LocalDateTime.now(KOREA_ZONE)
+                )
+        );
+
+        return rewardResult.pointResult().activityPoint() + rewardResult.pointResult().bonusPoint();
+    }
+
     private String resolveActivityName(EnvironmentActivityType activityType) {
         return switch (activityType) {
             case TUMBLER -> "텀블러 인증";
@@ -197,10 +231,15 @@ public class EnvironmentVerificationService {
     }
 
     private User resolveCurrentUser() {
-        return userRepository.findFirstByOrderByUserIdAsc()
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || authentication.getName() == null || authentication.getName().isBlank()) {
+            throw new ResponseStatusException(UNAUTHORIZED, "인증된 사용자 정보가 없습니다.");
+        }
+
+        return userRepository.findByLoginId(authentication.getName())
                 .orElseThrow(() -> new ResponseStatusException(
-                        BAD_REQUEST,
-                        "저장할 사용자 정보가 없습니다."
+                        UNAUTHORIZED,
+                        "인증된 사용자 정보를 찾을 수 없습니다."
                 ));
     }
 
@@ -236,27 +275,15 @@ public class EnvironmentVerificationService {
     private EnvironmentVerificationResponse buildResponse(
             Long verificationId,
             EnvironmentActivityType activityType,
-            ValidationResult validationResult
+            boolean approved,
+            int rewardPoint
     ) {
         return new EnvironmentVerificationResponse(
                 verificationId,
                 activityType,
-                validationResult.approved(),
-                resolveRewardPoint(activityType, validationResult)
+                approved,
+                rewardPoint
         );
-    }
-
-    private Integer resolveRewardPoint(
-            EnvironmentActivityType activityType,
-            ValidationResult validationResult
-    ) {
-        if (!validationResult.approved()) {
-            return 0;
-        }
-
-        return switch (activityType) {
-            case TUMBLER, SHARED_BIKE, EV_RENTAL -> 30;
-        };
     }
 
     private void logParsedData(EnvironmentActivityType activityType, ParsedEnvironmentData parsedData) {
