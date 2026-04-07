@@ -100,6 +100,17 @@ public class User extends BaseTimeEntity {
         recalculateGrade();
     }
 
+    public void initializeScore(ScoreCategory scoreCategory, int score) {
+        switch (scoreCategory) {
+            case E -> eScore = score;
+            case S -> sScore = score;
+            case G_ACTIVITY -> gActivityScore = score;
+            case G_REPAYMENT -> gRepaymentScore = score;
+        }
+
+        recalculateGrade();
+    }
+
     public void applyPoint(int pointDelta) {
         if (pointDelta == 0) {
             return;

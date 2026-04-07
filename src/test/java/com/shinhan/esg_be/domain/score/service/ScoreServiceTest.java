@@ -27,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.lang.reflect.Constructor;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -132,6 +133,38 @@ class ScoreServiceTest {
         assertThat(result.cappedByMonthlyLimit()).isTrue();
         assertThat(savedUser.getEScore()).isEqualTo(100);
         assertThat(savedStat.getMonthlyEScore()).isEqualTo(5);
+    }
+
+    @Test
+    @DisplayName("회원가입 시 기본 점수를 초기화하고 INITIAL_SCORE 이력을 남긴다")
+    void initializeUserScore() {
+        User user = userRepository.save(createUser("score-user-4", 0, 0, 0, 0));
+        esgScorePolicyRepository.save(createEsgScorePolicy(ScoreCategory.E, 100, 5, 3, 10, 50));
+        esgScorePolicyRepository.save(createEsgScorePolicy(ScoreCategory.S, 500, 25, 3, 50, 250));
+        esgScorePolicyRepository.save(createEsgScorePolicy(ScoreCategory.G_ACTIVITY, 200, 10, 3, 20, 100));
+        esgScorePolicyRepository.save(createEsgScorePolicy(ScoreCategory.G_REPAYMENT, 200, 0, 0, 0, 100));
+
+        scoreService.initializeUserScore(user.getUserId());
+
+        User savedUser = userRepository.findById(user.getUserId()).orElseThrow();
+        UserMonthlyStat savedStat = userMonthlyStatRepository.findByUser(savedUser).orElseThrow();
+        List<ValidScoreHistory> scoreHistories = validScoreHistoryRepository.findAll()
+                .stream()
+                .sorted(Comparator.comparing(ValidScoreHistory::getCategory))
+                .toList();
+
+        assertThat(savedUser.getEScore()).isEqualTo(50);
+        assertThat(savedUser.getSScore()).isEqualTo(250);
+        assertThat(savedUser.getGActivityScore()).isEqualTo(100);
+        assertThat(savedUser.getGRepaymentScore()).isEqualTo(100);
+        assertThat(savedUser.getCurrentGrade()).isEqualTo(Grade.SEED);
+        assertThat(savedStat.getMonthlyEScore()).isZero();
+        assertThat(savedStat.getMonthlySScore()).isZero();
+        assertThat(savedStat.getMonthlyGScore()).isZero();
+        assertThat(scoreHistories).hasSize(4);
+        assertThat(scoreHistories).allMatch(history -> history.getReason() == ScoreReason.INITIAL_SCORE);
+        assertThat(scoreHistories).extracting(ValidScoreHistory::getChangeAmount)
+                .containsExactly(50, 250, 100, 100);
     }
 
     private User createUser(String loginId, int eScore, int sScore, int gActivityScore, int gRepaymentScore) {
