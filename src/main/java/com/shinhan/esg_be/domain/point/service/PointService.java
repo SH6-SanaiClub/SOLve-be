@@ -23,8 +23,6 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.YearMonth;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -35,7 +33,7 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class PointService {
 
-    private static final Set<PointReason> QUIZ_REASONS = EnumSet.of(PointReason.QUIZ_CORRECT, PointReason.QUIZ_WRONG);
+    private static final Set<PointReason> QUIZ_REASONS = Set.of(PointReason.QUIZ_CORRECT, PointReason.QUIZ_WRONG);
 
     private final UserRepository userRepository;
     private final ActivityRewardPolicyRepository activityRewardPolicyRepository;
@@ -115,12 +113,13 @@ public class PointService {
     }
 
     private int calculateAndApplyBonus(User user, PointReason pointReason, LocalDateTime activityDateTime) {
-        return switch (pointReason) {
-            case VOLUNTEER -> applyVolunteerMilestoneBonus(user);
-            case PHOTO -> applyPhotoStreakBonus(user, activityDateTime);
-            case QUIZ_CORRECT, QUIZ_WRONG -> applyMonthlyQuizBonus(user, activityDateTime);
-            default -> 0;
-        };
+        if (pointReason == PointReason.VOLUNTEER) {
+            return applyVolunteerMilestoneBonus(user);
+        }
+        if (pointReason == PointReason.PHOTO) {
+            return applyPhotoStreakBonus(user, activityDateTime);
+        }
+        return 0;
     }
 
     private int applyVolunteerMilestoneBonus(User user) {
@@ -187,42 +186,6 @@ public class PointService {
         return activePointPolicy.getRewardPoint();
     }
 
-    private int applyMonthlyQuizBonus(User user, LocalDateTime activityDateTime) {
-        Optional<PointPolicy> pointPolicy = findActivePointPolicy(PointPolicyType.QUIZ_MONTHLY);
-        if (pointPolicy.isEmpty()) {
-            return 0;
-        }
-
-        PointPolicy activePointPolicy = pointPolicy.get();
-
-        LocalDate activityDate = activityDateTime.toLocalDate();
-        YearMonth yearMonth = YearMonth.from(activityDate);
-        if (activityDate.getDayOfMonth() != yearMonth.lengthOfMonth()) {
-            return 0;
-        }
-
-        LocalDateTime startOfMonth = yearMonth.atDay(1).atStartOfDay();
-        LocalDateTime endOfMonth = yearMonth.plusMonths(1).atDay(1).atStartOfDay();
-
-        Set<LocalDate> quizParticipationDates = userPointRepository
-                .findByUserAndReasonInAndCreatedAtBetweenOrderByCreatedAtAsc(
-                        user,
-                        QUIZ_REASONS,
-                        startOfMonth,
-                        endOfMonth
-                )
-                .stream()
-                .map(userPoint -> userPoint.getCreatedAt().toLocalDate())
-                .collect(Collectors.toSet());
-
-        if (quizParticipationDates.size() != yearMonth.lengthOfMonth()) {
-            return 0;
-        }
-
-        savePointHistory(user, PointReason.QUIZ_MONTHLY_BONUS, activePointPolicy.getRewardPoint());
-        return activePointPolicy.getRewardPoint();
-    }
-
     private boolean isFirstPhotoOfDay(User user, LocalDateTime activityDateTime) {
         LocalDateTime dayStart = activityDateTime.toLocalDate().atStartOfDay();
         LocalDateTime nextDayStart = dayStart.plusDays(1);
@@ -252,15 +215,25 @@ public class PointService {
     }
 
     private PointReason mapToPointReason(ActivityType activityType) {
-        return switch (activityType) {
-            case DONATION -> PointReason.DONATION;
-            case VOLUNTEER -> PointReason.VOLUNTEER;
-            case PURCHASE -> PointReason.PURCHASE;
-            case PHOTO -> PointReason.PHOTO;
-            case QUIZ_CORRECT -> PointReason.QUIZ_CORRECT;
-            case QUIZ_WRONG -> PointReason.QUIZ_WRONG;
-            case LOAN_REPAY -> null;
-        };
+        if (activityType == ActivityType.DONATION) {
+            return PointReason.DONATION;
+        }
+        if (activityType == ActivityType.VOLUNTEER) {
+            return PointReason.VOLUNTEER;
+        }
+        if (activityType == ActivityType.PURCHASE) {
+            return PointReason.PURCHASE;
+        }
+        if (activityType == ActivityType.PHOTO) {
+            return PointReason.PHOTO;
+        }
+        if (activityType == ActivityType.QUIZ_CORRECT) {
+            return PointReason.QUIZ_CORRECT;
+        }
+        if (activityType == ActivityType.QUIZ_WRONG) {
+            return PointReason.QUIZ_WRONG;
+        }
+        return null;
     }
 
     private Optional<PointPolicy> findActivePointPolicy(PointPolicyType policyType) {

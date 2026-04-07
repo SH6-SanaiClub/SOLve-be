@@ -13,6 +13,13 @@ public interface UserPointRepository extends JpaRepository<UserPoint, Long> {
 
     long countByUserAndReason(User user, PointReason reason);
 
+    boolean existsByUserAndReasonAndCreatedAtBetween(
+            User user,
+            PointReason reason,
+            LocalDateTime startDateTime,
+            LocalDateTime endDateTime
+    );
+
     boolean existsByUserAndReasonInAndCreatedAtBetween(
             User user,
             Collection<PointReason> reasons,

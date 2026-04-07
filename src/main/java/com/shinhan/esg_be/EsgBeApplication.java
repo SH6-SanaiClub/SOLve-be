@@ -5,12 +5,14 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.auditing.DateTimeProvider;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
 @EnableJpaAuditing(dateTimeProviderRef = "auditingDateTimeProvider")
+@EnableScheduling
 @SpringBootApplication
 public class EsgBeApplication {
 

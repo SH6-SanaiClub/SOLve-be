@@ -192,9 +192,9 @@ class PointServiceTest {
         User savedUser = userRepository.findById(user.getUserId()).orElseThrow();
 
         assertThat(result.activityPoint()).isEqualTo(20);
-        assertThat(result.bonusPoint()).isEqualTo(1000);
-        assertThat(savedUser.getTotalPoints()).isEqualTo(1600);
-        assertThat(userPointRepository.findAll().stream().filter(point -> point.getReason() == PointReason.QUIZ_MONTHLY_BONUS)).hasSize(1);
+        assertThat(result.bonusPoint()).isZero();
+        assertThat(savedUser.getTotalPoints()).isEqualTo(600);
+        assertThat(userPointRepository.findAll().stream().filter(point -> point.getReason() == PointReason.QUIZ_MONTHLY_BONUS)).isEmpty();
     }
 
     @Test
