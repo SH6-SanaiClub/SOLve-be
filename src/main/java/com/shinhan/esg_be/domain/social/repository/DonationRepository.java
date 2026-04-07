@@ -17,6 +17,7 @@ public interface DonationRepository extends JpaRepository<Donation, Long> {
             SELECT d
             FROM Donation d
             WHERE d.isActive = true
+              AND d.startDate <= :baseDateTime
               AND d.endDate >= :baseDateTime
             ORDER BY d.endDate ASC
             """)

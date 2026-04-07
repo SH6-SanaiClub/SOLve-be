@@ -84,9 +84,10 @@ public class FeatureExtractor {
         boolean inactivityRisk = (totalRecent30 == 0);
 
         // 6. 유효점수 만료 임박 여부 (30일 이내)
-        LocalDateTime expiryThreshold = LocalDateTime.now().plusDays(30);
+        LocalDateTime nowDateTime = LocalDateTime.now();
+        LocalDateTime expiryThreshold = nowDateTime.plusDays(30);
         boolean scoreExpiryRisk = validScoreHistoryRepository
-                .existsByUser_UserIdAndValidUntilBefore(userId, expiryThreshold);
+                .existsByUser_UserIdAndValidUntilBetween(userId, nowDateTime, expiryThreshold);
 
         // 7. 금융 상품 상태 (B3 금융연계도용)
         var activeSaving = userSavingRepository

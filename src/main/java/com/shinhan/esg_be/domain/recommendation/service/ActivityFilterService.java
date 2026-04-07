@@ -102,8 +102,8 @@ public class ActivityFilterService {
         if (c.getDeadlineDate() != null && !c.getDeadlineDate().isAfter(LocalDate.now())) {
             return false;
         }
-        return !userVolunteerRepository.existsByUser_UserIdAndVolunteer_VolunteerIdAndStatusNot(
-                userId, c.getReferenceId(), VolunteerStatus.NOSHOW
+        return !userVolunteerRepository.existsByUser_UserIdAndVolunteer_VolunteerIdAndStatus(
+                userId, c.getReferenceId(), VolunteerStatus.APPLIED
         );
     }
 

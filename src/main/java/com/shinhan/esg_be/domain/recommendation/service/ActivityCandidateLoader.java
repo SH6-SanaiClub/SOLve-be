@@ -118,7 +118,7 @@ public class ActivityCandidateLoader {
         // S 활동 - 상품구매 (PURCHASE)
         ActivityRewardPolicy purchasePolicy = policyMap.get(ActivityType.PURCHASE);
         if (purchasePolicy != null) {
-            List<EcoProduct> products = ecoProductRepository.findByIsActiveTrue();
+            List<EcoProduct> products = ecoProductRepository.findByIsActiveTrueAndStockGreaterThan(0);
             for (EcoProduct p : products) {
                 candidates.add(ActivityCandidateDto.builder()
                         .activityType(ActivityType.PURCHASE.name())

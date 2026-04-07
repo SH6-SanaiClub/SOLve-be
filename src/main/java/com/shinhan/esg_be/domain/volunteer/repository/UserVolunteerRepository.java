@@ -16,6 +16,9 @@ public interface UserVolunteerRepository extends JpaRepository<UserVolunteer, Lo
     boolean existsByUser_UserIdAndVolunteer_VolunteerIdAndStatusNot(
             Long userId, Long volunteerId, VolunteerStatus status
     );
+    boolean existsByUser_UserIdAndVolunteer_VolunteerIdAndStatus(
+            Long userId, Long volunteerId, VolunteerStatus status
+    );
 
     @Query("""
             SELECT COUNT(uv)
@@ -39,6 +42,7 @@ public interface UserVolunteerRepository extends JpaRepository<UserVolunteer, Lo
             SELECT uv.volunteer.volunteerId AS volunteerId, COUNT(uv) AS count
             FROM UserVolunteer uv
             WHERE uv.createdAt >= :since
+              AND uv.status = com.shinhan.esg_be.domain.volunteer.entity.enums.VolunteerStatus.COMPLETED
             GROUP BY uv.volunteer.volunteerId
             """)
     List<VolunteerCountProjection> countGroupByVolunteerSince(
