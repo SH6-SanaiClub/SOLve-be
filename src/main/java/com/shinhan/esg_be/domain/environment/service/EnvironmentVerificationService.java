@@ -37,9 +37,9 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Arrays;
+import java.util.EnumMap;
 import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
+import java.util.Map;
 
 import static org.springframework.http.HttpStatus.BAD_GATEWAY;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
@@ -72,19 +72,31 @@ public class EnvironmentVerificationService {
         LocalDateTime startOfToday = getStartOfToday();
         LocalDateTime endOfToday = getEndOfToday();
 
-        Set<EnvironmentActivityType> attemptedTypes = userEnvironmentActivityRepository
-                .findAllByUserAndCreatedAtBetween(user, startOfToday, endOfToday)
-                .stream()
-                .map(UserEnvironmentActivity::getActivity)
-                .map(EnvironmentActivity::getName)
-                .map(this::resolveActivityTypeByName)
-                .collect(Collectors.toSet());
+        Map<EnvironmentActivityType, UserEnvironmentActivity> latestAttemptByType = new EnumMap<>(EnvironmentActivityType.class);
+
+        for (UserEnvironmentActivity activity : userEnvironmentActivityRepository.findAllByUserAndCreatedAtBetween(
+                user,
+                startOfToday,
+                endOfToday
+        )) {
+            EnvironmentActivityType activityType = resolveActivityTypeByName(activity.getActivity().getName());
+            UserEnvironmentActivity currentLatest = latestAttemptByType.get(activityType);
+
+            if (currentLatest == null || isLaterAttempt(activity, currentLatest)) {
+                latestAttemptByType.put(activityType, activity);
+            }
+        }
 
         return Arrays.stream(EnvironmentActivityType.values())
-                .map(activityType -> new EnvironmentVerificationAvailabilityResponse(
-                        activityType,
-                        attemptedTypes.contains(activityType)
-                ))
+                .map(activityType -> {
+                    UserEnvironmentActivity latestAttempt = latestAttemptByType.get(activityType);
+
+                    return new EnvironmentVerificationAvailabilityResponse(
+                            activityType,
+                            latestAttempt != null,
+                            latestAttempt != null ? latestAttempt.getIsApproved() : null
+                    );
+                })
                 .toList();
     }
 
@@ -270,6 +282,21 @@ public class EnvironmentVerificationService {
 
     private LocalDateTime getEndOfToday() {
         return getStartOfToday().plusDays(1);
+    }
+
+    private boolean isLaterAttempt(UserEnvironmentActivity candidate, UserEnvironmentActivity current) {
+        LocalDateTime candidateCreatedAt = candidate.getCreatedAt();
+        LocalDateTime currentCreatedAt = current.getCreatedAt();
+
+        if (candidateCreatedAt == null) {
+            return false;
+        }
+
+        if (currentCreatedAt == null) {
+            return true;
+        }
+
+        return candidateCreatedAt.isAfter(currentCreatedAt);
     }
 
     private EnvironmentVerificationResponse buildResponse(
