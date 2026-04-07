@@ -1,11 +1,14 @@
 package com.shinhan.esg_be.global.common.enums;
 
-public enum ActivityType {
+public enum ScoreReason {
+    INITIAL_SCORE,
     DONATION,
     VOLUNTEER,
     PURCHASE,
-    QUIZ_CORRECT,
-    QUIZ_WRONG,
+    QUIZ,
     PHOTO,
+    ABUSE,
+    NO_ACTIVITY,
+    CONSECUTIVE_BONUS,
     LOAN_REPAY
 }
