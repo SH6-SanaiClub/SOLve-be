@@ -3,10 +3,6 @@ spring:
     import: optional:file:.env[.properties]
   application:
     name: esg-be
-  data:
-    redis:
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
 
   datasource:
     url: ${DB_URL}
@@ -26,3 +22,27 @@ jwt:
   secret: ${JWT_SECRET}
   access-expiration: ${JWT_ACCESS_EXPIRATION:7200000}
   refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
+
+auth:
+  verification-token-expiration: ${AUTH_VERIFICATION_TOKEN_EXPIRATION:1800000}
+
+portone:
+  api-base-url: ${PORTONE_API_URL:https://api.iamport.kr}
+  api-version: ${PORTONE_API_VERSION:v1}
+  api-key: ${PORTONE_API_KEY:}
+  api-secret: ${PORTONE_API_SECRET:}
+  imp-code: ${PORTONE_IMP_CODE:}
+  payment-name-prefix: ${PORTONE_PAYMENT_NAME_PREFIX:Sanai_Contract_}
+  payment-currency: ${PORTONE_PAYMENT_CURRENCY:KRW}
+  payment-language: ${PORTONE_PAYMENT_LANGUAGE:ko}
+  webhook-path: ${PORTONE_WEBHOOK_PATH:/payment/webhook}
+  webhook-enabled: ${PORTONE_WEBHOOK_ENABLED:true}
+  refund-reason-default: ${PORTONE_REFUND_REASON_DEFAULT:고객 요청에 의한 환불}
+  refund-checksum-enabled: ${PORTONE_REFUND_CHECKSUM_ENABLED:true}
+  api-connect-timeout: ${PORTONE_API_CONNECT_TIMEOUT:60000}
+  api-read-timeout: ${PORTONE_API_READ_TIMEOUT:60000}
+  api-retry-count: ${PORTONE_API_RETRY_COUNT:3}
+  api-retry-delay: ${PORTONE_API_RETRY_DELAY:1000}
+  allow-missing-ci-di-fallback: ${PORTONE_ALLOW_MISSING_CIDI_FALLBACK:true}
+  log-enabled: ${PORTONE_LOG_ENABLED:true}
+  log-level: ${PORTONE_LOG_LEVEL:INFO}
