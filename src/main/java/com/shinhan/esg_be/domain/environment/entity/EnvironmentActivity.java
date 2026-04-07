@@ -1,4 +1,4 @@
-package com.shinhan.esg_be.domain.activity.entity;
+package com.shinhan.esg_be.domain.environment.entity;
 
 import com.shinhan.esg_be.global.common.BaseTimeEntity;
 import jakarta.persistence.Column;
@@ -15,7 +15,7 @@ import lombok.NoArgsConstructor;
 @Table(name = "activity")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Activity extends BaseTimeEntity {
+public class EnvironmentActivity extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -24,4 +24,10 @@ public class Activity extends BaseTimeEntity {
 
     @Column(nullable = false)
     private String name;
+
+    public static EnvironmentActivity create(String name) {
+        EnvironmentActivity activity = new EnvironmentActivity();
+        activity.name = name;
+        return activity;
+    }
 }
