@@ -35,6 +35,7 @@ public class ActivityCandidateLoader {
     private final QuizRepository quizRepository;
     private final ActivityRewardPolicyRepository activityRewardPolicyRepository;
 
+    // activity_reward_policy를 ActivityType 기준으로 Map으로 캐싱
     private Map<ActivityType, ActivityRewardPolicy> loadPolicyMap() {
         return activityRewardPolicyRepository.findAll().stream()
                 .collect(Collectors.toMap(
@@ -48,6 +49,7 @@ public class ActivityCandidateLoader {
         Map<ActivityType, ActivityRewardPolicy> policyMap = loadPolicyMap();
         List<ActivityCandidateDto> candidates = new ArrayList<>();
 
+        // E 활동 (PHOTO)
         ActivityRewardPolicy photoPolicy = policyMap.get(ActivityType.PHOTO);
         if (photoPolicy != null) {
             List<Activity> activities = activityRepository.findAll();
@@ -69,6 +71,7 @@ public class ActivityCandidateLoader {
             }
         }
 
+        // S 활동 - 기부 (DONATION)
         ActivityRewardPolicy donationPolicy = policyMap.get(ActivityType.DONATION);
         if (donationPolicy != null) {
             List<Donation> donations = donationRepository.findActiveDonations(now);
@@ -90,6 +93,7 @@ public class ActivityCandidateLoader {
             }
         }
 
+        // S 활동 - 봉사 (VOLUNTEER)
         ActivityRewardPolicy volunteerPolicy = policyMap.get(ActivityType.VOLUNTEER);
         if (volunteerPolicy != null) {
             List<Volunteer> volunteers = volunteerRepository.findActiveVolunteers(now);
@@ -111,6 +115,7 @@ public class ActivityCandidateLoader {
             }
         }
 
+        // S 활동 - 상품구매 (PURCHASE)
         ActivityRewardPolicy purchasePolicy = policyMap.get(ActivityType.PURCHASE);
         if (purchasePolicy != null) {
             List<EcoProduct> products = ecoProductRepository.findByIsActiveTrue();
@@ -132,6 +137,7 @@ public class ActivityCandidateLoader {
             }
         }
 
+        // G 활동 - 퀴즈 (QUIZ)
         ActivityRewardPolicy quizPolicy = policyMap.get(ActivityType.QUIZ);
         if (quizPolicy != null) {
             quizRepository.findTodayActiveQuiz(now).ifPresent(q ->

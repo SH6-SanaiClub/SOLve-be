@@ -21,6 +21,7 @@ public class RecommendCacheService {
     private static final Duration TTL_ACTIVITY = Duration.ofMinutes(30);
     private static final Duration TTL_LOCK = Duration.ofSeconds(10);
 
+    // 활동 추천 결과 조회
     public Optional<ActivityRecommendResponse> findActivityRecommend(Long userId) {
         String key = KEY_PREFIX_ACTIVITY + userId;
         try {
@@ -36,6 +37,7 @@ public class RecommendCacheService {
         return Optional.empty();
     }
 
+    // 활동 추천 결과 저장
     public void saveActivityRecommend(Long userId, ActivityRecommendResponse response) {
         String key = KEY_PREFIX_ACTIVITY + userId;
         try {
@@ -46,6 +48,7 @@ public class RecommendCacheService {
         }
     }
 
+    // 활동 추천 캐시 삭제 (활동 완료 시 무효화)
     public void evictActivityRecommend(Long userId) {
         String key = KEY_PREFIX_ACTIVITY + userId;
         try {
@@ -56,6 +59,7 @@ public class RecommendCacheService {
         }
     }
 
+    // 비동기 갱신 중 중복 실행 방지 락
     public boolean acquireLock(Long userId) {
         String key = KEY_PREFIX_LOCK + userId;
         try {
@@ -69,6 +73,7 @@ public class RecommendCacheService {
         }
     }
 
+    // 락 해제
     public void releaseLock(Long userId) {
         String key = KEY_PREFIX_LOCK + userId;
         try {
@@ -79,6 +84,7 @@ public class RecommendCacheService {
         }
     }
 
+    // 락 보유 여부 확인 (비동기 갱신 중 프론트 요청 처리용)
     public boolean isLocked(Long userId) {
         String key = KEY_PREFIX_LOCK + userId;
         try {

@@ -49,11 +49,13 @@ public class ActivityFilterService {
             UserFeatureDto feature,
             LocalDateTime startOfDay
     ) {
+        // 필터 1: 월 카테고리 한도 도달 여부
         if (isMonthlyLimitReached(c, feature)) {
             log.debug("월 한도 필터 탈락 - activityType={} referenceId={}", c.getActivityType(), c.getReferenceId());
             return false;
         }
 
+        // 필터 2~6: 활동 유형별 수행 가능 여부
         return switch (c.getActivityType()) {
             case "PHOTO" -> passesPhotoFilter(c, feature.getUserId(), startOfDay);
             case "DONATION" -> passesDonationFilter(c, feature.getUserId(), startOfDay);
@@ -64,6 +66,7 @@ public class ActivityFilterService {
         };
     }
 
+    // 필터 1: 월 카테고리 한도 도달
     private boolean isMonthlyLimitReached(ActivityCandidateDto c, UserFeatureDto feature) {
         return switch (c.getScoreCategory()) {
             case "E" -> feature.getMonthlyEScore() >= MONTHLY_E_MAX;
@@ -73,11 +76,13 @@ public class ActivityFilterService {
         };
     }
 
+    // 필터 2: E 사진인증 — 오늘 해당 activity 이미 승인 완료
     private boolean passesPhotoFilter(ActivityCandidateDto c, Long userId, LocalDateTime startOfDay) {
         long count = userActivityRepository.countTodayApproved(userId, c.getReferenceId(), startOfDay);
         return count == 0;
     }
 
+    // 필터 3: 기부 — 캠페인 기간 외 또는 비활성
     private boolean passesDonationFilter(ActivityCandidateDto c, Long userId, LocalDateTime startOfDay) {
         if (!c.isActive()) {
             return false;
@@ -89,6 +94,7 @@ public class ActivityFilterService {
         return todayCount == 0;
     }
 
+    // 필터 4: 봉사 — 마감 또는 정원 초과 (isActive, deadlineDate는 CandidateLoader에서 이미 걸렀으나 재확인)
     private boolean passesVolunteerFilter(ActivityCandidateDto c, Long userId) {
         if (!c.isActive()) {
             return false;
@@ -101,6 +107,7 @@ public class ActivityFilterService {
         );
     }
 
+    // 필터 5: 상품구매 — 재고 없음 또는 비활성 (isActive는 CandidateLoader에서 이미 처리)
     private boolean passesPurchaseFilter(ActivityCandidateDto c) {
         if (!c.isActive()) {
             return false;
@@ -108,6 +115,7 @@ public class ActivityFilterService {
         return c.getDeadlineDate() == null || !c.getDeadlineDate().isBefore(LocalDate.now());
     }
 
+    // 필터 6: 퀴즈 — 오늘 이미 참여
     private boolean passesQuizFilter(Long userId, LocalDateTime startOfDay) {
         return userQuizRepository.countToday(userId, startOfDay) == 0;
     }
