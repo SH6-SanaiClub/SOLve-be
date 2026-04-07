@@ -2,7 +2,7 @@ package com.shinhan.esg_be.domain.point.service;
 
 import com.shinhan.esg_be.EsgBeApplication;
 import com.shinhan.esg_be.domain.point.entity.UserPoint;
-import com.shinhan.esg_be.domain.point.entity.enums.PointCategory;
+import com.shinhan.esg_be.domain.point.entity.enums.PointReason;
 import com.shinhan.esg_be.domain.point.repository.UserPointRepository;
 import com.shinhan.esg_be.domain.point.service.command.ApplyActivityPointCommand;
 import com.shinhan.esg_be.domain.point.service.result.ApplyActivityPointResult;
@@ -86,7 +86,7 @@ class PointServiceTest {
         assertThat(result.pointAfter()).isEqualTo(32);
         assertThat(savedUser.getTotalPoints()).isEqualTo(32);
         assertThat(userPoints).hasSize(1);
-        assertThat(userPoints.get(0).getCategory()).isEqualTo(PointCategory.DONATION);
+        assertThat(userPoints.get(0).getReason()).isEqualTo(PointReason.DONATION);
     }
 
     @Test
@@ -115,10 +115,10 @@ class PointServiceTest {
     void grantVolunteerMilestoneBonus() {
         User user = userRepository.save(createUser(4000));
         activityRewardPolicyRepository.save(createActivityRewardPolicy(ActivityType.VOLUNTEER, ScoreCategory.S, 5, 1000, null));
-        pointPolicyRepository.save(createPointPolicy(PointPolicyType.VOLUNTEER_MILESTONE, PointCategory.VOLUNTEER, 5, null, 1000));
+        pointPolicyRepository.save(createPointPolicy(PointPolicyType.VOLUNTEER_MILESTONE, PointReason.VOLUNTEER, 5, null, 1000));
 
         for (int i = 0; i < 4; i++) {
-            saveUserPoint(user, PointCategory.VOLUNTEER, 1000, 1000L * (i + 1), LocalDateTime.of(2026, 4, i + 1, 9, 0));
+            saveUserPoint(user, PointReason.VOLUNTEER, 1000, 1000L * (i + 1), LocalDateTime.of(2026, 4, i + 1, 9, 0));
         }
 
         ApplyActivityPointResult result = pointService.applyActivityPoint(
@@ -132,7 +132,7 @@ class PointServiceTest {
         assertThat(result.bonusPoint()).isEqualTo(1000);
         assertThat(savedUser.getTotalPoints()).isEqualTo(6000);
         assertThat(userPoints).hasSize(6);
-        assertThat(userPoints.get(userPoints.size() - 1).getCategory()).isEqualTo(PointCategory.VOLUNTEER_MILESTONE_BONUS);
+        assertThat(userPoints.get(userPoints.size() - 1).getReason()).isEqualTo(PointReason.VOLUNTEER_MILESTONE_BONUS);
     }
 
     @Test
@@ -140,11 +140,11 @@ class PointServiceTest {
     void grantPhotoStreakBonusOnlyOncePerDay() {
         User user = userRepository.save(createUser(180));
         activityRewardPolicyRepository.save(createActivityRewardPolicy(ActivityType.PHOTO, ScoreCategory.E, 1, 30, null));
-        pointPolicyRepository.save(createPointPolicy(PointPolicyType.PHOTO_STREAK, PointCategory.PHOTO, null, 7, 300));
+        pointPolicyRepository.save(createPointPolicy(PointPolicyType.PHOTO_STREAK, PointReason.PHOTO, null, 7, 300));
 
         LocalDateTime today = LocalDateTime.of(2026, 4, 30, 10, 0);
         for (int i = 6; i >= 1; i--) {
-            saveUserPoint(user, PointCategory.PHOTO, 30, 180 + (30L * (7 - i)), today.minusDays(i));
+            saveUserPoint(user, PointReason.PHOTO, 30, 180 + (30L * (7 - i)), today.minusDays(i));
         }
 
         ApplyActivityPointResult firstResult = pointService.applyActivityPoint(
@@ -162,7 +162,7 @@ class PointServiceTest {
         assertThat(secondResult.activityPoint()).isEqualTo(30);
         assertThat(secondResult.bonusPoint()).isZero();
         assertThat(savedUser.getTotalPoints()).isEqualTo(540);
-        assertThat(userPoints.stream().filter(point -> point.getCategory() == PointCategory.PHOTO_STREAK_BONUS)).hasSize(1);
+        assertThat(userPoints.stream().filter(point -> point.getReason() == PointReason.PHOTO_STREAK_BONUS)).hasSize(1);
     }
 
     @Test
@@ -170,7 +170,7 @@ class PointServiceTest {
     void grantMonthlyQuizBonusWhenParticipatedEveryDay() {
         User user = userRepository.save(createUser(580));
         activityRewardPolicyRepository.save(createActivityRewardPolicy(ActivityType.QUIZ_CORRECT, ScoreCategory.G_ACTIVITY, 1, 20, null));
-        pointPolicyRepository.save(createPointPolicy(PointPolicyType.QUIZ_MONTHLY, PointCategory.QUIZ_CORRECT, null, null, 1000));
+        pointPolicyRepository.save(createPointPolicy(PointPolicyType.QUIZ_MONTHLY, PointReason.QUIZ_CORRECT, null, null, 1000));
 
         YearMonth yearMonth = YearMonth.of(2026, 4);
         long pointAfter = 0;
@@ -178,7 +178,7 @@ class PointServiceTest {
             pointAfter += 20;
             saveUserPoint(
                     user,
-                    day % 2 == 0 ? PointCategory.QUIZ_CORRECT : PointCategory.QUIZ_WRONG,
+                    day % 2 == 0 ? PointReason.QUIZ_CORRECT : PointReason.QUIZ_WRONG,
                     20,
                     pointAfter,
                     LocalDateTime.of(2026, 4, day, 9, 0)
@@ -194,7 +194,7 @@ class PointServiceTest {
         assertThat(result.activityPoint()).isEqualTo(20);
         assertThat(result.bonusPoint()).isEqualTo(1000);
         assertThat(savedUser.getTotalPoints()).isEqualTo(1600);
-        assertThat(userPointRepository.findAll().stream().filter(point -> point.getCategory() == PointCategory.QUIZ_MONTHLY_BONUS)).hasSize(1);
+        assertThat(userPointRepository.findAll().stream().filter(point -> point.getReason() == PointReason.QUIZ_MONTHLY_BONUS)).hasSize(1);
     }
 
     @Test
@@ -210,7 +210,7 @@ class PointServiceTest {
         assertThat(pointAfter).isEqualTo(3800);
         assertThat(savedUser.getTotalPoints()).isEqualTo(3800);
         assertThat(userPoints).hasSize(1);
-        assertThat(userPoints.get(0).getCategory()).isEqualTo(PointCategory.ABUSE_RECLAIM);
+        assertThat(userPoints.get(0).getReason()).isEqualTo(PointReason.ABUSE_RECLAIM);
         assertThat(userPoints.get(0).getChangedAmount()).isEqualTo(-1200L);
     }
 
@@ -245,14 +245,14 @@ class PointServiceTest {
 
     private PointPolicy createPointPolicy(
             PointPolicyType policyType,
-            PointCategory targetCategory,
+            PointReason targetReason,
             Integer targetCount,
             Integer targetDays,
             Integer rewardPoint
     ) {
         PointPolicy pointPolicy = instantiate(PointPolicy.class);
         ReflectionTestUtils.setField(pointPolicy, "policyType", policyType);
-        ReflectionTestUtils.setField(pointPolicy, "targetCategory", targetCategory);
+        ReflectionTestUtils.setField(pointPolicy, "targetReason", targetReason);
         ReflectionTestUtils.setField(pointPolicy, "targetCount", targetCount);
         ReflectionTestUtils.setField(pointPolicy, "targetDays", targetDays);
         ReflectionTestUtils.setField(pointPolicy, "rewardPoint", rewardPoint);
@@ -262,13 +262,13 @@ class PointServiceTest {
 
     private void saveUserPoint(
             User user,
-            PointCategory category,
+            PointReason reason,
             long changedAmount,
             long pointAfter,
             LocalDateTime createdAt
     ) {
         UserPoint savedUserPoint = userPointRepository.saveAndFlush(
-                UserPoint.create(user, null, category, changedAmount, pointAfter)
+                UserPoint.create(user, null, reason, changedAmount, pointAfter)
         );
 
         entityManager.createNativeQuery("update user_point set created_at = :createdAt where exchange_id = :exchangeId")

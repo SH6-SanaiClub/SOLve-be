@@ -1,6 +1,6 @@
 package com.shinhan.esg_be.domain.point.entity;
 
-import com.shinhan.esg_be.domain.point.entity.enums.PointCategory;
+import com.shinhan.esg_be.domain.point.entity.enums.PointReason;
 import com.shinhan.esg_be.domain.user.entity.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -44,7 +44,7 @@ public class UserPoint {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 40)
-    private PointCategory category;
+    private PointReason reason;
 
     @Column(name = "changed_amount", nullable = false)
     private Long changedAmount;
@@ -59,14 +59,14 @@ public class UserPoint {
     public static UserPoint create(
             User user,
             Item item,
-            PointCategory category,
+            PointReason reason,
             long changedAmount,
             long pointAfter
     ) {
         UserPoint userPoint = new UserPoint();
         userPoint.user = user;
         userPoint.item = item;
-        userPoint.category = category;
+        userPoint.reason = reason;
         userPoint.changedAmount = changedAmount;
         userPoint.pointAfter = pointAfter;
         return userPoint;

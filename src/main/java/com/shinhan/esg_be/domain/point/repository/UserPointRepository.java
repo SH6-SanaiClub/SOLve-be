@@ -1,7 +1,7 @@
 package com.shinhan.esg_be.domain.point.repository;
 
 import com.shinhan.esg_be.domain.point.entity.UserPoint;
-import com.shinhan.esg_be.domain.point.entity.enums.PointCategory;
+import com.shinhan.esg_be.domain.point.entity.enums.PointReason;
 import com.shinhan.esg_be.domain.user.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -11,25 +11,25 @@ import java.util.List;
 
 public interface UserPointRepository extends JpaRepository<UserPoint, Long> {
 
-    long countByUserAndCategory(User user, PointCategory category);
+    long countByUserAndReason(User user, PointReason reason);
 
-    boolean existsByUserAndCategoryInAndCreatedAtBetween(
+    boolean existsByUserAndReasonInAndCreatedAtBetween(
             User user,
-            Collection<PointCategory> categories,
+            Collection<PointReason> reasons,
             LocalDateTime startDateTime,
             LocalDateTime endDateTime
     );
 
-    List<UserPoint> findByUserAndCategoryAndCreatedAtBetweenOrderByCreatedAtAsc(
+    List<UserPoint> findByUserAndReasonAndCreatedAtBetweenOrderByCreatedAtAsc(
             User user,
-            PointCategory category,
+            PointReason reason,
             LocalDateTime startDateTime,
             LocalDateTime endDateTime
     );
 
-    List<UserPoint> findByUserAndCategoryInAndCreatedAtBetweenOrderByCreatedAtAsc(
+    List<UserPoint> findByUserAndReasonInAndCreatedAtBetweenOrderByCreatedAtAsc(
             User user,
-            Collection<PointCategory> categories,
+            Collection<PointReason> reasons,
             LocalDateTime startDateTime,
             LocalDateTime endDateTime
     );

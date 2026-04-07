@@ -17,7 +17,7 @@ public class PointCalculatorService {
 
         int appliedPoint = calculatePoint(command.fixedPointValue(), command.pointRate(), command.amount());
         return new PointCalculationResult(
-                command.pointCategory(),
+                command.pointReason(),
                 appliedPoint,
                 currentPoint + appliedPoint
         );

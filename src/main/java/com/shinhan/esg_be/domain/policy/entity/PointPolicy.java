@@ -1,6 +1,6 @@
 package com.shinhan.esg_be.domain.policy.entity;
 
-import com.shinhan.esg_be.domain.point.entity.enums.PointCategory;
+import com.shinhan.esg_be.domain.point.entity.enums.PointReason;
 import com.shinhan.esg_be.domain.policy.entity.enums.PointPolicyType;
 import com.shinhan.esg_be.global.common.BaseTimeEntity;
 import jakarta.persistence.Column;
@@ -31,8 +31,8 @@ public class PointPolicy extends BaseTimeEntity {
     private PointPolicyType policyType;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "target_category", nullable = false, length = 40)
-    private PointCategory targetCategory;
+    @Column(name = "target_reason", nullable = false, length = 40)
+    private PointReason targetReason;
 
     @Column(name = "target_count")
     private Integer targetCount;
