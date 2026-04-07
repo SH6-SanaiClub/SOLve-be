@@ -45,12 +45,7 @@ public class JwtTokenProvider {
     }
 
     public String getLoginId(String token) {
-        return Jwts.parserBuilder()
-                .setSigningKey(key)
-                .build()
-                .parseClaimsJws(token)
-                .getBody()
-                .getSubject();
+        return getClaims(token).getSubject();
     }
 
     public boolean isAccessToken(String token) {
@@ -67,13 +62,8 @@ public class JwtTokenProvider {
 
     public boolean validateToken(String token) {
         try {
-            Date expiration = Jwts.parserBuilder()
-                    .setSigningKey(key)
-                    .build()
-                    .parseClaimsJws(token)
-                    .getBody()
-                    .getExpiration();
-            return !expiration.before(new Date());
+            getClaims(token);
+            return true;
         } catch (JwtException | IllegalArgumentException e) {
             return false;
         }
@@ -95,11 +85,15 @@ public class JwtTokenProvider {
     }
 
     private String getTokenType(String token) {
+        return getClaims(token)
+                .get(TOKEN_TYPE_CLAIM, String.class);
+    }
+
+    private Claims getClaims(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(key)
                 .build()
                 .parseClaimsJws(token)
-                .getBody()
-                .get(TOKEN_TYPE_CLAIM, String.class);
+                .getBody();
     }
 }

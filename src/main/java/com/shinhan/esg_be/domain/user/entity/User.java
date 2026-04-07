@@ -95,14 +95,10 @@ public class User extends BaseTimeEntity {
         user.phoneNumber = phoneNumber;
         user.birthdate = birthdate;
         user.ciDi = ciDi;
-
-        // 초기 점수 설정 (총 500점)
         user.eScore = 50;
         user.sScore = 250;
         user.gActivityScore = 100;
         user.gRepaymentScore = 100;
-
-        // 기본값 세팅
         user.userType = UserType.ALL_ROUNDER;
         user.currentGrade = Grade.SEED;
         user.abuseCount = 0;
