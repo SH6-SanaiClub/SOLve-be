@@ -2,6 +2,7 @@ package com.shinhan.esg_be;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.auditing.DateTimeProvider;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
@@ -14,6 +15,7 @@ import java.util.Optional;
 @EnableJpaAuditing(dateTimeProviderRef = "auditingDateTimeProvider")
 @EnableScheduling
 @SpringBootApplication
+@ConfigurationPropertiesScan
 public class EsgBeApplication {
 
 	public static void main(String[] args) {

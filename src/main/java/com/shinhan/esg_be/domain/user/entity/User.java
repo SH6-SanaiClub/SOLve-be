@@ -15,7 +15,7 @@ import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -38,16 +38,16 @@ public class User extends BaseTimeEntity {
     @Column(nullable = false)
     private String name;
 
-    @Column(name = "phone_number", nullable = false)
+    @Column(name = "phone_number", unique = true, nullable = false)
     private String phoneNumber;
 
     @Column(nullable = false)
-    private LocalDateTime birthdate;
+    private LocalDate birthdate;
 
     @Column(nullable = false, unique = true)
     private String email;
 
-    @Column(name = "ci_di", nullable = false)
+    @Column(name = "ci_di", unique = true, nullable = false)
     private String ciDi;
 
     @Enumerated(EnumType.STRING)
@@ -85,6 +85,30 @@ public class User extends BaseTimeEntity {
     @Column(name = "is_linked", nullable = false)
     private Boolean isLinked = false;
 
+    public static User create(String loginId, String password, String name, String email,
+                              String phoneNumber, LocalDate birthdate, String ciDi) {
+        User user = new User();
+        user.loginId = loginId;
+        user.password = password;
+        user.name = name;
+        user.email = email;
+        user.phoneNumber = phoneNumber;
+        user.birthdate = birthdate;
+        user.ciDi = ciDi;
+        user.eScore = 50;
+        user.sScore = 250;
+        user.gActivityScore = 100;
+        user.gRepaymentScore = 100;
+        user.userType = UserType.ALL_ROUNDER;
+        user.currentGrade = Grade.SEED;
+        user.abuseCount = 0;
+        user.totalPoints = 0;
+        user.isActive = true;
+        user.isLinked = false;
+
+        return user;
+    }
+  
     public void applyScore(ScoreCategory scoreCategory, int scoreDelta) {
         if (scoreDelta == 0) {
             return;
