@@ -53,6 +53,16 @@ public class PointService {
         LocalDateTime activityDateTime = resolveActivityDateTime(command.activityDateTime());
         PointReason pointReason = mapToPointReason(activityType);
 
+        if (pointReason == null) {
+            return new ApplyActivityPointResult(
+                    null,
+                    0,
+                    0,
+                    user.getTotalPoints(),
+                    false
+            );
+        }
+
         ActivityRewardPolicy activityRewardPolicy = activityRewardPolicyRepository.findByActivityType(activityType)
                 .orElseThrow(() -> new IllegalArgumentException("Activity reward policy not found."));
 
