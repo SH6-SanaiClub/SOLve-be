@@ -45,7 +45,7 @@ class ScorePenaltyServiceTest {
     @DisplayName("관리자 어뷰징 패널티를 적용하면 점수 차감과 대출 차단을 반영한다")
     void applyAbusePenalty() {
         User user = userRepository.save(createUser("penalty-user-1", 50, 250, 100, 100));
-        penaltyPolicyRepository.save(createPenaltyPolicy(PenaltyType.ABUSE, 5, 25, 20, true));
+        penaltyPolicyRepository.save(createPenaltyPolicy(PenaltyType.ABUSE, 5, 25, 10, true));
 
         PenaltyApplicationResult result = scorePenaltyService.applyAbusePenalty(
                 user.getUserId(),
@@ -58,12 +58,12 @@ class ScorePenaltyServiceTest {
         assertThat(result.applied()).isTrue();
         assertThat(result.appliedEReduction()).isEqualTo(5);
         assertThat(result.appliedSReduction()).isEqualTo(25);
-        assertThat(result.appliedGActivityReduction()).isEqualTo(20);
+        assertThat(result.appliedGActivityReduction()).isEqualTo(10);
         assertThat(result.loanBlocked()).isTrue();
 
         assertThat(savedUser.getEScore()).isEqualTo(45);
         assertThat(savedUser.getSScore()).isEqualTo(225);
-        assertThat(savedUser.getGActivityScore()).isEqualTo(80);
+        assertThat(savedUser.getGActivityScore()).isEqualTo(90);
         assertThat(savedUser.getGRepaymentScore()).isEqualTo(100);
         assertThat(savedUser.getAbuseCount()).isEqualTo(1);
         assertThat(savedUser.getIsLoanBlocked()).isTrue();
@@ -74,8 +74,8 @@ class ScorePenaltyServiceTest {
     @Test
     @DisplayName("무활동 패널티는 어뷰징으로 낮아진 기본 점수선 아래로는 내려가지 않는다")
     void applyNoActivityPenaltyWithoutDroppingBelowFloor() {
-        User user = userRepository.save(createUser("penalty-user-2", 46, 226, 81, 100));
-        penaltyPolicyRepository.save(createPenaltyPolicy(PenaltyType.NO_ACTIVITY, 2, 4, 4, false));
+        User user = userRepository.save(createUser("penalty-user-2", 46, 235, 91, 100));
+        penaltyPolicyRepository.save(createPenaltyPolicy(PenaltyType.NO_ACTIVITY, 2, 10, 4, false));
         seedScoreFloor(user);
         ReflectionTestUtils.setField(user, "lastActivityDate", LocalDateTime.of(2026, 2, 1, 0, 0));
 
@@ -89,12 +89,12 @@ class ScorePenaltyServiceTest {
 
         assertThat(result.applied()).isTrue();
         assertThat(result.appliedEReduction()).isEqualTo(1);
-        assertThat(result.appliedSReduction()).isEqualTo(1);
+        assertThat(result.appliedSReduction()).isEqualTo(10);
         assertThat(result.appliedGActivityReduction()).isEqualTo(1);
 
         assertThat(savedUser.getEScore()).isEqualTo(45);
         assertThat(savedUser.getSScore()).isEqualTo(225);
-        assertThat(savedUser.getGActivityScore()).isEqualTo(80);
+        assertThat(savedUser.getGActivityScore()).isEqualTo(90);
         assertThat(savedUser.getGRepaymentScore()).isEqualTo(100);
         assertThat(histories.stream().filter(history -> history.getReason() == ScoreReason.NO_ACTIVITY).count()).isEqualTo(3);
     }
@@ -107,7 +107,7 @@ class ScorePenaltyServiceTest {
                 ValidScoreHistory.create(user, ScoreCategory.G_REPAYMENT, 100, ScoreReason.INITIAL_SCORE, LocalDateTime.of(2126, 1, 1, 0, 0), 100),
                 ValidScoreHistory.create(user, ScoreCategory.E, -5, ScoreReason.ABUSE, LocalDateTime.of(2126, 1, 1, 0, 0), 45),
                 ValidScoreHistory.create(user, ScoreCategory.S, -25, ScoreReason.ABUSE, LocalDateTime.of(2126, 1, 1, 0, 0), 225),
-                ValidScoreHistory.create(user, ScoreCategory.G_ACTIVITY, -20, ScoreReason.ABUSE, LocalDateTime.of(2126, 1, 1, 0, 0), 80)
+                ValidScoreHistory.create(user, ScoreCategory.G_ACTIVITY, -10, ScoreReason.ABUSE, LocalDateTime.of(2126, 1, 1, 0, 0), 90)
         ));
     }
 
