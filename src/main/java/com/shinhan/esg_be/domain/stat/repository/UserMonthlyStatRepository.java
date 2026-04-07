@@ -4,6 +4,7 @@ import com.shinhan.esg_be.domain.stat.entity.UserMonthlyStat;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import com.shinhan.esg_be.domain.user.entity.User;
 
 import java.util.Optional;
 
@@ -21,4 +22,6 @@ public interface UserMonthlyStatRepository extends JpaRepository<UserMonthlyStat
             @Param("year") int year,
             @Param("month") int month
     );
+    
+    Optional<UserMonthlyStat> findByUser(User user);
 }
