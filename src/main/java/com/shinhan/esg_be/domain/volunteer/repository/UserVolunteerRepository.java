@@ -1,5 +1,6 @@
 package com.shinhan.esg_be.domain.volunteer.repository;
 
+import com.shinhan.esg_be.domain.recommendation.dto.VolunteerCountProjection;
 import com.shinhan.esg_be.domain.volunteer.entity.UserVolunteer;
 import com.shinhan.esg_be.domain.volunteer.entity.enums.VolunteerStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -7,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public interface UserVolunteerRepository extends JpaRepository<UserVolunteer, Long> {
 
@@ -31,5 +33,15 @@ public interface UserVolunteerRepository extends JpaRepository<UserVolunteer, Lo
             Long userId,
             Long volunteerId,
             LocalDateTime since
+    );
+
+    @Query("""
+            SELECT uv.volunteer.volunteerId AS volunteerId, COUNT(uv) AS count
+            FROM UserVolunteer uv
+            WHERE uv.createdAt >= :since
+            GROUP BY uv.volunteer.volunteerId
+            """)
+    List<VolunteerCountProjection> countGroupByVolunteerSince(
+            @Param("since") LocalDateTime since
     );
 }

@@ -30,4 +30,6 @@ public interface UserQuizRepository extends JpaRepository<UserQuiz, Long> {
             @Param("userId") Long userId,
             @Param("since") LocalDateTime since
     );
+
+    long countByCreatedAtAfter(LocalDateTime since);
 }

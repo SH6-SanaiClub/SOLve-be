@@ -1,11 +1,13 @@
 package com.shinhan.esg_be.domain.social.repository;
 
+import com.shinhan.esg_be.domain.recommendation.dto.ProductCountProjection;
 import com.shinhan.esg_be.domain.social.entity.UserEcoProduct;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public interface UserEcoProductRepository extends JpaRepository<UserEcoProduct, Long> {
 
@@ -24,5 +26,15 @@ public interface UserEcoProductRepository extends JpaRepository<UserEcoProduct, 
             Long userId,
             Long productId,
             LocalDateTime since
+    );
+
+    @Query("""
+            SELECT uep.ecoProduct.productId AS productId, COUNT(uep) AS count
+            FROM UserEcoProduct uep
+            WHERE uep.createdAt >= :since
+            GROUP BY uep.ecoProduct.productId
+            """)
+    List<ProductCountProjection> countGroupByProductSince(
+            @Param("since") LocalDateTime since
     );
 }

@@ -1,11 +1,13 @@
 package com.shinhan.esg_be.domain.activity.repository;
 
 import com.shinhan.esg_be.domain.activity.entity.UserActivity;
+import com.shinhan.esg_be.domain.recommendation.dto.ActivityCountProjection;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public interface UserActivityRepository extends JpaRepository<UserActivity, Long> {
 
@@ -46,6 +48,17 @@ public interface UserActivityRepository extends JpaRepository<UserActivity, Long
     long countRecentByActivity(
             @Param("userId") Long userId,
             @Param("activityId") Long activityId,
+            @Param("since") LocalDateTime since
+    );
+
+    @Query("""
+            SELECT ua.activity.activityId AS activityId, COUNT(ua) AS count
+            FROM UserActivity ua
+            WHERE ua.isApproved = true
+              AND ua.createdAt >= :since
+            GROUP BY ua.activity.activityId
+            """)
+    List<ActivityCountProjection> countApprovedGroupByActivitySince(
             @Param("since") LocalDateTime since
     );
 }

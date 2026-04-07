@@ -1,11 +1,13 @@
 package com.shinhan.esg_be.domain.social.repository;
 
+import com.shinhan.esg_be.domain.recommendation.dto.DonationCountProjection;
 import com.shinhan.esg_be.domain.social.entity.UserDonation;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public interface UserDonationRepository extends JpaRepository<UserDonation, Long> {
 
@@ -37,5 +39,15 @@ public interface UserDonationRepository extends JpaRepository<UserDonation, Long
             Long userId,
             Long donationId,
             LocalDateTime since
+    );
+
+    @Query("""
+            SELECT ud.donation.donationId AS donationId, COUNT(ud) AS count
+            FROM UserDonation ud
+            WHERE ud.createdAt >= :since
+            GROUP BY ud.donation.donationId
+            """)
+    List<DonationCountProjection> countGroupByDonationSince(
+            @Param("since") LocalDateTime since
     );
 }
