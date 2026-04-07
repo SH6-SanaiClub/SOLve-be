@@ -118,6 +118,18 @@ public class User extends BaseTimeEntity {
         totalPoints += pointDelta;
     }
 
+    public void increaseAbuseCount() {
+        abuseCount += 1;
+    }
+
+    public void blockLoan() {
+        // Loan blocking is currently derived from abuseCount.
+    }
+
+    public boolean getIsLoanBlocked() {
+        return abuseCount > 0;
+    }
+
     public void updateLastActivityDate(LocalDateTime activityDateTime) {
         this.lastActivityDate = activityDateTime;
     }

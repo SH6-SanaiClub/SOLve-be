@@ -16,6 +16,7 @@ import java.util.stream.Collectors;
 
 import static com.shinhan.esg_be.global.common.enums.ScoreReason.ABUSE;
 import static com.shinhan.esg_be.global.common.enums.ScoreReason.INITIAL_SCORE;
+import static com.shinhan.esg_be.global.common.enums.ScoreReason.NO_ACTIVITY;
 
 @Service
 @RequiredArgsConstructor
@@ -36,6 +37,7 @@ public class ScoreExpirationService {
                 .stream()
                 .filter(validScoreHistory -> validScoreHistory.getReason() != INITIAL_SCORE)
                 .filter(validScoreHistory -> validScoreHistory.getReason() != ABUSE)
+                .filter(validScoreHistory -> validScoreHistory.getReason() != NO_ACTIVITY)
                 .collect(Collectors.toList());
         if (expiredScores.isEmpty()) {
             return 0;

@@ -6,6 +6,7 @@ import com.shinhan.esg_be.global.common.enums.ScoreReason;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 
 public interface ValidScoreHistoryRepository extends JpaRepository<ValidScoreHistory, Long> {
@@ -15,4 +16,13 @@ public interface ValidScoreHistoryRepository extends JpaRepository<ValidScoreHis
     List<ValidScoreHistory> findByUserAndValidUntilBefore(User user, LocalDateTime validUntil);
 
     boolean existsByUserAndReason(User user, ScoreReason reason);
+
+    boolean existsByUserAndReasonAndCreatedAtBetween(
+            User user,
+            ScoreReason reason,
+            LocalDateTime startDateTime,
+            LocalDateTime endDateTime
+    );
+
+    List<ValidScoreHistory> findByUserAndReasonIn(User user, Collection<ScoreReason> reasons);
 }

@@ -17,12 +17,18 @@ public class ScoreBatchScheduler {
 
     private final JobOperator jobOperator;
     private final Job monthlyScoreSettlementJob;
+    private final Job noActivityPenaltyJob;
     private final Job scoreExpirationJob;
     private final Clock clock;
 
     @Scheduled(cron = "0 1 0 1 * *", zone = "Asia/Seoul")
     public void runMonthlyScoreSettlementJob() throws Exception {
         jobOperator.start(monthlyScoreSettlementJob, buildJobParameters("monthlyScoreSettlementJob"));
+    }
+
+    @Scheduled(cron = "0 7 0 1 * *", zone = "Asia/Seoul")
+    public void runNoActivityPenaltyJob() throws Exception {
+        jobOperator.start(noActivityPenaltyJob, buildJobParameters("noActivityPenaltyJob"));
     }
 
     @Scheduled(cron = "0 10 0 * * *", zone = "Asia/Seoul")
