@@ -13,11 +13,16 @@ spring:
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
-      ddl-auto: none
+      ddl-auto: update
+  batch:
+    job:
+      enabled: false
+    jdbc:
+      initialize-schema: always
 
 server:
   port: 8080
-
+  
 jwt:
   secret: ${JWT_SECRET}
   access-expiration: ${JWT_ACCESS_EXPIRATION:7200000}
@@ -46,3 +51,15 @@ portone:
   allow-missing-ci-di-fallback: ${PORTONE_ALLOW_MISSING_CIDI_FALLBACK:true}
   log-enabled: ${PORTONE_LOG_ENABLED:true}
   log-level: ${PORTONE_LOG_LEVEL:INFO}
+  
+cloud:
+  aws:
+    s3:
+      bucket: solve-s3-storage
+    credentials:
+      access-key: ${AWS_ACCESS_KEY}
+      secret-key: ${AWS_SECRET_KEY}
+    region:
+      static: ap-northeast-2
+    stack:
+      auto: false

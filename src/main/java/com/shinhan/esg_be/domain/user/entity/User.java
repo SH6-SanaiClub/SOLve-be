@@ -3,6 +3,7 @@ package com.shinhan.esg_be.domain.user.entity;
 import com.shinhan.esg_be.domain.user.entity.enums.Grade;
 import com.shinhan.esg_be.domain.user.entity.enums.UserType;
 import com.shinhan.esg_be.global.common.BaseTimeEntity;
+import com.shinhan.esg_be.global.common.enums.ScoreCategory;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -84,7 +85,6 @@ public class User extends BaseTimeEntity {
     @Column(name = "is_linked", nullable = false)
     private Boolean isLinked = false;
 
-
     public static User create(String loginId, String password, String name, String email,
                               String phoneNumber, LocalDate birthdate, String ciDi) {
         User user = new User();
@@ -108,5 +108,87 @@ public class User extends BaseTimeEntity {
 
         return user;
     }
-}
+  
+    public void applyScore(ScoreCategory scoreCategory, int scoreDelta) {
+        if (scoreDelta == 0) {
+            return;
+        }
 
+        switch (scoreCategory) {
+            case E -> eScore += scoreDelta;
+            case S -> sScore += scoreDelta;
+            case G_ACTIVITY -> gActivityScore += scoreDelta;
+            case G_REPAYMENT -> gRepaymentScore += scoreDelta;
+        }
+
+        recalculateGrade();
+    }
+
+    public void initializeScore(ScoreCategory scoreCategory, int score) {
+        switch (scoreCategory) {
+            case E -> eScore = score;
+            case S -> sScore = score;
+            case G_ACTIVITY -> gActivityScore = score;
+            case G_REPAYMENT -> gRepaymentScore = score;
+        }
+
+        recalculateGrade();
+    }
+
+    public void applyPoint(int pointDelta) {
+        if (pointDelta == 0) {
+            return;
+        }
+        totalPoints += pointDelta;
+    }
+
+    public void increaseAbuseCount() {
+        abuseCount += 1;
+    }
+
+    public void blockLoan() {
+        // Loan blocking is currently derived from abuseCount.
+    }
+
+    public boolean getIsLoanBlocked() {
+        return abuseCount > 0;
+    }
+
+    public void updateLastActivityDate(LocalDateTime activityDateTime) {
+        this.lastActivityDate = activityDateTime;
+    }
+
+    public int getScore(ScoreCategory scoreCategory) {
+        return switch (scoreCategory) {
+            case E -> eScore;
+            case S -> sScore;
+            case G_ACTIVITY -> gActivityScore;
+            case G_REPAYMENT -> gRepaymentScore;
+        };
+    }
+
+    public int getTotalScore() {
+        return eScore + sScore + gActivityScore + gRepaymentScore;
+    }
+
+    public void recalculateGrade() {
+        int totalScore = getTotalScore();
+        if (totalScore >= 900) {
+            currentGrade = Grade.EARTH;
+            return;
+        }
+        if (totalScore >= 800) {
+            currentGrade = Grade.FOREST;
+            return;
+        }
+        if (totalScore >= 700) {
+            currentGrade = Grade.TREE;
+            return;
+        }
+        if (totalScore >= 600) {
+            currentGrade = Grade.SPROUT;
+            return;
+        }
+        currentGrade = Grade.SEED;
+    }
+}
