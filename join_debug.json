@@ -1,9 +1,0 @@
-{
-  "loginId": "debug_user_01",
-  "password": "password1234",
-  "name": "debug_user_01",
-  "email": "debug_user_01@test.com",
-  "phoneNumber": "01012345678",
-  "birthdate": "1999-01-01T00:00:00",
-  "ciDi": "debug_ci_di_01"
-}
