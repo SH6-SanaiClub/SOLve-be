@@ -1,6 +1,8 @@
 package com.shinhan.esg_be.global.config;
 
 import com.shinhan.esg_be.global.security.JwtAuthenticationFilter;
+import com.shinhan.esg_be.global.security.JsonAccessDeniedHandler;
+import com.shinhan.esg_be.global.security.JsonAuthenticationEntryPoint;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -24,9 +26,17 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final JsonAuthenticationEntryPoint jsonAuthenticationEntryPoint;
+    private final JsonAccessDeniedHandler jsonAccessDeniedHandler;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+    public SecurityConfig(
+            JwtAuthenticationFilter jwtAuthenticationFilter,
+            JsonAuthenticationEntryPoint jsonAuthenticationEntryPoint,
+            JsonAccessDeniedHandler jsonAccessDeniedHandler
+    ) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.jsonAuthenticationEntryPoint = jsonAuthenticationEntryPoint;
+        this.jsonAccessDeniedHandler = jsonAccessDeniedHandler;
     }
 
     @Bean
@@ -49,9 +59,14 @@ public class SecurityConfig {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(jsonAuthenticationEntryPoint)
+                        .accessDeniedHandler(jsonAccessDeniedHandler)
+                )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/api/auth/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                        .requestMatchers("/api/auth/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

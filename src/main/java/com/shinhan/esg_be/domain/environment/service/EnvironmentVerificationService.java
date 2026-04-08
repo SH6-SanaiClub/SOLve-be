@@ -22,10 +22,9 @@ import com.shinhan.esg_be.domain.reward.service.result.ApplyActivityRewardResult
 import com.shinhan.esg_be.domain.user.entity.User;
 import com.shinhan.esg_be.domain.user.repository.UserRepository;
 import com.shinhan.esg_be.global.common.enums.ActivityType;
+import com.shinhan.esg_be.global.security.AuthContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -66,6 +65,7 @@ public class EnvironmentVerificationService {
     private final TumblerVerificationValidator tumblerVerificationValidator;
     private final SharedBikeVerificationValidator sharedBikeVerificationValidator;
     private final EvRentalVerificationValidator evRentalVerificationValidator;
+    private final AuthContext authContext;
 
     public List<EnvironmentVerificationAvailabilityResponse> getVerificationAvailability() {
         User user = resolveCurrentUser();
@@ -243,12 +243,7 @@ public class EnvironmentVerificationService {
     }
 
     private User resolveCurrentUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || authentication.getName() == null || authentication.getName().isBlank()) {
-            throw new ResponseStatusException(UNAUTHORIZED, "인증된 사용자 정보가 없습니다.");
-        }
-
-        return userRepository.findByLoginId(authentication.getName())
+        return userRepository.findById(authContext.currentUserId())
                 .orElseThrow(() -> new ResponseStatusException(
                         UNAUTHORIZED,
                         "인증된 사용자 정보를 찾을 수 없습니다."
