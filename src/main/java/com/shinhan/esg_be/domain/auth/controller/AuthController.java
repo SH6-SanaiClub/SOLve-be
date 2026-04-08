@@ -7,6 +7,7 @@ import com.shinhan.esg_be.domain.auth.dto.request.RefreshTokenRequest;
 import com.shinhan.esg_be.domain.auth.dto.response.IdentityVerificationResponse;
 import com.shinhan.esg_be.domain.auth.dto.response.TokenResponse;
 import com.shinhan.esg_be.domain.auth.service.AuthService;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
+@SecurityRequirements
 public class AuthController {
 
     private final AuthService authService;
