@@ -1,7 +1,7 @@
 package com.shinhan.esg_be.domain.recommendation.service;
 
-import com.shinhan.esg_be.domain.activity.entity.Activity;
-import com.shinhan.esg_be.domain.activity.repository.ActivityRepository;
+import com.shinhan.esg_be.domain.environment.entity.EnvironmentActivity;
+import com.shinhan.esg_be.domain.environment.repository.EnvironmentActivityRepository;
 import com.shinhan.esg_be.domain.policy.entity.ActivityRewardPolicy;
 import com.shinhan.esg_be.domain.policy.repository.ActivityRewardPolicyRepository;
 import com.shinhan.esg_be.domain.quiz.repository.QuizRepository;
@@ -30,7 +30,7 @@ public class ActivityCandidateLoader {
 
     private static final double QUIZ_EXPECTED_CORRECT_RATE = 0.5;
 
-    private final ActivityRepository activityRepository;
+    private final EnvironmentActivityRepository environmentActivityRepository;
     private final DonationRepository donationRepository;
     private final VolunteerRepository volunteerRepository;
     private final EcoProductRepository ecoProductRepository;
@@ -54,8 +54,8 @@ public class ActivityCandidateLoader {
         // E 활동 (PHOTO)
         ActivityRewardPolicy photoPolicy = policyMap.get(ActivityType.PHOTO);
         if (photoPolicy != null) {
-            List<Activity> activities = activityRepository.findAll();
-            for (Activity a : activities) {
+            List<EnvironmentActivity> activities = environmentActivityRepository.findAll();
+            for (EnvironmentActivity a : activities) {
                 candidates.add(ActivityCandidateDto.builder()
                         .activityType(ActivityType.PHOTO.name())
                         .referenceId(a.getActivityId())

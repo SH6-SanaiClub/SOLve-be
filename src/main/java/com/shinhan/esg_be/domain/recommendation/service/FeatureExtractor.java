@@ -8,7 +8,7 @@ import com.shinhan.esg_be.domain.bank.repository.UserSavingRepository;
 import com.shinhan.esg_be.domain.recommendation.dto.UserFeatureDto;
 import com.shinhan.esg_be.domain.score.repository.ValidScoreHistoryRepository;
 import com.shinhan.esg_be.domain.stat.repository.UserMonthlyStatRepository;
-import com.shinhan.esg_be.domain.activity.repository.UserActivityRepository;
+import com.shinhan.esg_be.domain.environment.repository.UserEnvironmentActivityRepository;
 import com.shinhan.esg_be.domain.social.repository.UserDonationRepository;
 import com.shinhan.esg_be.domain.social.repository.UserEcoProductRepository;
 import com.shinhan.esg_be.domain.volunteer.repository.UserVolunteerRepository;
@@ -32,7 +32,7 @@ public class FeatureExtractor {
 
     private final UserRepository              userRepository;
     private final UserMonthlyStatRepository   userMonthlyStatRepository;
-    private final UserActivityRepository      userActivityRepository;
+    private final UserEnvironmentActivityRepository userActivityRepository;
     private final UserDonationRepository      userDonationRepository;
     private final UserVolunteerRepository     userVolunteerRepository;
     private final UserEcoProductRepository    userEcoProductRepository;

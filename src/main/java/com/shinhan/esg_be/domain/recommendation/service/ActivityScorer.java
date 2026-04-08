@@ -1,6 +1,6 @@
 package com.shinhan.esg_be.domain.recommendation.service;
 
-import com.shinhan.esg_be.domain.activity.repository.UserActivityRepository;
+import com.shinhan.esg_be.domain.environment.repository.UserEnvironmentActivityRepository;
 import com.shinhan.esg_be.domain.recommendation.dto.ActivityCandidateDto;
 import com.shinhan.esg_be.domain.recommendation.dto.UserFeatureDto;
 import com.shinhan.esg_be.domain.recommendation.entity.AhpWeightPolicy;
@@ -29,7 +29,7 @@ import java.util.stream.Collectors;
 public class ActivityScorer {
 
     private final AhpWeightPolicyRepository ahpWeightPolicyRepository;
-    private final UserActivityRepository userActivityRepository;
+    private final UserEnvironmentActivityRepository userActivityRepository;
     private final UserDonationRepository userDonationRepository;
     private final UserVolunteerRepository userVolunteerRepository;
     private final UserEcoProductRepository userEcoProductRepository;

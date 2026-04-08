@@ -1,6 +1,6 @@
 package com.shinhan.esg_be.domain.recommendation.service;
 
-import com.shinhan.esg_be.domain.activity.repository.UserActivityRepository;
+import com.shinhan.esg_be.domain.environment.repository.UserEnvironmentActivityRepository;
 import com.shinhan.esg_be.domain.recommendation.dto.ActivityCandidateDto;
 import com.shinhan.esg_be.domain.quiz.repository.UserQuizRepository;
 import com.shinhan.esg_be.domain.social.repository.UserDonationRepository;
@@ -28,7 +28,7 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class PopularityService {
 
-    private final UserActivityRepository userActivityRepository;
+    private final UserEnvironmentActivityRepository userActivityRepository;
     private final UserDonationRepository userDonationRepository;
     private final UserVolunteerRepository userVolunteerRepository;
     private final UserEcoProductRepository userEcoProductRepository;
