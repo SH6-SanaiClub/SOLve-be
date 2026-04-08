@@ -66,4 +66,25 @@ public class UserLoan {
 
     @Column(name = "base_esg_score", nullable = false)
     private Integer baseEsgScore;
+
+    public static UserLoan create(
+            User user,
+            FinancialProduct financialProduct,
+            Long principalAmount,
+            BigDecimal currentRate,
+            Long totalAmount,
+            LocalDate nextRepaymentDate,
+            Integer baseEsgScore
+    ) {
+        UserLoan userLoan = new UserLoan();
+        userLoan.user = user;
+        userLoan.financialProduct = financialProduct;
+        userLoan.principalAmount = principalAmount;
+        userLoan.currentRate = currentRate;
+        userLoan.status = LoanStatus.ACTIVE;
+        userLoan.totalAmount = totalAmount;
+        userLoan.nextRepaymentDate = nextRepaymentDate;
+        userLoan.baseEsgScore = baseEsgScore;
+        return userLoan;
+    }
 }

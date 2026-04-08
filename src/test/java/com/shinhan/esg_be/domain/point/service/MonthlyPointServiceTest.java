@@ -9,6 +9,7 @@ import com.shinhan.esg_be.domain.policy.repository.PointPolicyRepository;
 import com.shinhan.esg_be.domain.user.entity.User;
 import com.shinhan.esg_be.domain.user.repository.UserRepository;
 import jakarta.persistence.EntityManager;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,6 +18,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.lang.reflect.Constructor;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -40,6 +42,11 @@ class MonthlyPointServiceTest {
 
     @Autowired
     private EntityManager entityManager;
+
+    @BeforeEach
+    void setUp() {
+        pointPolicyRepository.deleteAllInBatch();
+    }
 
     @Test
     @DisplayName("월 마감 시 전월 매일 퀴즈 참여 사용자에게 월간 보너스를 지급한다")
@@ -73,7 +80,7 @@ class MonthlyPointServiceTest {
         ReflectionTestUtils.setField(user, "password", "password");
         ReflectionTestUtils.setField(user, "name", "tester");
         ReflectionTestUtils.setField(user, "phoneNumber", "01012345678");
-        ReflectionTestUtils.setField(user, "birthdate", LocalDateTime.of(2000, 1, 1, 0, 0));
+        ReflectionTestUtils.setField(user, "birthdate", LocalDate.of(2000, 1, 1));
         ReflectionTestUtils.setField(user, "email", "monthly" + totalPoints + System.nanoTime() + "@test.com");
         ReflectionTestUtils.setField(user, "ciDi", "CI-MONTHLY-" + totalPoints + System.nanoTime());
         ReflectionTestUtils.setField(user, "totalPoints", totalPoints);
