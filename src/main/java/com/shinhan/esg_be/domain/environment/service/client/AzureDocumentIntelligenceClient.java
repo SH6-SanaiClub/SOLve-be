@@ -3,6 +3,7 @@ package com.shinhan.esg_be.domain.environment.service.client;
 import com.shinhan.esg_be.domain.environment.config.AzureDocumentIntelligenceProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.server.ResponseStatusException;
 import tools.jackson.databind.JsonNode;
@@ -14,6 +15,7 @@ import java.util.Map;
 import static org.springframework.http.HttpStatus.BAD_GATEWAY;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 
+@Component
 @RequiredArgsConstructor
 public class AzureDocumentIntelligenceClient {
 

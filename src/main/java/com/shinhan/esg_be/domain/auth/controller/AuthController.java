@@ -45,6 +45,11 @@ public class AuthController {
         return ResponseEntity.ok(authService.login(req));
     }
 
+    @PostMapping("/reissue")
+    public ResponseEntity<TokenResponse> reissue(@RequestBody @Valid RefreshTokenRequest req) {
+        return ResponseEntity.ok(authService.reissue(req.getRefreshToken()));
+    }
+
     @PostMapping("/logout")
     public ResponseEntity<String> logout(@RequestBody @Valid RefreshTokenRequest req) {
         authService.logout(req.getRefreshToken());
