@@ -17,6 +17,7 @@ import java.util.Date;
 public class JwtTokenProvider {
 
     private static final String TOKEN_TYPE_CLAIM = "type";
+    private static final String USER_ID_CLAIM = "userId";
     private static final String ACCESS_TOKEN_TYPE = "access";
     private static final String REFRESH_TOKEN_TYPE = "refresh";
 
@@ -36,16 +37,27 @@ public class JwtTokenProvider {
         this.key = Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
     }
 
-    public String createAccessToken(String loginId) {
-        return createToken(loginId, ACCESS_TOKEN_TYPE, accessTokenValidityInMilliseconds);
+    public String createAccessToken(Long userId, String loginId) {
+        return createToken(userId, loginId, ACCESS_TOKEN_TYPE, accessTokenValidityInMilliseconds);
     }
 
-    public String createRefreshToken(String loginId) {
-        return createToken(loginId, REFRESH_TOKEN_TYPE, refreshTokenValidityInMilliseconds);
+    public String createRefreshToken(Long userId, String loginId) {
+        return createToken(userId, loginId, REFRESH_TOKEN_TYPE, refreshTokenValidityInMilliseconds);
     }
 
     public String getLoginId(String token) {
         return getClaims(token).getSubject();
+    }
+
+    public Long getUserId(String token) {
+        Object value = getClaims(token).get(USER_ID_CLAIM);
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        if (value instanceof String text) {
+            return Long.parseLong(text);
+        }
+        throw new IllegalArgumentException("토큰에 userId가 없습니다.");
     }
 
     public boolean isAccessToken(String token) {
@@ -69,8 +81,9 @@ public class JwtTokenProvider {
         }
     }
 
-    private String createToken(String loginId, String tokenType, long validityInMilliseconds) {
+    private String createToken(Long userId, String loginId, String tokenType, long validityInMilliseconds) {
         Claims claims = Jwts.claims().setSubject(loginId);
+        claims.put(USER_ID_CLAIM, userId);
         claims.put(TOKEN_TYPE_CLAIM, tokenType);
 
         Date now = new Date();
