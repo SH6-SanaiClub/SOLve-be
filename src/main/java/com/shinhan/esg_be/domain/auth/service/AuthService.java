@@ -78,25 +78,25 @@ public class AuthService {
             throw new BadRequestException("비밀번호가 일치하지 않습니다.");
         }
 
-        return issueTokenPair(user.getLoginId());
+        return issueTokenPair(user.getUserId(), user.getLoginId());
     }
 
     @Transactional
     public TokenResponse reissue(String refreshToken) {
-        String loginId = validateRefreshToken(refreshToken);
-        String savedRefreshToken = redisTemplate.opsForValue().get(getRefreshTokenKey(loginId));
+        TokenSubject tokenSubject = validateRefreshToken(refreshToken);
+        String savedRefreshToken = redisTemplate.opsForValue().get(getRefreshTokenKey(tokenSubject.loginId()));
 
         if (savedRefreshToken == null || !savedRefreshToken.equals(refreshToken)) {
             throw new BadRequestException("저장된 리프레시 토큰과 일치하지 않습니다.");
         }
 
-        return issueTokenPair(loginId);
+        return issueTokenPair(tokenSubject.userId(), tokenSubject.loginId());
     }
 
     @Transactional
     public void logout(String refreshToken) {
-        String loginId = validateRefreshToken(refreshToken);
-        redisTemplate.delete(getRefreshTokenKey(loginId));
+        TokenSubject tokenSubject = validateRefreshToken(refreshToken);
+        redisTemplate.delete(getRefreshTokenKey(tokenSubject.loginId()));
     }
 
     public boolean checkLoginIdDuplicate(String loginId) {
@@ -122,16 +122,19 @@ public class AuthService {
         }
     }
 
-    private String validateRefreshToken(String refreshToken) {
+    private TokenSubject validateRefreshToken(String refreshToken) {
         if (!jwtTokenProvider.validateToken(refreshToken) || !jwtTokenProvider.isRefreshToken(refreshToken)) {
             throw new BadRequestException("유효하지 않은 리프레시 토큰입니다.");
         }
-        return jwtTokenProvider.getLoginId(refreshToken);
+        return new TokenSubject(
+                jwtTokenProvider.getUserId(refreshToken),
+                jwtTokenProvider.getLoginId(refreshToken)
+        );
     }
 
-    private TokenResponse issueTokenPair(String loginId) {
-        String accessToken = jwtTokenProvider.createAccessToken(loginId);
-        String refreshToken = jwtTokenProvider.createRefreshToken(loginId);
+    private TokenResponse issueTokenPair(Long userId, String loginId) {
+        String accessToken = jwtTokenProvider.createAccessToken(userId, loginId);
+        String refreshToken = jwtTokenProvider.createRefreshToken(userId, loginId);
 
         redisTemplate.opsForValue().set(
                 getRefreshTokenKey(loginId),
@@ -176,5 +179,8 @@ public class AuthService {
 
     private String getVerifiedIdentityKey(String verificationToken) {
         return VERIFIED_IDENTITY_PREFIX + verificationToken;
+    }
+
+    private record TokenSubject(Long userId, String loginId) {
     }
 }

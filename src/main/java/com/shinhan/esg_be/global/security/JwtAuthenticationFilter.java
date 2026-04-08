@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.List;
 
 @Component
 @RequiredArgsConstructor
@@ -31,10 +31,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 && jwtTokenProvider.validateToken(token)
                 && jwtTokenProvider.isAccessToken(token)) {
             String loginId = jwtTokenProvider.getLoginId(token);
+            Long userId = jwtTokenProvider.getUserId(token);
+            CustomUserPrincipal principal = new CustomUserPrincipal(userId, loginId);
 
             // 시큐리티 전용 인증 객체 생성 (권한은 일단 빈 리스트로 설정)
             UsernamePasswordAuthenticationToken auth =
-                    new UsernamePasswordAuthenticationToken(loginId, null, new ArrayList<>());
+                    new UsernamePasswordAuthenticationToken(principal, null, List.of());
 
             // 이 요청이 살아있는 동안 "인증된 사용자"라고 메모리에 저장
             SecurityContextHolder.getContext().setAuthentication(auth);
