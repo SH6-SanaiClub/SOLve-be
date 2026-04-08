@@ -16,6 +16,7 @@ import com.shinhan.esg_be.domain.user.repository.UserRepository;
 import com.shinhan.esg_be.global.common.enums.ActivityType;
 import com.shinhan.esg_be.global.common.enums.ScoreCategory;
 import jakarta.persistence.EntityManager;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,6 +31,7 @@ import java.lang.reflect.Constructor;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.YearMonth;
@@ -67,6 +69,12 @@ class PointServiceTest {
 
     @Autowired
     private EntityManager entityManager;
+
+    @BeforeEach
+    void setUp() {
+        activityRewardPolicyRepository.deleteAllInBatch();
+        pointPolicyRepository.deleteAllInBatch();
+    }
 
     @Test
     @DisplayName("기부 포인트를 비율로 반올림 적립한다")
@@ -220,7 +228,7 @@ class PointServiceTest {
         ReflectionTestUtils.setField(user, "password", "password");
         ReflectionTestUtils.setField(user, "name", "포인트유저");
         ReflectionTestUtils.setField(user, "phoneNumber", "01012345678");
-        ReflectionTestUtils.setField(user, "birthdate", LocalDateTime.of(2000, 1, 1, 0, 0));
+        ReflectionTestUtils.setField(user, "birthdate", LocalDate.of(2000, 1, 1));
         ReflectionTestUtils.setField(user, "email", "point" + totalPoints + System.nanoTime() + "@test.com");
         ReflectionTestUtils.setField(user, "ciDi", "CI" + totalPoints + System.nanoTime());
         ReflectionTestUtils.setField(user, "totalPoints", totalPoints);

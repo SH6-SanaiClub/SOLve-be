@@ -30,6 +30,9 @@ public class FinancialProduct extends BaseTimeEntity {
     @Column(nullable = false)
     private String name;
 
+    @Column(length = 255)
+    private String subtitle;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private ProductType type;
@@ -48,4 +51,7 @@ public class FinancialProduct extends BaseTimeEntity {
 
     @Column(name = "duration_months", nullable = false)
     private Integer durationMonths = 12;
+
+    @Column(name = "monthly_payment_amount")
+    private Long monthlyPaymentAmount;
 }
