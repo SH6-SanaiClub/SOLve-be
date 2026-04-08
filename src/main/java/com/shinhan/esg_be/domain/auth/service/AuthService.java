@@ -126,10 +126,14 @@ public class AuthService {
         if (!jwtTokenProvider.validateToken(refreshToken) || !jwtTokenProvider.isRefreshToken(refreshToken)) {
             throw new BadRequestException("유효하지 않은 리프레시 토큰입니다.");
         }
-        return new TokenSubject(
-                jwtTokenProvider.getUserId(refreshToken),
-                jwtTokenProvider.getLoginId(refreshToken)
-        );
+        try {
+            return new TokenSubject(
+                    jwtTokenProvider.getUserId(refreshToken),
+                    jwtTokenProvider.getLoginId(refreshToken)
+            );
+        } catch (RuntimeException e) {
+            throw new BadRequestException("유효하지 않은 리프레시 토큰입니다.");
+        }
     }
 
     private TokenResponse issueTokenPair(Long userId, String loginId) {
