@@ -70,4 +70,10 @@ public interface DonationRepository extends JpaRepository<Donation, Long> {
             @Param("donationId") Long donationId,
             @Param("baseDateTime") LocalDateTime baseDateTime
     );
+
+    Optional<Donation> findByDonationIdAndIsActiveTrueAndStartDateLessThanEqualAndEndDateGreaterThanEqual(
+            Long donationId,
+            LocalDateTime startDate,
+            LocalDateTime endDate
+    );
 }
