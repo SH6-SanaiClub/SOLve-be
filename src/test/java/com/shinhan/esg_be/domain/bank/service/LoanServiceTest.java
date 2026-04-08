@@ -2,6 +2,7 @@ package com.shinhan.esg_be.domain.bank.service;
 
 import com.shinhan.esg_be.domain.bank.dto.request.LoanApplyRequest;
 import com.shinhan.esg_be.domain.bank.dto.response.LoanApplyResponse;
+import com.shinhan.esg_be.domain.bank.dto.response.LoanPreviewResponse;
 import com.shinhan.esg_be.domain.bank.entity.FinancialProduct;
 import com.shinhan.esg_be.domain.bank.entity.UserLoan;
 import com.shinhan.esg_be.domain.bank.entity.enums.LoanStatus;
@@ -45,6 +46,31 @@ class LoanServiceTest {
 
     @Mock
     private UserLoanRepository userLoanRepository;
+
+    @Test
+    @DisplayName("대출 미리보기에서 사용자별 적용 한도와 금리를 반환한다")
+    void getLoanPreview() {
+        User user = createUser("loan-user-preview", 100, 400, 200, 100, 0);
+        FinancialProduct product = createFinancialProduct(1L, "ESG 소액대출");
+        ReflectionTestUtils.setField(product, "subtitle", "금융 이력이 부족해도 ESG 점수로 공정하게");
+        ReflectionTestUtils.setField(product, "description", "대출 미리보기 설명");
+
+        given(userRepository.findByLoginId(user.getLoginId())).willReturn(Optional.of(user));
+        given(financialProductRepository.findByFinProductIdAndTypeAndIsActiveTrue(1L, ProductType.LOAN))
+                .willReturn(Optional.of(product));
+        given(userLoanRepository.findByUserAndStatus(user, LoanStatus.ACTIVE)).willReturn(List.of());
+
+        LoanPreviewResponse response = loanService.getLoanPreview(user.getLoginId(), 1L);
+
+        assertThat(response.available()).isTrue();
+        assertThat(response.reason()).isEqualTo("AVAILABLE");
+        assertThat(response.loanLimit()).isEqualTo(2_000_000L);
+        assertThat(response.appliedRate()).isEqualByComparingTo("7.00");
+        assertThat(response.durationMonths()).isEqualTo(12);
+        assertThat(response.baseScore()).isEqualTo(800);
+        assertThat(response.name()).isEqualTo("ESG 소액대출");
+        assertThat(response.subtitle()).isEqualTo("금융 이력이 부족해도 ESG 점수로 공정하게");
+    }
 
     @Test
     @DisplayName("대출 신청 시 점수 구간에 맞는 한도와 금리로 원장을 생성한다")
@@ -135,9 +161,11 @@ class LoanServiceTest {
         FinancialProduct product = newInstance(FinancialProduct.class);
         ReflectionTestUtils.setField(product, "finProductId", id);
         ReflectionTestUtils.setField(product, "name", name);
+        ReflectionTestUtils.setField(product, "subtitle", name + " subtitle");
         ReflectionTestUtils.setField(product, "type", ProductType.LOAN);
         ReflectionTestUtils.setField(product, "baseRate", new BigDecimal("8.50"));
         ReflectionTestUtils.setField(product, "maxRate", new BigDecimal("8.50"));
+        ReflectionTestUtils.setField(product, "description", name + " 설명");
         ReflectionTestUtils.setField(product, "isActive", true);
         ReflectionTestUtils.setField(product, "durationMonths", 12);
         return product;

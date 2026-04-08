@@ -2,6 +2,7 @@ package com.shinhan.esg_be.domain.bank.service;
 
 import com.shinhan.esg_be.domain.bank.dto.request.LoanApplyRequest;
 import com.shinhan.esg_be.domain.bank.dto.response.LoanApplyResponse;
+import com.shinhan.esg_be.domain.bank.dto.response.LoanPreviewResponse;
 import com.shinhan.esg_be.domain.bank.entity.FinancialProduct;
 import com.shinhan.esg_be.domain.bank.entity.UserLoan;
 import com.shinhan.esg_be.domain.bank.entity.enums.LoanStatus;
@@ -35,6 +36,38 @@ public class LoanService {
     private final UserRepository userRepository;
     private final FinancialProductRepository financialProductRepository;
     private final UserLoanRepository userLoanRepository;
+
+    @Transactional(readOnly = true)
+    public LoanPreviewResponse getLoanPreview(String loginId, Long productId) {
+        User user = userRepository.findByLoginId(loginId)
+                .orElseThrow(() -> new BadRequestException("사용자를 찾을 수 없습니다."));
+
+        FinancialProduct product = financialProductRepository.findByFinProductIdAndTypeAndIsActiveTrue(
+                        productId,
+                        ProductType.LOAN
+                )
+                .orElseThrow(() -> new BadRequestException("대출 상품을 찾을 수 없습니다."));
+
+        LoanOffer loanOffer = calculateLoanOffer(user.getTotalScore());
+        boolean hasActiveLoan = !userLoanRepository.findByUserAndStatus(user, LoanStatus.ACTIVE).isEmpty();
+        boolean loanBlocked = user.getIsLoanBlocked();
+        boolean available = loanOffer.available() && !hasActiveLoan && !loanBlocked;
+
+        return new LoanPreviewResponse(
+                product.getFinProductId(),
+                product.getName(),
+                product.getSubtitle(),
+                product.getDescription(),
+                available,
+                determineUnavailableReason(loanOffer.available(), hasActiveLoan, loanBlocked),
+                available ? loanOffer.loanLimit() : null,
+                available ? loanOffer.appliedRate() : null,
+                product.getDurationMonths(),
+                user.getTotalScore(),
+                hasActiveLoan,
+                loanBlocked
+        );
+    }
 
     public LoanApplyResponse applyLoan(String loginId, LoanApplyRequest request) {
         User user = userRepository.findByLoginId(loginId)
@@ -95,6 +128,19 @@ public class LoanService {
                 .multiply(rate)
                 .divide(BigDecimal.valueOf(100), 0, RoundingMode.HALF_UP);
         return principalAmount + interest.longValue();
+    }
+
+    private String determineUnavailableReason(boolean scoreAvailable, boolean hasActiveLoan, boolean loanBlocked) {
+        if (loanBlocked) {
+            return "LOAN_BLOCKED";
+        }
+        if (hasActiveLoan) {
+            return "HAS_ACTIVE_LOAN";
+        }
+        if (!scoreAvailable) {
+            return "LOW_SCORE";
+        }
+        return "AVAILABLE";
     }
 
     private record LoanOffer(
