@@ -9,4 +9,5 @@ import java.util.Optional;
 public interface ActivityRewardPolicyRepository extends JpaRepository<ActivityRewardPolicy, Long> {
 
     Optional<ActivityRewardPolicy> findByActivityType(ActivityType activityType);
+  
 }

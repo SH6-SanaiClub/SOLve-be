@@ -25,4 +25,9 @@ public interface ValidScoreHistoryRepository extends JpaRepository<ValidScoreHis
     );
 
     List<ValidScoreHistory> findByUserAndReasonIn(User user, Collection<ScoreReason> reasons);
+  
+    // 만료 임박 점수 존재 여부 (소프트 부스트용)
+    boolean existsByUser_UserIdAndValidUntilBefore(Long userId, LocalDateTime threshold);
+  
+    boolean existsByUser_UserIdAndValidUntilBetween(Long userId, LocalDateTime from, LocalDateTime to);
 }

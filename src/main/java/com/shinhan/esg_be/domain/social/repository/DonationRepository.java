@@ -14,6 +14,16 @@ import java.util.Optional;
 public interface DonationRepository extends JpaRepository<Donation, Long> {
 
     @Query("""
+            SELECT d
+            FROM Donation d
+            WHERE d.isActive = true
+              AND d.startDate <= :baseDateTime
+              AND d.endDate >= :baseDateTime
+            ORDER BY d.endDate ASC
+            """)
+    List<Donation> findActiveDonations(@Param("baseDateTime") LocalDateTime baseDateTime);
+
+    @Query("""
             select new com.shinhan.esg_be.domain.social.dto.response.DonationItemResponse(
                 d.donationId,
                 d.name,
