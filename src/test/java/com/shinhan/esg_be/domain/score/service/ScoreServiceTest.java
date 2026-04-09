@@ -17,6 +17,7 @@ import com.shinhan.esg_be.domain.user.repository.UserRepository;
 import com.shinhan.esg_be.global.common.enums.ActivityType;
 import com.shinhan.esg_be.global.common.enums.ScoreCategory;
 import com.shinhan.esg_be.global.common.enums.ScoreReason;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.lang.reflect.Constructor;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
@@ -53,6 +55,12 @@ class ScoreServiceTest {
 
     @Autowired
     private ValidScoreHistoryRepository validScoreHistoryRepository;
+
+    @BeforeEach
+    void setUp() {
+        activityRewardPolicyRepository.deleteAllInBatch();
+        esgScorePolicyRepository.deleteAllInBatch();
+    }
 
     @Test
     @DisplayName("활동 점수를 정상 반영한다")
@@ -173,7 +181,7 @@ class ScoreServiceTest {
         ReflectionTestUtils.setField(user, "password", "password");
         ReflectionTestUtils.setField(user, "name", "tester");
         ReflectionTestUtils.setField(user, "phoneNumber", "01012345678");
-        ReflectionTestUtils.setField(user, "birthdate", LocalDateTime.of(2000, 1, 1, 0, 0));
+        ReflectionTestUtils.setField(user, "birthdate", LocalDate.of(2000, 1, 1));
         ReflectionTestUtils.setField(user, "email", loginId + "@test.com");
         ReflectionTestUtils.setField(user, "ciDi", "ci-di-" + loginId);
         ReflectionTestUtils.setField(user, "userType", UserType.ALL_ROUNDER);
