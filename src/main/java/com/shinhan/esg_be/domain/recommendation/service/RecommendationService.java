@@ -1,5 +1,6 @@
 package com.shinhan.esg_be.domain.recommendation.service;
 
+import com.shinhan.esg_be.domain.ai.service.AIService;
 import com.shinhan.esg_be.domain.recommendation.dto.ActivityCandidateDto;
 import com.shinhan.esg_be.domain.recommendation.dto.ActivityRecommendResponse;
 import com.shinhan.esg_be.domain.recommendation.dto.ActivityRecommendResponse.RecommendedActivity;
@@ -29,8 +30,7 @@ public class RecommendationService {
     private final PopularityService         popularityService;
     private final RecommendCacheService     cacheService;
     private final ApplicationEventPublisher eventPublisher;
-    // TODO: Step 14에서 주석 해제
-    // private final AIService              aiService;
+    private final AIService                 aiService;
 
     private static final int TOP_N = 3;
 
@@ -111,16 +111,14 @@ public class RecommendationService {
                 popular.map(this::toRecommendedActivity).orElse(null);
 
         // Step 9: LLM 호출 → description + llmSummary 채우기
-        // TODO: Step 14에서 주석 해제
-        // AIService.LLMResult llmResult = aiService.generateDescriptions(activities, feature);
-        // activities = llmResult.activities();
-        // String llmSummary = llmResult.summary();
+        AIService.LLMResult llmResult =
+                aiService.generateDescriptions(activities, feature);
 
-        // Step 10: 최종 Response 조립 후 Redis 저장
+        // Step 10: 최종 Response 조립 후 Redis 저장 (LLM 완료 후 저장)
         ActivityRecommendResponse response = ActivityRecommendResponse.builder()
-                .activities(activities)
+                .activities(llmResult.activities())
                 .popularActivity(popularActivity)
-                .llmSummary(null)  // TODO: Step 14에서 llmResult.summary()로 교체
+                .llmSummary(llmResult.summary())
                 .build();
 
         cacheService.saveActivityRecommend(userId, response);
@@ -143,7 +141,7 @@ public class RecommendationService {
                 .targetAmount(c.getTargetAmount())
                 .currentEnrolled(c.getCurrentEnrolled())
                 .capacity(c.getCapacity())
-                .description(null)  // TODO: Step 14에서 LLM 결과로 채워짐
+                .description(null)
                 .build();
     }
 
