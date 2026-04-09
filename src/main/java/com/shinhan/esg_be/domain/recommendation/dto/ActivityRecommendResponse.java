@@ -26,5 +26,15 @@ public class ActivityRecommendResponse {
         private double pointRate;      // 포인트율 (결제 기반)
         private LocalDate deadlineDate; // 마감일 (기부/봉사)
         private double finalScore;     // 추천 점수 (디버깅/투명성)
+        private String mainReason;     // 추천사유
+
+        // UI 표시용
+        private Long currentAmount;    // 기부 현재 모금액
+        private Long targetAmount;     // 기부 목표 모금액
+        private Integer currentEnrolled; // 봉사 현재 신청 인원
+        private Integer capacity;       // 봉사 정원
+
+        // LLM 생성 카드 멘트
+        private String description;
     }
 }
