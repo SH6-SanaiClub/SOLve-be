@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
@@ -26,12 +27,13 @@ public class PaymentPrepareService {
 
     public PaymentPrepareResponse preparePayment(PaymentPrepareRequest request) {
         validateAmount(request.getAmount());
+        LocalDateTime baseDateTime = LocalDate.now().atStartOfDay();
 
         Donation donation = donationRepository
                 .findByDonationIdAndIsActiveTrueAndStartDateLessThanEqualAndEndDateGreaterThanEqual(
                         request.getDonationId(),
-                        LocalDate.now().atStartOfDay(),
-                        LocalDate.now().atStartOfDay()
+                        baseDateTime,
+                        baseDateTime
                 )
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "기부 캠페인을 찾을 수 없습니다."));
 

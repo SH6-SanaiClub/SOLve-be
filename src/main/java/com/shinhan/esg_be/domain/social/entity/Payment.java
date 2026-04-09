@@ -68,4 +68,40 @@ public class Payment extends BaseTimeEntity {
 
     @Column(name = "receipt_url", nullable = false)
     private String receiptUrl;
+
+    public static Payment create(
+            String impUid,
+            String merchantId,
+            Long amount,
+            String paymentMethod,
+            String paymentStatus,
+            LocalDateTime paidAt,
+            String failedReason,
+            String buyerName,
+            String buyerEmail,
+            String buyerTel,
+            String pgProvider,
+            String pgTid,
+            String cardName,
+            String cardNumber,
+            String receiptUrl
+    ) {
+        Payment payment = new Payment();
+        payment.impUid = impUid;
+        payment.merchantId = merchantId;
+        payment.amount = amount;
+        payment.paymentMethod = paymentMethod;
+        payment.paymentStatus = paymentStatus;
+        payment.paidAt = paidAt;
+        payment.failedReason = failedReason;
+        payment.buyerName = buyerName;
+        payment.buyerEmail = buyerEmail;
+        payment.buyerTel = buyerTel;
+        payment.pgProvider = pgProvider;
+        payment.pgTid = pgTid;
+        payment.cardName = cardName;
+        payment.cardNumber = cardNumber;
+        payment.receiptUrl = receiptUrl;
+        return payment;
+    }
 }

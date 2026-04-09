@@ -1,8 +1,11 @@
 package com.shinhan.esg_be.domain.social.controller;
 
 import com.shinhan.esg_be.domain.social.dto.request.PaymentPrepareRequest;
+import com.shinhan.esg_be.domain.social.dto.request.PaymentVerifyRequest;
 import com.shinhan.esg_be.domain.social.dto.response.PaymentPrepareResponse;
+import com.shinhan.esg_be.domain.social.dto.response.PaymentVerifyResponse;
 import com.shinhan.esg_be.domain.social.service.PaymentPrepareService;
+import com.shinhan.esg_be.domain.social.service.PaymentVerifyService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -18,9 +21,15 @@ import org.springframework.web.bind.annotation.RestController;
 public class PaymentController {
 
     private final PaymentPrepareService paymentPrepareService;
+    private final PaymentVerifyService paymentVerifyService;
 
     @PostMapping("/prepare")
     public ResponseEntity<PaymentPrepareResponse> preparePayment(@RequestBody @Valid PaymentPrepareRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(paymentPrepareService.preparePayment(request));
+    }
+
+    @PostMapping("/verify")
+    public ResponseEntity<PaymentVerifyResponse> verifyPayment(@RequestBody @Valid PaymentVerifyRequest request) {
+        return ResponseEntity.ok(paymentVerifyService.verifyDonationPayment(request));
     }
 }
