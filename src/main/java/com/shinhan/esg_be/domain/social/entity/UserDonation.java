@@ -46,4 +46,12 @@ public class UserDonation {
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    public static UserDonation create(Payment payment, Donation donation, User user) {
+        UserDonation userDonation = new UserDonation();
+        userDonation.payment = payment;
+        userDonation.donation = donation;
+        userDonation.user = user;
+        return userDonation;
+    }
 }

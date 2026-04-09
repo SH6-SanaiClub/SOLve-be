@@ -4,6 +4,7 @@ import com.shinhan.esg_be.domain.social.dto.response.DonationDetailResponse;
 import com.shinhan.esg_be.domain.social.dto.response.DonationItemResponse;
 import com.shinhan.esg_be.domain.social.entity.Donation;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -70,4 +71,18 @@ public interface DonationRepository extends JpaRepository<Donation, Long> {
             @Param("donationId") Long donationId,
             @Param("baseDateTime") LocalDateTime baseDateTime
     );
+
+    Optional<Donation> findByDonationIdAndIsActiveTrueAndStartDateLessThanEqualAndEndDateGreaterThanEqual(
+            Long donationId,
+            LocalDateTime startDate,
+            LocalDateTime endDate
+    );
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            update Donation d
+            set d.currentAmount = d.currentAmount + :amount
+            where d.donationId = :donationId
+            """)
+    int increaseCurrentAmount(@Param("donationId") Long donationId, @Param("amount") Long amount);
 }
