@@ -26,12 +26,18 @@ public class ActivityCandidateDto {
     private LocalDate deadlineDate; // 기부 end_date, 봉사 activity_date
     private boolean isActive;
 
-    // 점수 계산 결과 (Scorer가 채움)
-    @Setter private double normalizedScore;  // 카테고리 월한도 대비 정규화점수
-    @Setter private double finalScore;       // 최종 추천점수
-    @Setter private double boostValue;       // 소프트 부스트 합산값
+    private Long      currentAmount;    // 기부 현재 모금액
+    private Long      targetAmount;     // 기부 목표 모금액
+    private Integer   currentEnrolled;  // 봉사 현재 신청 인원
+    private Integer   capacity;         // 봉사 정원
 
     // 이력 (필터/스코어러용)
-    private int todayCount;        // 오늘 수행 횟수 (하드 필터)
-    private int recent14DayCount;  // 최근 14일 수행 횟수 (피로도 감점)
+    private int       todayCount; // 오늘 수행 횟수 (하드 필터)
+    private int       recent14DayCount;  // 최근 14일 수행 횟수 (피로도 감점)
+
+    // 점수 계산 결과 (Scorer가 채움)
+    @Setter private double normalizedScore; // 카테고리 월한도 대비 정규화점수
+    @Setter private double finalScore; // 최종 추천점수
+    @Setter private double boostValue; // 소프트 부스트 합산값
+    @Setter private String mainReason; //LLM 힌트용
 }

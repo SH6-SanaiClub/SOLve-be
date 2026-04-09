@@ -62,7 +62,7 @@ public class ActivityScorer {
         double wC1 = weights.getOrDefault("C1_BEHAVIOR_FIT", 0.70);
         double wC2 = weights.getOrDefault("C2_BALANCE", 0.30);
 
-        // ── B2 min-max 정규화 (전체 후보 기준) ──
+        // B2 정규화 구간 계산 (후보 전체 기준)
         double maxRaw = candidates.stream()
                 .mapToDouble(this::calcB2Raw)
                 .max()
@@ -82,23 +82,24 @@ public class ActivityScorer {
 
         LocalDateTime since14 = LocalDateTime.now().minusDays(14);
         for (ActivityCandidateDto c : candidates) {
-            // ── 전처리: 카테고리 월한도 대비 정규화점수 ──
+            // 카테고리 월한도 기준 점수 정규화
             int monthlyMax = MONTHLY_MAX.getOrDefault(c.getScoreCategory(), 1);
             double normalizedScore = clamp01((double) c.getScoreValue() / monthlyMax);
             c.setNormalizedScore(normalizedScore);
 
-            // ── B1: 등급기여도 ──
+            // B1: 등급기여도
             double b1 = calcB1(normalizedScore, feature);
-            // ── B2: 포인트효율 ──
-            double b2 = normalizeB2(c, minRaw, range);
-            // ── B3: 금융연계도 ──
+            // B2: 포인트효율
+            double b2Normalized = normalizeB2(c, minRaw, range);
+            // B3: 금융연계도
             double b3 = calcB3(c, feature);
-            double bAxis = b1 * wB1 + b2 * wB2 + b3 * wB3;
+            double bAxis = b1 * wB1 + b2Normalized * wB2 + b3 * wB3;
 
-            // ── C1: 행동패턴 적합도 ──
+            // C1: 행동패턴 적합도
             double c1 = calcC1(c, feature);
-            // ── C2: 균형보정 ──
-            double c2 = calcC2(c, feature);
+            // C2: 카테고리 비율 기반 균형보정
+            double c2Ratio = calcCategoryRatio(c, feature);
+            double c2 = c2Ratio * 0.30 + 0.70;
             double cAxis = c1 * wC1 + c2 * wC2;
 
             // ── 랭킹점수 ──
@@ -109,9 +110,11 @@ public class ActivityScorer {
 
             c.setBoostValue(0.0);
             c.setFinalScore(finalScore);
+            // UI/LLM 노출용 추천 사유 코드
+            c.setMainReason(resolveMainReason(c, feature, b1, b2Normalized, c2Ratio));
 
             log.debug("score type={} refId={} b1={} b2={} b3={} c1={} c2={} final={}",
-                    c.getActivityType(), c.getReferenceId(), b1, b2, b3, c1, c2, finalScore);
+                    c.getActivityType(), c.getReferenceId(), b1, b2Normalized, b3, c1, c2, finalScore);
         }
 
         return candidates;
@@ -211,27 +214,51 @@ public class ActivityScorer {
         return clamp01(prior * (1 - alpha) + behaviorRatio * alpha);
     }
 
-    // ── C2: 균형보정 (약한 Regularization, 0.70~1.00 압축) ──
-    private double calcC2(ActivityCandidateDto c, UserFeatureDto feature) {
-        int totalCount = feature.getRecentECount() + feature.getRecentSCount() + feature.getRecentGCount();
-
-        double categoryRatio;
-        if (totalCount == 0) {
-            // 신규 사용자: 균등 처리
-            categoryRatio = 1.0 / 3.0;
-        } else {
-            int categoryCount = switch (c.getScoreCategory()) {
-                case "E" -> feature.getRecentECount();
-                case "S" -> feature.getRecentSCount();
-                case "G" -> feature.getRecentGCount();
-                default -> 0;
-            };
-            categoryRatio = (double) categoryCount / totalCount;
+    // 해당 후보의 카테고리가 최근 행동에서 차지하는 비율
+    private double calcCategoryRatio(ActivityCandidateDto c, UserFeatureDto feature) {
+        int total = feature.getRecentECount()
+                + feature.getRecentSCount()
+                + feature.getRecentGCount();
+        if (total == 0) {
+            return 1.0 / 3.0;
         }
+        int count = switch (c.getScoreCategory()) {
+            case "E" -> feature.getRecentECount();
+            case "S" -> feature.getRecentSCount();
+            case "G" -> feature.getRecentGCount();
+            default -> 0;
+        };
+        return (double) count / total;
+    }
 
-        double raw = 1.0 - categoryRatio;
-        // 0.70~1.00 범위로 압축
-        return raw * 0.30 + 0.70;
+    // 점수·상태 기반 대표 추천 사유 1개 선택
+    private String resolveMainReason(
+            ActivityCandidateDto c,
+            UserFeatureDto feature,
+            double b1,
+            double b2Normalized,
+            double c2Ratio
+    ) {
+        if (c.getDeadlineDate() != null &&
+                ChronoUnit.DAYS.between(LocalDate.now(), c.getDeadlineDate()) <= 7) {
+            return "마감임박";
+        }
+        if (b1 >= 0.65) {
+            return "다음등급근접";
+        }
+        if (c2Ratio < 0.2) {
+            return "카테고리부족";
+        }
+        if ("QUIZ".equals(c.getActivityType()) && !feature.isTodayQuizDone()) {
+            return "오늘퀴즈미완료";
+        }
+        if (b2Normalized >= 0.7) {
+            return "포인트효율높음";
+        }
+        if (feature.isInactivityRisk()) {
+            return "미활동위험";
+        }
+        return "종합추천";
     }
 
     // ── 피로도 감점 (최근 14일 동일 활동 3회 이상 → 0.85) ──
