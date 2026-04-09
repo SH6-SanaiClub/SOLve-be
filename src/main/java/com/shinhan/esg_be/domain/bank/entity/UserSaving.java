@@ -67,4 +67,22 @@ public class UserSaving {
     @LastModifiedDate
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    public static UserSaving create(
+            User user,
+            FinancialProduct financialProduct,
+            Long monthlyAmount,
+            LocalDate maturityDate,
+            Integer score
+    ) {
+        UserSaving userSaving = new UserSaving();
+        userSaving.user = user;
+        userSaving.financialProduct = financialProduct;
+        userSaving.monthlyAmount = monthlyAmount;
+        userSaving.maturityDate = maturityDate;
+        userSaving.status = SavingStatus.ACTIVE;
+        userSaving.hasPenalty = false;
+        userSaving.score = score;
+        return userSaving;
+    }
 }
