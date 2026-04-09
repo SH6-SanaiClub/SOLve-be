@@ -1,13 +1,17 @@
 package com.shinhan.esg_be.domain.recommendation.dto;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 import java.util.List;
 
 @Getter
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class ActivityRecommendResponse {
 
     private List<RecommendedActivity> activities;  // 추천 활동 Top 3
@@ -16,6 +20,8 @@ public class ActivityRecommendResponse {
 
     @Getter
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class RecommendedActivity {
         private String activityType;   // PHOTO / DONATION / VOLUNTEER / PURCHASE / QUIZ
         private Long referenceId;      // 각 테이블 PK
