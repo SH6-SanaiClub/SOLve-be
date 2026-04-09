@@ -34,18 +34,6 @@ public class ActivityScorer {
     private final UserVolunteerRepository userVolunteerRepository;
     private final UserEcoProductRepository userEcoProductRepository;
 
-    // 등급 구간 (AI_RULES 기준)
-    private static final Map<Grade, int[]> GRADE_RANGE = Map.of(
-            Grade.SEED, new int[]{0, 599},
-            Grade.SPROUT, new int[]{600, 699},
-            Grade.TREE, new int[]{700, 799},
-            Grade.FOREST, new int[]{800, 899},
-            Grade.EARTH, new int[]{900, 1000}
-    );
-
-    private static final Grade[] GRADE_ORDER =
-            {Grade.SEED, Grade.SPROUT, Grade.TREE, Grade.FOREST, Grade.EARTH};
-
     // 월 한도 (정규화 분모)
     private static final Map<String, Integer> MONTHLY_MAX =
             Map.of("E", 5, "S", 25, "G", 10);
@@ -131,26 +119,13 @@ public class ActivityScorer {
 
     // ── B1: 등급기여도 (단기 0.6 + 장기 0.4) ──
     private double calcB1(double normalizedScore, UserFeatureDto feature) {
-        int totalScore = feature.getEScore()
-                + feature.getSScore()
-                + feature.getGActivityScore()
-                + feature.getGRepaymentScore();
-
-        // 다음 등급 구간 크기 및 남은 점수 계산
-        Grade current = feature.getCurrentGrade();
-        Grade next = nextGrade(current);
-        if (next == null) {
+        if (feature.getNextGradeGap() <= 0) {
             // 이미 최고 등급(EARTH) → 등급기여도 최소
             return normalizedScore * 0.4;
         }
 
-        int nextMin = GRADE_RANGE.get(next)[0];
-        int currentMin = GRADE_RANGE.get(current)[0];
-        int currentMax = GRADE_RANGE.get(current)[1];
-        int rangeSize = currentMax - currentMin + 1;
-        int remaining = Math.max(1, nextMin - totalScore);
-
-        double ratio = Math.min(Math.max((double) remaining / rangeSize, 0.05), 1.0);
+        int rangeSize = getGradeRangeSize(feature.getCurrentGrade());
+        double ratio = Math.min(Math.max((double) feature.getNextGradeGap() / rangeSize, 0.05), 1.0);
         double shortTerm = Math.min(normalizedScore / ratio, 1.0);
         double longTerm = normalizedScore;
         return shortTerm * 0.6 + longTerm * 0.4;
@@ -274,14 +249,14 @@ public class ActivityScorer {
         return count >= 3 ? 0.85 : 1.0;
     }
 
-    // ── 다음 등급 반환 ──
-    private Grade nextGrade(Grade current) {
-        for (int i = 0; i < GRADE_ORDER.length - 1; i++) {
-            if (GRADE_ORDER[i] == current) {
-                return GRADE_ORDER[i + 1];
-            }
-        }
-        return null;
+    private int getGradeRangeSize(Grade grade) {
+        return switch (grade) {
+            case SEED -> 600;
+            case SPROUT -> 100;
+            case TREE -> 100;
+            case FOREST -> 100;
+            case EARTH -> 100;
+        };
     }
 
     // ── AHP 가중치 로드 ──
