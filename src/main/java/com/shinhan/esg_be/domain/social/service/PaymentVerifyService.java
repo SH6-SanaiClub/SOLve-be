@@ -93,6 +93,7 @@ public class PaymentVerifyService {
                 verifiedPayment.receiptUrl()
         ));
 
+        donationRepository.increaseCurrentAmount(donation.getDonationId(), payment.getAmount());
         userDonationRepository.save(UserDonation.create(payment, donation, user));
 
         ApplyActivityRewardResult rewardResult = rewardService.applyActivityReward(
