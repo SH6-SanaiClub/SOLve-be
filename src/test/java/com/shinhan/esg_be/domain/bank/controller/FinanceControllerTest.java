@@ -1,5 +1,8 @@
 package com.shinhan.esg_be.domain.bank.controller;
 
+import com.shinhan.esg_be.domain.bank.dto.response.ActiveLoanResponse;
+import com.shinhan.esg_be.domain.bank.dto.response.ActiveSavingResponse;
+import com.shinhan.esg_be.domain.bank.dto.response.FinanceMyResponse;
 import com.shinhan.esg_be.domain.bank.dto.response.FinanceProductListResponse;
 import com.shinhan.esg_be.domain.bank.dto.response.FinanceProductResponse;
 import com.shinhan.esg_be.domain.bank.service.FinanceService;
@@ -16,6 +19,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.eq;
@@ -45,7 +50,46 @@ class FinanceControllerTest {
     }
 
     @Test
-    @DisplayName("금융 상품 조회 API는 상품 목록을 반환한다")
+    @DisplayName("마이페이지 금융상품 조회 API는 활성 대출과 적금 정보를 반환한다")
+    void getMyFinance() throws Exception {
+        FinanceMyResponse response = new FinanceMyResponse(
+                new ActiveLoanResponse(
+                        10L,
+                        1L,
+                        "ESG 소액대출",
+                        1_500_000L,
+                        1_605_000L,
+                        new BigDecimal("7.00"),
+                        "ACTIVE",
+                        12,
+                        LocalDate.of(2026, 5, 1),
+                        LocalDateTime.of(2026, 4, 1, 0, 0)
+                ),
+                new ActiveSavingResponse(
+                        20L,
+                        2L,
+                        "그린 스텝업 적금",
+                        300_000L,
+                        "ACTIVE",
+                        12,
+                        false,
+                        LocalDate.of(2027, 4, 1),
+                        LocalDateTime.of(2026, 4, 1, 0, 0)
+                )
+        );
+
+        given(financeService.getMyFinance(isNull())).willReturn(response);
+
+        mockMvc.perform(get("/api/v1/finance/my"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.activeLoan.loanId").value(10))
+                .andExpect(jsonPath("$.activeLoan.productName").value("ESG 소액대출"))
+                .andExpect(jsonPath("$.activeSaving.savingId").value(20))
+                .andExpect(jsonPath("$.activeSaving.productName").value("그린 스텝업 적금"));
+    }
+
+    @Test
+    @DisplayName("금융상품 조회 API는 상품 목록을 반환한다")
     void getFinanceProducts() throws Exception {
         FinanceProductResponse response = new FinanceProductResponse(
                 1L,
