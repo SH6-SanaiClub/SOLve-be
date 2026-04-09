@@ -1,14 +1,19 @@
 package com.shinhan.esg_be.domain.bank.service;
 
+import com.shinhan.esg_be.domain.bank.dto.response.FinanceHistoryResponse;
 import com.shinhan.esg_be.domain.bank.dto.response.FinanceMyResponse;
 import com.shinhan.esg_be.domain.bank.dto.response.FinanceProductListResponse;
 import com.shinhan.esg_be.domain.bank.entity.FinancialProduct;
+import com.shinhan.esg_be.domain.bank.entity.LoanHistory;
+import com.shinhan.esg_be.domain.bank.entity.SavingHistory;
 import com.shinhan.esg_be.domain.bank.entity.UserLoan;
 import com.shinhan.esg_be.domain.bank.entity.UserSaving;
 import com.shinhan.esg_be.domain.bank.entity.enums.LoanStatus;
 import com.shinhan.esg_be.domain.bank.entity.enums.ProductType;
 import com.shinhan.esg_be.domain.bank.entity.enums.SavingStatus;
 import com.shinhan.esg_be.domain.bank.repository.FinancialProductRepository;
+import com.shinhan.esg_be.domain.bank.repository.LoanHistoryRepository;
+import com.shinhan.esg_be.domain.bank.repository.SavingHistoryRepository;
 import com.shinhan.esg_be.domain.bank.repository.UserLoanRepository;
 import com.shinhan.esg_be.domain.bank.repository.UserSavingRepository;
 import com.shinhan.esg_be.domain.user.entity.User;
@@ -39,6 +44,12 @@ class FinanceServiceTest {
 
     @Mock
     private FinancialProductRepository financialProductRepository;
+
+    @Mock
+    private LoanHistoryRepository loanHistoryRepository;
+
+    @Mock
+    private SavingHistoryRepository savingHistoryRepository;
 
     @Mock
     private UserLoanRepository userLoanRepository;
@@ -79,6 +90,39 @@ class FinanceServiceTest {
         assertThat(response.activeSaving().savingId()).isEqualTo(202L);
         assertThat(response.activeSaving().productId()).isEqualTo(22L);
         assertThat(response.activeSaving().productName()).isEqualTo("그린 스텝업 적금");
+    }
+
+    @Test
+    @DisplayName("금융 이력 조회는 대출 상환 이력과 적금 납입 이력을 함께 반환한다")
+    void getFinanceHistory() {
+        User user = createUser("finance-user-history", 100, 500, 100, 100);
+        ReflectionTestUtils.setField(user, "userId", 1L);
+
+        FinancialProduct loanProduct = createFinancialProduct("ESG 소액대출", ProductType.LOAN, "8.50", "8.50", 12);
+        ReflectionTestUtils.setField(loanProduct, "finProductId", 11L);
+        UserLoan userLoan = createUserLoan(user, loanProduct);
+        ReflectionTestUtils.setField(userLoan, "loanId", 101L);
+
+        FinancialProduct savingProduct = createFinancialProduct("그린 스텝업 적금", ProductType.SAVINGS, "2.00", "4.40", 12);
+        ReflectionTestUtils.setField(savingProduct, "finProductId", 22L);
+        UserSaving userSaving = createUserSaving(user, savingProduct);
+        ReflectionTestUtils.setField(userSaving, "savingId", 202L);
+
+        LoanHistory loanHistory = createLoanHistory(userLoan, 1L, 100_000L, LocalDateTime.of(2026, 4, 10, 9, 0));
+        SavingHistory savingHistory = createSavingHistory(userSaving, 2L, 300_000L, LocalDateTime.of(2026, 4, 11, 9, 0));
+
+        given(userRepository.findByLoginId(user.getLoginId())).willReturn(Optional.of(user));
+        given(loanHistoryRepository.findAllByUserId(1L)).willReturn(List.of(loanHistory));
+        given(savingHistoryRepository.findAllByUserId(1L)).willReturn(List.of(savingHistory));
+
+        FinanceHistoryResponse response = financeService.getFinanceHistory(user.getLoginId());
+
+        assertThat(response.loans()).hasSize(1);
+        assertThat(response.loans().get(0).historyId()).isEqualTo(1L);
+        assertThat(response.loans().get(0).productName()).isEqualTo("ESG 소액대출");
+        assertThat(response.savings()).hasSize(1);
+        assertThat(response.savings().get(0).historyId()).isEqualTo(2L);
+        assertThat(response.savings().get(0).productName()).isEqualTo("그린 스텝업 적금");
     }
 
     @Test
@@ -199,6 +243,24 @@ class FinanceServiceTest {
         ReflectionTestUtils.setField(userSaving, "maturityDate", LocalDate.of(2027, 4, 1));
         ReflectionTestUtils.setField(userSaving, "joinedAt", LocalDateTime.of(2026, 4, 1, 0, 0));
         return userSaving;
+    }
+
+    private LoanHistory createLoanHistory(UserLoan userLoan, Long id, Long amount, LocalDateTime paymentDate) {
+        LoanHistory loanHistory = newInstance(LoanHistory.class);
+        ReflectionTestUtils.setField(loanHistory, "id", id);
+        ReflectionTestUtils.setField(loanHistory, "userLoan", userLoan);
+        ReflectionTestUtils.setField(loanHistory, "amount", amount);
+        ReflectionTestUtils.setField(loanHistory, "paymentDate", paymentDate);
+        return loanHistory;
+    }
+
+    private SavingHistory createSavingHistory(UserSaving userSaving, Long id, Long amount, LocalDateTime paymentDate) {
+        SavingHistory savingHistory = newInstance(SavingHistory.class);
+        ReflectionTestUtils.setField(savingHistory, "id", id);
+        ReflectionTestUtils.setField(savingHistory, "userSaving", userSaving);
+        ReflectionTestUtils.setField(savingHistory, "amount", amount);
+        ReflectionTestUtils.setField(savingHistory, "paymentDate", paymentDate);
+        return savingHistory;
     }
 
     private <T> T newInstance(Class<T> type) {

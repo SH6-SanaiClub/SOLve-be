@@ -2,9 +2,12 @@ package com.shinhan.esg_be.domain.bank.controller;
 
 import com.shinhan.esg_be.domain.bank.dto.response.ActiveLoanResponse;
 import com.shinhan.esg_be.domain.bank.dto.response.ActiveSavingResponse;
+import com.shinhan.esg_be.domain.bank.dto.response.FinanceHistoryResponse;
 import com.shinhan.esg_be.domain.bank.dto.response.FinanceMyResponse;
 import com.shinhan.esg_be.domain.bank.dto.response.FinanceProductListResponse;
 import com.shinhan.esg_be.domain.bank.dto.response.FinanceProductResponse;
+import com.shinhan.esg_be.domain.bank.dto.response.LoanHistoryResponse;
+import com.shinhan.esg_be.domain.bank.dto.response.SavingHistoryResponse;
 import com.shinhan.esg_be.domain.bank.service.FinanceService;
 import com.shinhan.esg_be.global.exception.GlobalExceptionHandler;
 import org.junit.jupiter.api.BeforeEach;
@@ -86,6 +89,38 @@ class FinanceControllerTest {
                 .andExpect(jsonPath("$.activeLoan.productName").value("ESG 소액대출"))
                 .andExpect(jsonPath("$.activeSaving.savingId").value(20))
                 .andExpect(jsonPath("$.activeSaving.productName").value("그린 스텝업 적금"));
+    }
+
+    @Test
+    @DisplayName("금융 이력 조회 API는 대출 및 적금 이력을 반환한다")
+    void getFinanceHistory() throws Exception {
+        FinanceHistoryResponse response = new FinanceHistoryResponse(
+                List.of(new LoanHistoryResponse(
+                        1L,
+                        10L,
+                        1L,
+                        "ESG 소액대출",
+                        100_000L,
+                        LocalDateTime.of(2026, 4, 10, 9, 0)
+                )),
+                List.of(new SavingHistoryResponse(
+                        2L,
+                        20L,
+                        2L,
+                        "그린 스텝업 적금",
+                        300_000L,
+                        LocalDateTime.of(2026, 4, 10, 9, 0)
+                ))
+        );
+
+        given(financeService.getFinanceHistory(isNull())).willReturn(response);
+
+        mockMvc.perform(get("/api/v1/finance/history"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.loans[0].historyId").value(1))
+                .andExpect(jsonPath("$.loans[0].productName").value("ESG 소액대출"))
+                .andExpect(jsonPath("$.savings[0].historyId").value(2))
+                .andExpect(jsonPath("$.savings[0].productName").value("그린 스텝업 적금"));
     }
 
     @Test
