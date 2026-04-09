@@ -52,6 +52,9 @@ public class UserPoint {
     @Column(name = "point_after", nullable = false)
     private Long pointAfter;
 
+    @Column(name = "exchange_code", unique = true, length = 100)
+    private String exchangeCode;
+
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -63,12 +66,24 @@ public class UserPoint {
             long changedAmount,
             long pointAfter
     ) {
+        return create(user, item, reason, changedAmount, pointAfter, null);
+    }
+
+    public static UserPoint create(
+            User user,
+            Item item,
+            PointReason reason,
+            long changedAmount,
+            long pointAfter,
+            String exchangeCode
+    ) {
         UserPoint userPoint = new UserPoint();
         userPoint.user = user;
         userPoint.item = item;
         userPoint.reason = reason;
         userPoint.changedAmount = changedAmount;
         userPoint.pointAfter = pointAfter;
+        userPoint.exchangeCode = exchangeCode;
         return userPoint;
     }
 }

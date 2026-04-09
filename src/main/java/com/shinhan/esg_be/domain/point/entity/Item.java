@@ -41,4 +41,11 @@ public class Item extends BaseTimeEntity {
 
     @Column(name = "is_active", nullable = false)
     private Boolean isActive;
+
+    public void decreaseStock() {
+        if (stock == null || stock <= 0) {
+            throw new IllegalStateException("차감할 수 있는 재고가 없습니다.");
+        }
+        stock -= 1;
+    }
 }
