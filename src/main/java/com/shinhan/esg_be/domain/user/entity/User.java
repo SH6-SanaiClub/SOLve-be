@@ -108,7 +108,28 @@ public class User extends BaseTimeEntity {
 
         return user;
     }
-  
+
+    // 본인인증 후 새 휴대폰 번호와 ciDi를 함께 변경
+    public void updatePhoneNumberAndCiDi(String phoneNumber, String ciDi) {
+        this.phoneNumber = phoneNumber;
+        this.ciDi = ciDi;
+    }
+
+    // 이메일 주소 변경
+    public void updateEmail(String email) {
+        this.email = email;
+    }
+
+    // 암호화된 비밀번호 값으로 변경
+    public void updatePassword(String password) {
+        this.password = password;
+    }
+
+    // 회원탈퇴 시 계정을 비활성 상태로 변경
+    public void withdraw() {
+        this.isActive = false;
+    }
+
     public void applyScore(ScoreCategory scoreCategory, int scoreDelta) {
         if (scoreDelta == 0) {
             return;
@@ -190,5 +211,24 @@ public class User extends BaseTimeEntity {
             return;
         }
         currentGrade = Grade.SEED;
+    }
+
+    public void reactivate(
+            String loginId,
+            String password,
+            String name,
+            String email,
+            String phoneNumber,
+            LocalDate birthdate,
+            String ciDi
+    ) {
+        this.loginId = loginId;
+        this.password = password;
+        this.name = name;
+        this.email = email;
+        this.phoneNumber = phoneNumber;
+        this.birthdate = birthdate;
+        this.ciDi = ciDi;
+        this.isActive = true;
     }
 }

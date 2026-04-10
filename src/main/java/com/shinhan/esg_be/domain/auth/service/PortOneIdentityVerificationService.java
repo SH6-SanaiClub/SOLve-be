@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shinhan.esg_be.domain.auth.dto.internal.VerifiedIdentity;
+import com.shinhan.esg_be.domain.auth.dto.internal.VerifiedIdentityDetails;
 import com.shinhan.esg_be.global.config.PortOneProperties;
 import com.shinhan.esg_be.global.exception.BadRequestException;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +34,12 @@ public class PortOneIdentityVerificationService {
     private final PortOneProperties portOneProperties;
 
     public VerifiedIdentity verify(String impUid) {
+        VerifiedIdentityDetails verifiedIdentityDetails = verifyDetails(impUid);
+        return new VerifiedIdentity(verifiedIdentityDetails.getCiDi());
+    }
+
+    // 번호 변경에 필요한 본인인증 상세 정보를 조회
+    public VerifiedIdentityDetails verifyDetails(String impUid) {
         if (!hasText(impUid)) {
             throw new BadRequestException("impUid가 비어 있습니다.");
         }
@@ -66,10 +73,9 @@ public class PortOneIdentityVerificationService {
                 throw new BadRequestException("본인인증이 완료되지 않았습니다.");
             }
 
-            String ciDi = createStableCiDi(data);
             log.info("PortOne verification succeeded impUid={} derivedCiDi=true", impUid);
 
-            return new VerifiedIdentity(ciDi);
+            return buildVerifiedIdentityDetails(data);
         } catch (IOException e) {
             throw new RuntimeException("PortOne 본인인증 응답 파싱에 실패했습니다.", e);
         } catch (InterruptedException e) {
@@ -165,6 +171,20 @@ public class PortOneIdentityVerificationService {
         if (statusCode < 200 || statusCode >= 300) {
             throw new BadRequestException(message + " status=" + statusCode);
         }
+    }
+
+    // 인증된 이름, 번호, 생년월일로 새 ciDi 값 생성
+    private VerifiedIdentityDetails buildVerifiedIdentityDetails(CertificationData data) {
+        String name = requireValue(data.name, "PortOne 이름 정보가 없습니다.");
+        String phoneNumber = normalizePhoneNumber(requireValue(data.phone, "PortOne 전화번호 정보가 없습니다."));
+        String birthdate = requireValue(data.birthday, "PortOne 생년월일 정보가 없습니다.");
+
+        return new VerifiedIdentityDetails(
+                createStableCiDi(data),
+                name,
+                phoneNumber,
+                birthdate
+        );
     }
 
     private String createStableCiDi(CertificationData data) {
