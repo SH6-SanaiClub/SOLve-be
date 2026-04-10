@@ -133,12 +133,19 @@ public class FinanceService {
 
     private ActiveLoanResponse toActiveLoanResponse(UserLoan userLoan) {
         FinancialProduct product = userLoan.getFinancialProduct();
+        long paidAmount = loanHistoryRepository.sumAmountByLoanId(userLoan.getLoanId());
+        long remainingAmount = Math.max(userLoan.getTotalAmount() - paidAmount, 0L);
+        long repaymentCount = loanHistoryRepository.countByUserLoan_LoanId(userLoan.getLoanId());
+
         return new ActiveLoanResponse(
                 userLoan.getLoanId(),
                 product.getFinProductId(),
                 product.getName(),
                 userLoan.getPrincipalAmount(),
                 userLoan.getTotalAmount(),
+                paidAmount,
+                remainingAmount,
+                repaymentCount,
                 userLoan.getCurrentRate(),
                 userLoan.getStatus().name(),
                 product.getDurationMonths(),

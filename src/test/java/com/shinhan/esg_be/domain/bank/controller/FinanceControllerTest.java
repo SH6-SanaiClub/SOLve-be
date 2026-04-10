@@ -10,6 +10,7 @@ import com.shinhan.esg_be.domain.bank.dto.response.LoanHistoryResponse;
 import com.shinhan.esg_be.domain.bank.dto.response.SavingHistoryResponse;
 import com.shinhan.esg_be.domain.bank.service.FinanceService;
 import com.shinhan.esg_be.global.exception.GlobalExceptionHandler;
+import com.shinhan.esg_be.global.security.AuthContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -27,7 +28,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -35,6 +35,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @ExtendWith(MockitoExtension.class)
 class FinanceControllerTest {
+
+    private static final String LOGIN_ID = "test-user";
 
     private MockMvc mockMvc;
 
@@ -44,8 +46,12 @@ class FinanceControllerTest {
     @Mock
     private FinanceService financeService;
 
+    @Mock
+    private AuthContext authContext;
+
     @BeforeEach
     void setUp() {
+        given(authContext.currentLoginId()).willReturn(LOGIN_ID);
         mockMvc = MockMvcBuilders.standaloneSetup(financeController)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .setMessageConverters(new MappingJackson2HttpMessageConverter())
@@ -62,6 +68,9 @@ class FinanceControllerTest {
                         "ESG 소액대출",
                         1_500_000L,
                         1_605_000L,
+                        100_000L,
+                        1_505_000L,
+                        1L,
                         new BigDecimal("7.00"),
                         "ACTIVE",
                         12,
@@ -81,12 +90,15 @@ class FinanceControllerTest {
                 )
         );
 
-        given(financeService.getMyFinance(isNull())).willReturn(response);
+        given(financeService.getMyFinance(LOGIN_ID)).willReturn(response);
 
         mockMvc.perform(get("/api/v1/finance/my"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.activeLoan.loanId").value(10))
                 .andExpect(jsonPath("$.activeLoan.productName").value("ESG 소액대출"))
+                .andExpect(jsonPath("$.activeLoan.paidAmount").value(100000))
+                .andExpect(jsonPath("$.activeLoan.remainingAmount").value(1505000))
+                .andExpect(jsonPath("$.activeLoan.repaymentCount").value(1))
                 .andExpect(jsonPath("$.activeSaving.savingId").value(20))
                 .andExpect(jsonPath("$.activeSaving.productName").value("그린 스텝업 적금"));
     }
@@ -113,7 +125,7 @@ class FinanceControllerTest {
                 ))
         );
 
-        given(financeService.getFinanceHistory(isNull())).willReturn(response);
+        given(financeService.getFinanceHistory(LOGIN_ID)).willReturn(response);
 
         mockMvc.perform(get("/api/v1/finance/history"))
                 .andExpect(status().isOk())
@@ -141,7 +153,7 @@ class FinanceControllerTest {
                 "설명"
         );
 
-        given(financeService.getFinanceProducts(isNull(), eq("loan")))
+        given(financeService.getFinanceProducts(eq(LOGIN_ID), eq("loan")))
                 .willReturn(new FinanceProductListResponse(List.of(response)));
 
         mockMvc.perform(get("/api/v1/finance/list")

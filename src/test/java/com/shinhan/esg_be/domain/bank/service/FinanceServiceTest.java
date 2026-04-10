@@ -79,6 +79,8 @@ class FinanceServiceTest {
         given(userRepository.findByLoginId(user.getLoginId())).willReturn(Optional.of(user));
         given(userLoanRepository.findByUser_UserIdAndStatus(1L, LoanStatus.ACTIVE)).willReturn(Optional.of(userLoan));
         given(userSavingRepository.findByUser_UserIdAndStatus(1L, SavingStatus.ACTIVE)).willReturn(Optional.of(userSaving));
+        given(loanHistoryRepository.sumAmountByLoanId(101L)).willReturn(100_000L);
+        given(loanHistoryRepository.countByUserLoan_LoanId(101L)).willReturn(1L);
 
         FinanceMyResponse response = financeService.getMyFinance(user.getLoginId());
 
@@ -86,6 +88,9 @@ class FinanceServiceTest {
         assertThat(response.activeLoan().loanId()).isEqualTo(101L);
         assertThat(response.activeLoan().productId()).isEqualTo(11L);
         assertThat(response.activeLoan().productName()).isEqualTo("ESG 소액대출");
+        assertThat(response.activeLoan().paidAmount()).isEqualTo(100_000L);
+        assertThat(response.activeLoan().remainingAmount()).isEqualTo(985_000L);
+        assertThat(response.activeLoan().repaymentCount()).isEqualTo(1L);
         assertThat(response.activeSaving()).isNotNull();
         assertThat(response.activeSaving().savingId()).isEqualTo(202L);
         assertThat(response.activeSaving().productId()).isEqualTo(22L);

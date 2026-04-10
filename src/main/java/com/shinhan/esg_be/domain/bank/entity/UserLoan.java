@@ -87,4 +87,12 @@ public class UserLoan {
         userLoan.baseEsgScore = baseEsgScore;
         return userLoan;
     }
+
+    public void advanceNextRepaymentDate() {
+        this.nextRepaymentDate = this.nextRepaymentDate.plusMonths(1);
+    }
+
+    public void complete() {
+        this.status = LoanStatus.COMPLETE;
+    }
 }
