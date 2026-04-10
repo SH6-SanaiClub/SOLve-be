@@ -2,10 +2,12 @@ package com.shinhan.esg_be.domain.bank.service;
 
 import com.shinhan.esg_be.domain.bank.entity.FinancialProduct;
 import com.shinhan.esg_be.domain.bank.entity.SavingHistory;
+import com.shinhan.esg_be.domain.bank.entity.SavingPrimeHistory;
 import com.shinhan.esg_be.domain.bank.entity.UserSaving;
 import com.shinhan.esg_be.domain.bank.entity.enums.ProductType;
 import com.shinhan.esg_be.domain.bank.entity.enums.SavingStatus;
 import com.shinhan.esg_be.domain.bank.repository.SavingHistoryRepository;
+import com.shinhan.esg_be.domain.bank.repository.SavingPrimeHistoryRepository;
 import com.shinhan.esg_be.domain.bank.repository.UserSavingRepository;
 import com.shinhan.esg_be.domain.user.entity.User;
 import org.junit.jupiter.api.DisplayName;
@@ -18,6 +20,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.lang.reflect.Constructor;
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -45,6 +48,9 @@ class SavingPaymentBatchServiceTest {
 
     @Mock
     private SavingHistoryRepository savingHistoryRepository;
+
+    @Mock
+    private SavingPrimeHistoryRepository savingPrimeHistoryRepository;
 
     @Mock
     private Clock clock;
@@ -89,10 +95,36 @@ class SavingPaymentBatchServiceTest {
         assertThat(userSaving.getStatus()).isEqualTo(SavingStatus.COMPLETE);
     }
 
+    @Test
+    @DisplayName("그린 스텝업 적금은 자동 납입 시 우대금리 이력을 함께 저장한다")
+    void processDuePaymentsSavesPrimeHistoryForGreenStepUp() {
+        UserSaving userSaving = createUserSaving(1L, LocalDate.of(2027, 3, 10), LocalDateTime.of(2026, 3, 10, 0, 0));
+        ReflectionTestUtils.setField(userSaving.getFinancialProduct(), "name", "그린 스텝업 적금");
+        ReflectionTestUtils.setField(userSaving, "score", 800);
+        ReflectionTestUtils.setField(userSaving.getUser(), "eScore", 200);
+        ReflectionTestUtils.setField(userSaving.getUser(), "sScore", 300);
+        ReflectionTestUtils.setField(userSaving.getUser(), "gActivityScore", 220);
+        ReflectionTestUtils.setField(userSaving.getUser(), "gRepaymentScore", 200); // total = 920
+
+        given(clock.getZone()).willReturn(FIXED_CLOCK.getZone());
+        given(clock.instant()).willReturn(FIXED_CLOCK.instant());
+        given(userSavingRepository.findByStatus(SavingStatus.ACTIVE)).willReturn(List.of(userSaving));
+        given(savingHistoryRepository.countByUserSaving_SavingId(1L)).willReturn(0L, 1L);
+
+        savingPaymentBatchService.processDuePayments();
+
+        ArgumentCaptor<SavingPrimeHistory> primeCaptor = ArgumentCaptor.forClass(SavingPrimeHistory.class);
+        verify(savingPrimeHistoryRepository).save(primeCaptor.capture());
+        SavingPrimeHistory savedPrime = primeCaptor.getValue();
+        assertThat(savedPrime.getAddedRate()).isEqualByComparingTo(new BigDecimal("2.40"));
+        assertThat(savedPrime.getAppliedAt()).isEqualTo(LocalDateTime.of(2026, 4, 10, 9, 0));
+    }
+
     private UserSaving createUserSaving(Long savingId, LocalDate maturityDate, LocalDateTime joinedAt) {
         User user = newInstance(User.class);
         FinancialProduct product = newInstance(FinancialProduct.class);
         ReflectionTestUtils.setField(product, "type", ProductType.SAVINGS);
+        ReflectionTestUtils.setField(product, "name", "Test Saving");
 
         UserSaving userSaving = newInstance(UserSaving.class);
         ReflectionTestUtils.setField(userSaving, "savingId", savingId);

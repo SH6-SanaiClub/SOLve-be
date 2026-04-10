@@ -11,6 +11,7 @@ import com.shinhan.esg_be.domain.bank.dto.response.SavingHistoryResponse;
 import com.shinhan.esg_be.domain.bank.entity.FinancialProduct;
 import com.shinhan.esg_be.domain.bank.entity.LoanHistory;
 import com.shinhan.esg_be.domain.bank.entity.SavingHistory;
+import com.shinhan.esg_be.domain.bank.entity.SavingPrimeHistory;
 import com.shinhan.esg_be.domain.bank.entity.UserLoan;
 import com.shinhan.esg_be.domain.bank.entity.UserSaving;
 import com.shinhan.esg_be.domain.bank.entity.enums.LoanStatus;
@@ -19,6 +20,7 @@ import com.shinhan.esg_be.domain.bank.entity.enums.SavingStatus;
 import com.shinhan.esg_be.domain.bank.repository.FinancialProductRepository;
 import com.shinhan.esg_be.domain.bank.repository.LoanHistoryRepository;
 import com.shinhan.esg_be.domain.bank.repository.SavingHistoryRepository;
+import com.shinhan.esg_be.domain.bank.repository.SavingPrimeHistoryRepository;
 import com.shinhan.esg_be.domain.bank.repository.UserLoanRepository;
 import com.shinhan.esg_be.domain.bank.repository.UserSavingRepository;
 import com.shinhan.esg_be.domain.user.entity.User;
@@ -52,6 +54,7 @@ public class FinanceService {
     private final FinancialProductRepository financialProductRepository;
     private final LoanHistoryRepository loanHistoryRepository;
     private final SavingHistoryRepository savingHistoryRepository;
+    private final SavingPrimeHistoryRepository savingPrimeHistoryRepository;
     private final UserLoanRepository userLoanRepository;
     private final UserSavingRepository userSavingRepository;
     private final UserRepository userRepository;
@@ -168,6 +171,15 @@ public class FinanceService {
 
     private ActiveSavingResponse toActiveSavingResponse(UserSaving userSaving) {
         FinancialProduct product = userSaving.getFinancialProduct();
+        BigDecimal addedRate = savingPrimeHistoryRepository
+                .findTopByUserSaving_SavingIdOrderByAppliedAtDesc(userSaving.getSavingId())
+                .map(SavingPrimeHistory::getAddedRate)
+                .orElse(BigDecimal.ZERO)
+                .setScale(2, java.math.RoundingMode.DOWN);
+        BigDecimal appliedRate = product.getBaseRate()
+                .add(addedRate)
+                .min(product.getMaxRate());
+
         long paidAmount = savingHistoryRepository.sumAmountBySavingId(userSaving.getSavingId());
         long paymentCount = savingHistoryRepository.countByUserSaving_SavingId(userSaving.getSavingId());
         long remainingCount = Math.max(SAVING_DURATION_MONTHS - paymentCount, 0L);
@@ -177,6 +189,8 @@ public class FinanceService {
                 product.getFinProductId(),
                 product.getName(),
                 userSaving.getMonthlyAmount(),
+                addedRate,
+                appliedRate,
                 paidAmount,
                 paymentCount,
                 remainingCount,

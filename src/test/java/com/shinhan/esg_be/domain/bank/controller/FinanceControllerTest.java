@@ -82,6 +82,8 @@ class FinanceControllerTest {
                         2L,
                         "Green Saving",
                         300_000L,
+                        new BigDecimal("1.00"),
+                        new BigDecimal("3.00"),
                         300_000L,
                         1L,
                         11L,
@@ -104,6 +106,8 @@ class FinanceControllerTest {
                 .andExpect(jsonPath("$.loans[0].repaymentCount").value(1))
                 .andExpect(jsonPath("$.savings[0].savingId").value(20))
                 .andExpect(jsonPath("$.savings[0].productName").value("Green Saving"))
+                .andExpect(jsonPath("$.savings[0].addedRate").value(1.00))
+                .andExpect(jsonPath("$.savings[0].appliedRate").value(3.00))
                 .andExpect(jsonPath("$.savings[0].paidAmount").value(300000))
                 .andExpect(jsonPath("$.savings[0].paymentCount").value(1))
                 .andExpect(jsonPath("$.savings[0].remainingCount").value(11));

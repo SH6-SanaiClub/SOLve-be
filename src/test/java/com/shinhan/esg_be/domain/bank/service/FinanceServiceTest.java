@@ -14,6 +14,7 @@ import com.shinhan.esg_be.domain.bank.entity.enums.SavingStatus;
 import com.shinhan.esg_be.domain.bank.repository.FinancialProductRepository;
 import com.shinhan.esg_be.domain.bank.repository.LoanHistoryRepository;
 import com.shinhan.esg_be.domain.bank.repository.SavingHistoryRepository;
+import com.shinhan.esg_be.domain.bank.repository.SavingPrimeHistoryRepository;
 import com.shinhan.esg_be.domain.bank.repository.UserLoanRepository;
 import com.shinhan.esg_be.domain.bank.repository.UserSavingRepository;
 import com.shinhan.esg_be.domain.user.entity.User;
@@ -52,6 +53,9 @@ class FinanceServiceTest {
     private SavingHistoryRepository savingHistoryRepository;
 
     @Mock
+    private SavingPrimeHistoryRepository savingPrimeHistoryRepository;
+
+    @Mock
     private UserLoanRepository userLoanRepository;
 
     @Mock
@@ -83,6 +87,8 @@ class FinanceServiceTest {
         given(loanHistoryRepository.countByUserLoan_LoanId(101L)).willReturn(1L);
         given(savingHistoryRepository.sumAmountBySavingId(202L)).willReturn(300_000L);
         given(savingHistoryRepository.countByUserSaving_SavingId(202L)).willReturn(1L);
+        given(savingPrimeHistoryRepository.findTopByUserSaving_SavingIdOrderByAppliedAtDesc(202L))
+                .willReturn(Optional.empty());
 
         FinanceMyResponse response = financeService.getMyFinance(user.getLoginId());
 
@@ -98,6 +104,8 @@ class FinanceServiceTest {
         assertThat(response.savings().get(0).savingId()).isEqualTo(202L);
         assertThat(response.savings().get(0).productId()).isEqualTo(22L);
         assertThat(response.savings().get(0).productName()).isEqualTo("Green Saving");
+        assertThat(response.savings().get(0).addedRate()).isEqualByComparingTo("0.00");
+        assertThat(response.savings().get(0).appliedRate()).isEqualByComparingTo("2.00");
         assertThat(response.savings().get(0).paidAmount()).isEqualTo(300_000L);
         assertThat(response.savings().get(0).paymentCount()).isEqualTo(1L);
         assertThat(response.savings().get(0).remainingCount()).isEqualTo(11L);
