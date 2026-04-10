@@ -89,6 +89,8 @@ public class ActivityCandidateLoader {
                         .difficultyIndex(4.0)
                         .isActive(Boolean.TRUE.equals(d.getIsActive()))
                         .deadlineDate(d.getEndDate() != null ? d.getEndDate().toLocalDate() : null)
+                        .currentAmount(d.getCurrentAmount())
+                        .targetAmount(d.getTargetAmount())
                         .todayCount(0)
                         .recent14DayCount(0)
                         .build());
@@ -111,6 +113,8 @@ public class ActivityCandidateLoader {
                         .difficultyIndex(3.0)
                         .isActive(Boolean.TRUE.equals(v.getIsActive()))
                         .deadlineDate(v.getActivityDate() != null ? v.getActivityDate().toLocalDate() : null)
+                        .currentEnrolled(v.getCurrentEnrolled())
+                        .capacity(v.getCapacity())
                         .todayCount(0)
                         .recent14DayCount(0)
                         .build());
