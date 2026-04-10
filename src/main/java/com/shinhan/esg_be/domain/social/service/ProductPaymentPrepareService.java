@@ -33,6 +33,7 @@ public class ProductPaymentPrepareService {
                 createMerchantUid(),
                 product.getProductId(),
                 product.getName(),
+                product.getStoreName(),
                 product.getPrice()
         );
     }

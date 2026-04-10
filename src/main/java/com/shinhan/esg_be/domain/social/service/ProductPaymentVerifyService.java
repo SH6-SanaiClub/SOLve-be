@@ -112,6 +112,7 @@ public class ProductPaymentVerifyService {
                 payment.getPaymentId(),
                 product.getProductId(),
                 product.getName(),
+                product.getStoreName(),
                 payment.getAmount(),
                 payment.getPaymentStatus(),
                 pointResult.activityPoint() + pointResult.bonusPoint(),

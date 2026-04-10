@@ -21,6 +21,7 @@ public interface EcoProductRepository extends JpaRepository<EcoProduct, Long> {
             select new com.shinhan.esg_be.domain.social.dto.response.EcoProductItemResponse(
                 e.productId,
                 e.name,
+                e.storeName,
                 e.category,
                 e.price,
                 e.imageUrl,
@@ -37,6 +38,7 @@ public interface EcoProductRepository extends JpaRepository<EcoProduct, Long> {
             select new com.shinhan.esg_be.domain.social.dto.response.EcoProductDetailResponse(
                 e.productId,
                 e.name,
+                e.storeName,
                 e.category,
                 e.price,
                 e.imageUrl,

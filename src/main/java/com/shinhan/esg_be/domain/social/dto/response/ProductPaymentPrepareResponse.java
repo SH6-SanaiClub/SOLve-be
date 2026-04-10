@@ -10,5 +10,6 @@ public class ProductPaymentPrepareResponse {
     private final String merchantUid;
     private final Long productId;
     private final String productName;
+    private final String storeName;
     private final Long amount;
 }
