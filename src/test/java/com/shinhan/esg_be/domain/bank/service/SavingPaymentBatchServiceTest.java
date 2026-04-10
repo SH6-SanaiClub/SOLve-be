@@ -31,6 +31,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 @ExtendWith(MockitoExtension.class)
 class SavingPaymentBatchServiceTest {
@@ -118,6 +119,46 @@ class SavingPaymentBatchServiceTest {
         SavingPrimeHistory savedPrime = primeCaptor.getValue();
         assertThat(savedPrime.getAddedRate()).isEqualByComparingTo(new BigDecimal("2.40"));
         assertThat(savedPrime.getAppliedAt()).isEqualTo(LocalDateTime.of(2026, 4, 10, 9, 0));
+    }
+
+    @Test
+    @DisplayName("그린 스텝업이 아닌 적금은 우대금리 이력을 생성하지 않는다")
+    void processDuePaymentsDoesNotSavePrimeHistoryForNonGreenStepUp() {
+        UserSaving userSaving = createUserSaving(1L, LocalDate.of(2027, 3, 10), LocalDateTime.of(2026, 3, 10, 0, 0));
+        ReflectionTestUtils.setField(userSaving.getFinancialProduct(), "name", "Other Saving");
+
+        given(clock.getZone()).willReturn(FIXED_CLOCK.getZone());
+        given(clock.instant()).willReturn(FIXED_CLOCK.instant());
+        given(userSavingRepository.findByStatus(SavingStatus.ACTIVE)).willReturn(List.of(userSaving));
+        given(savingHistoryRepository.countByUserSaving_SavingId(1L)).willReturn(0L, 1L);
+
+        savingPaymentBatchService.processDuePayments();
+
+        verifyNoInteractions(savingPrimeHistoryRepository);
+    }
+
+    @Test
+    @DisplayName("그린 스텝업 적금은 점수 상승이 40점 미만이면 우대금리 0.00을 저장한다")
+    void processDuePaymentsSavesZeroPrimeRateWhenScoreDiffBelowStep() {
+        UserSaving userSaving = createUserSaving(1L, LocalDate.of(2027, 3, 10), LocalDateTime.of(2026, 3, 10, 0, 0));
+        ReflectionTestUtils.setField(userSaving.getFinancialProduct(), "name", "그린 스텝업 적금");
+        ReflectionTestUtils.setField(userSaving, "score", 800);
+        ReflectionTestUtils.setField(userSaving.getUser(), "eScore", 200);
+        ReflectionTestUtils.setField(userSaving.getUser(), "sScore", 300);
+        ReflectionTestUtils.setField(userSaving.getUser(), "gActivityScore", 130);
+        ReflectionTestUtils.setField(userSaving.getUser(), "gRepaymentScore", 200); // total = 830 (+30)
+
+        given(clock.getZone()).willReturn(FIXED_CLOCK.getZone());
+        given(clock.instant()).willReturn(FIXED_CLOCK.instant());
+        given(userSavingRepository.findByStatus(SavingStatus.ACTIVE)).willReturn(List.of(userSaving));
+        given(savingHistoryRepository.countByUserSaving_SavingId(1L)).willReturn(0L, 1L);
+
+        savingPaymentBatchService.processDuePayments();
+
+        ArgumentCaptor<SavingPrimeHistory> primeCaptor = ArgumentCaptor.forClass(SavingPrimeHistory.class);
+        verify(savingPrimeHistoryRepository).save(primeCaptor.capture());
+        SavingPrimeHistory savedPrime = primeCaptor.getValue();
+        assertThat(savedPrime.getAddedRate()).isEqualByComparingTo(new BigDecimal("0.00"));
     }
 
     private UserSaving createUserSaving(Long savingId, LocalDate maturityDate, LocalDateTime joinedAt) {
