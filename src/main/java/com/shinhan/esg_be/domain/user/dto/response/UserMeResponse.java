@@ -12,6 +12,7 @@ public class UserMeResponse {
 
     private String loginId;
     private String name;
+    private String phoneNumber;
     private UserType userType;
     private Grade currentGrade;
     private String message;
@@ -20,6 +21,7 @@ public class UserMeResponse {
         return new UserMeResponse(
                 user.getLoginId(),
                 user.getName(),
+                user.getPhoneNumber(),
                 user.getUserType(),
                 user.getCurrentGrade(),
                 "인증된 사용자 정보를 조회했습니다."
