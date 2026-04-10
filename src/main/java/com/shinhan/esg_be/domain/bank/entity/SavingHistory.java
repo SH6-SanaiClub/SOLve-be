@@ -35,4 +35,16 @@ public class SavingHistory {
 
     @Column(name = "payment_date", nullable = false)
     private LocalDateTime paymentDate;
+
+    public static SavingHistory create(
+            UserSaving userSaving,
+            Long amount,
+            LocalDateTime paymentDate
+    ) {
+        SavingHistory savingHistory = new SavingHistory();
+        savingHistory.userSaving = userSaving;
+        savingHistory.amount = amount;
+        savingHistory.paymentDate = paymentDate;
+        return savingHistory;
+    }
 }

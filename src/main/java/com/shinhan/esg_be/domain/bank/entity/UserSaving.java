@@ -85,4 +85,8 @@ public class UserSaving {
         userSaving.score = score;
         return userSaving;
     }
+
+    public void complete() {
+        this.status = SavingStatus.COMPLETE;
+    }
 }

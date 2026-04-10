@@ -17,4 +17,13 @@ public interface SavingHistoryRepository extends JpaRepository<SavingHistory, Lo
             order by savingHistory.paymentDate desc
             """)
     List<SavingHistory> findAllByUserId(Long userId);
+
+    long countByUserSaving_SavingId(Long savingId);
+
+    @Query("""
+            select coalesce(sum(savingHistory.amount), 0)
+            from SavingHistory savingHistory
+            where savingHistory.userSaving.savingId = :savingId
+            """)
+    long sumAmountBySavingId(Long savingId);
 }

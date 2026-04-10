@@ -61,40 +61,46 @@ class FinanceServiceTest {
     private UserRepository userRepository;
 
     @Test
-    @DisplayName("마이페이지 금융상품 조회는 활성 대출과 적금 정보를 함께 반환한다")
+    @DisplayName("마이페이지 금융상품 조회는 활성 대출/적금 목록을 반환한다")
     void getMyFinance() {
         User user = createUser("finance-user-my", 100, 500, 100, 100);
         ReflectionTestUtils.setField(user, "userId", 1L);
 
-        FinancialProduct loanProduct = createFinancialProduct("ESG 소액대출", ProductType.LOAN, "8.50", "8.50", 12);
+        FinancialProduct loanProduct = createFinancialProduct("ESG Loan", ProductType.LOAN, "8.50", "8.50", 12);
         ReflectionTestUtils.setField(loanProduct, "finProductId", 11L);
         UserLoan userLoan = createUserLoan(user, loanProduct);
         ReflectionTestUtils.setField(userLoan, "loanId", 101L);
 
-        FinancialProduct savingProduct = createFinancialProduct("그린 스텝업 적금", ProductType.SAVINGS, "2.00", "4.40", 12);
+        FinancialProduct savingProduct = createFinancialProduct("Green Saving", ProductType.SAVINGS, "2.00", "4.40", 12);
         ReflectionTestUtils.setField(savingProduct, "finProductId", 22L);
         UserSaving userSaving = createUserSaving(user, savingProduct);
         ReflectionTestUtils.setField(userSaving, "savingId", 202L);
 
         given(userRepository.findByLoginId(user.getLoginId())).willReturn(Optional.of(user));
-        given(userLoanRepository.findByUser_UserIdAndStatus(1L, LoanStatus.ACTIVE)).willReturn(Optional.of(userLoan));
-        given(userSavingRepository.findByUser_UserIdAndStatus(1L, SavingStatus.ACTIVE)).willReturn(Optional.of(userSaving));
+        given(userLoanRepository.findAllByUser_UserIdAndStatus(1L, LoanStatus.ACTIVE)).willReturn(List.of(userLoan));
+        given(userSavingRepository.findAllByUser_UserIdAndStatus(1L, SavingStatus.ACTIVE)).willReturn(List.of(userSaving));
         given(loanHistoryRepository.sumAmountByLoanId(101L)).willReturn(100_000L);
         given(loanHistoryRepository.countByUserLoan_LoanId(101L)).willReturn(1L);
+        given(savingHistoryRepository.sumAmountBySavingId(202L)).willReturn(300_000L);
+        given(savingHistoryRepository.countByUserSaving_SavingId(202L)).willReturn(1L);
 
         FinanceMyResponse response = financeService.getMyFinance(user.getLoginId());
 
-        assertThat(response.activeLoan()).isNotNull();
-        assertThat(response.activeLoan().loanId()).isEqualTo(101L);
-        assertThat(response.activeLoan().productId()).isEqualTo(11L);
-        assertThat(response.activeLoan().productName()).isEqualTo("ESG 소액대출");
-        assertThat(response.activeLoan().paidAmount()).isEqualTo(100_000L);
-        assertThat(response.activeLoan().remainingAmount()).isEqualTo(985_000L);
-        assertThat(response.activeLoan().repaymentCount()).isEqualTo(1L);
-        assertThat(response.activeSaving()).isNotNull();
-        assertThat(response.activeSaving().savingId()).isEqualTo(202L);
-        assertThat(response.activeSaving().productId()).isEqualTo(22L);
-        assertThat(response.activeSaving().productName()).isEqualTo("그린 스텝업 적금");
+        assertThat(response.loans()).hasSize(1);
+        assertThat(response.loans().get(0).loanId()).isEqualTo(101L);
+        assertThat(response.loans().get(0).productId()).isEqualTo(11L);
+        assertThat(response.loans().get(0).productName()).isEqualTo("ESG Loan");
+        assertThat(response.loans().get(0).paidAmount()).isEqualTo(100_000L);
+        assertThat(response.loans().get(0).remainingAmount()).isEqualTo(985_000L);
+        assertThat(response.loans().get(0).repaymentCount()).isEqualTo(1L);
+
+        assertThat(response.savings()).hasSize(1);
+        assertThat(response.savings().get(0).savingId()).isEqualTo(202L);
+        assertThat(response.savings().get(0).productId()).isEqualTo(22L);
+        assertThat(response.savings().get(0).productName()).isEqualTo("Green Saving");
+        assertThat(response.savings().get(0).paidAmount()).isEqualTo(300_000L);
+        assertThat(response.savings().get(0).paymentCount()).isEqualTo(1L);
+        assertThat(response.savings().get(0).remainingCount()).isEqualTo(11L);
     }
 
     @Test
@@ -103,12 +109,12 @@ class FinanceServiceTest {
         User user = createUser("finance-user-history", 100, 500, 100, 100);
         ReflectionTestUtils.setField(user, "userId", 1L);
 
-        FinancialProduct loanProduct = createFinancialProduct("ESG 소액대출", ProductType.LOAN, "8.50", "8.50", 12);
+        FinancialProduct loanProduct = createFinancialProduct("ESG Loan", ProductType.LOAN, "8.50", "8.50", 12);
         ReflectionTestUtils.setField(loanProduct, "finProductId", 11L);
         UserLoan userLoan = createUserLoan(user, loanProduct);
         ReflectionTestUtils.setField(userLoan, "loanId", 101L);
 
-        FinancialProduct savingProduct = createFinancialProduct("그린 스텝업 적금", ProductType.SAVINGS, "2.00", "4.40", 12);
+        FinancialProduct savingProduct = createFinancialProduct("Green Saving", ProductType.SAVINGS, "2.00", "4.40", 12);
         ReflectionTestUtils.setField(savingProduct, "finProductId", 22L);
         UserSaving userSaving = createUserSaving(user, savingProduct);
         ReflectionTestUtils.setField(userSaving, "savingId", 202L);
@@ -124,17 +130,17 @@ class FinanceServiceTest {
 
         assertThat(response.loans()).hasSize(1);
         assertThat(response.loans().get(0).historyId()).isEqualTo(1L);
-        assertThat(response.loans().get(0).productName()).isEqualTo("ESG 소액대출");
+        assertThat(response.loans().get(0).productName()).isEqualTo("ESG Loan");
         assertThat(response.savings()).hasSize(1);
         assertThat(response.savings().get(0).historyId()).isEqualTo(2L);
-        assertThat(response.savings().get(0).productName()).isEqualTo("그린 스텝업 적금");
+        assertThat(response.savings().get(0).productName()).isEqualTo("Green Saving");
     }
 
     @Test
     @DisplayName("점수 800 이상 사용자는 대출 상품 조회 시 200만원 한도와 7.00 금리를 받는다")
     void getLoanProducts() {
         User user = createUser("finance-user-1", 100, 500, 100, 100);
-        FinancialProduct product = createFinancialProduct("ESG 소액대출", ProductType.LOAN, "8.50", "8.50", 12);
+        FinancialProduct product = createFinancialProduct("ESG Loan", ProductType.LOAN, "8.50", "8.50", 12);
 
         given(userRepository.findByLoginId(user.getLoginId())).willReturn(Optional.of(user));
         given(financialProductRepository.findByTypeAndIsActiveTrue(ProductType.LOAN)).willReturn(List.of(product));
@@ -143,7 +149,7 @@ class FinanceServiceTest {
         FinanceProductListResponse response = financeService.getFinanceProducts(user.getLoginId(), "loan");
 
         assertThat(response.products()).hasSize(1);
-        assertThat(response.products().get(0).subtitle()).isEqualTo("ESG 소액대출 subtitle");
+        assertThat(response.products().get(0).subtitle()).isEqualTo("ESG Loan subtitle");
         assertThat(response.products().get(0).available()).isTrue();
         assertThat(response.products().get(0).loanLimit()).isEqualTo(2_000_000L);
         assertThat(response.products().get(0).appliedRate()).isEqualByComparingTo("7.00");
@@ -151,10 +157,10 @@ class FinanceServiceTest {
     }
 
     @Test
-    @DisplayName("활성 대출이 있으면 대출 상품은 조회되지만 신청 가능 상태는 false다")
+    @DisplayName("활성 대출이 있으면 대출 상품 조회는 되지만 신청 가능 상태는 false다")
     void getLoanProductsWithActiveLoan() {
         User user = createUser("finance-user-2", 100, 500, 200, 100);
-        FinancialProduct product = createFinancialProduct("ESG 소액대출", ProductType.LOAN, "8.50", "8.50", 12);
+        FinancialProduct product = createFinancialProduct("ESG Loan", ProductType.LOAN, "8.50", "8.50", 12);
         UserLoan activeLoan = createUserLoan(user, product);
 
         given(userRepository.findByLoginId(user.getLoginId())).willReturn(Optional.of(user));
@@ -164,7 +170,7 @@ class FinanceServiceTest {
         FinanceProductListResponse response = financeService.getFinanceProducts(user.getLoginId(), "loan");
 
         assertThat(response.products()).hasSize(1);
-        assertThat(response.products().get(0).subtitle()).isEqualTo("ESG 소액대출 subtitle");
+        assertThat(response.products().get(0).subtitle()).isEqualTo("ESG Loan subtitle");
         assertThat(response.products().get(0).available()).isFalse();
         assertThat(response.products().get(0).loanLimit()).isNull();
         assertThat(response.products().get(0).appliedRate()).isNull();
@@ -175,7 +181,7 @@ class FinanceServiceTest {
     @DisplayName("적금 상품 조회는 기본 금리와 최대 금리를 그대로 반환한다")
     void getSavingProducts() {
         User user = createUser("finance-user-3", 50, 250, 100, 100);
-        FinancialProduct product = createFinancialProduct("그린 스텝업 적금", ProductType.SAVINGS, "2.00", "4.40", 12);
+        FinancialProduct product = createFinancialProduct("Green Saving", ProductType.SAVINGS, "2.00", "4.40", 12);
 
         given(userRepository.findByLoginId(user.getLoginId())).willReturn(Optional.of(user));
         given(financialProductRepository.findByTypeAndIsActiveTrue(ProductType.SAVINGS)).willReturn(List.of(product));
@@ -183,7 +189,7 @@ class FinanceServiceTest {
         FinanceProductListResponse response = financeService.getFinanceProducts(user.getLoginId(), "savings");
 
         assertThat(response.products()).hasSize(1);
-        assertThat(response.products().get(0).subtitle()).isEqualTo("그린 스텝업 적금 subtitle");
+        assertThat(response.products().get(0).subtitle()).isEqualTo("Green Saving subtitle");
         assertThat(response.products().get(0).available()).isTrue();
         assertThat(response.products().get(0).baseRate()).isEqualByComparingTo("2.00");
         assertThat(response.products().get(0).maxRate()).isEqualByComparingTo("4.40");
@@ -216,7 +222,7 @@ class FinanceServiceTest {
         ReflectionTestUtils.setField(product, "type", type);
         ReflectionTestUtils.setField(product, "baseRate", new BigDecimal(baseRate));
         ReflectionTestUtils.setField(product, "maxRate", new BigDecimal(maxRate));
-        ReflectionTestUtils.setField(product, "description", name + " 설명");
+        ReflectionTestUtils.setField(product, "description", name + " description");
         ReflectionTestUtils.setField(product, "isActive", true);
         ReflectionTestUtils.setField(product, "durationMonths", durationMonths);
         ReflectionTestUtils.setField(product, "monthlyPaymentAmount", type == ProductType.SAVINGS ? 300_000L : null);

@@ -24,7 +24,10 @@ import com.shinhan.esg_be.domain.bank.repository.UserSavingRepository;
 import com.shinhan.esg_be.domain.user.entity.User;
 import com.shinhan.esg_be.domain.user.repository.UserRepository;
 import com.shinhan.esg_be.global.exception.BadRequestException;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.IncorrectResultSizeDataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,6 +38,8 @@ import java.util.List;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class FinanceService {
+
+    private static final long SAVING_DURATION_MONTHS = 12L;
 
     private static final long LOAN_LIMIT_700 = 1_000_000L;
     private static final long LOAN_LIMIT_800 = 2_000_000L;
@@ -50,19 +55,26 @@ public class FinanceService {
     private final UserLoanRepository userLoanRepository;
     private final UserSavingRepository userSavingRepository;
     private final UserRepository userRepository;
+    
+    @PersistenceContext
+    private EntityManager entityManager;
 
     public FinanceMyResponse getMyFinance(String loginId) {
         User user = getUser(loginId);
 
-        ActiveLoanResponse activeLoan = userLoanRepository.findByUser_UserIdAndStatus(user.getUserId(), LoanStatus.ACTIVE)
+        List<ActiveLoanResponse> loans = userLoanRepository
+                .findAllByUser_UserIdAndStatus(user.getUserId(), LoanStatus.ACTIVE)
+                .stream()
                 .map(this::toActiveLoanResponse)
-                .orElse(null);
+                .toList();
 
-        ActiveSavingResponse activeSaving = userSavingRepository.findByUser_UserIdAndStatus(user.getUserId(), SavingStatus.ACTIVE)
+        List<ActiveSavingResponse> savings = userSavingRepository
+                .findAllByUser_UserIdAndStatus(user.getUserId(), SavingStatus.ACTIVE)
+                .stream()
                 .map(this::toActiveSavingResponse)
-                .orElse(null);
+                .toList();
 
-        return new FinanceMyResponse(activeLoan, activeSaving);
+        return new FinanceMyResponse(loans, savings);
     }
 
     public FinanceHistoryResponse getFinanceHistory(String loginId) {
@@ -156,11 +168,18 @@ public class FinanceService {
 
     private ActiveSavingResponse toActiveSavingResponse(UserSaving userSaving) {
         FinancialProduct product = userSaving.getFinancialProduct();
+        long paidAmount = savingHistoryRepository.sumAmountBySavingId(userSaving.getSavingId());
+        long paymentCount = savingHistoryRepository.countByUserSaving_SavingId(userSaving.getSavingId());
+        long remainingCount = Math.max(SAVING_DURATION_MONTHS - paymentCount, 0L);
+
         return new ActiveSavingResponse(
                 userSaving.getSavingId(),
                 product.getFinProductId(),
                 product.getName(),
                 userSaving.getMonthlyAmount(),
+                paidAmount,
+                paymentCount,
+                remainingCount,
                 userSaving.getStatus().name(),
                 product.getDurationMonths(),
                 userSaving.getHasPenalty(),
@@ -223,8 +242,21 @@ public class FinanceService {
     }
 
     private User getUser(String loginId) {
-        return userRepository.findByLoginId(loginId)
-                .orElseThrow(() -> new BadRequestException("User not found."));
+        try {
+            return userRepository.findByLoginId(loginId)
+                    .orElseThrow(() -> new BadRequestException("User not found."));
+        } catch (IncorrectResultSizeDataAccessException ignored) {
+            return entityManager.createQuery(
+                            "select u from User u where u.loginId = :loginId order by u.userId desc",
+                            User.class
+                    )
+                    .setParameter("loginId", loginId)
+                    .setMaxResults(1)
+                    .getResultList()
+                    .stream()
+                    .findFirst()
+                    .orElseThrow(() -> new BadRequestException("User not found."));
+        }
     }
 
     private record LoanOffer(

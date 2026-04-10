@@ -19,4 +19,7 @@ public interface UserLoanRepository extends JpaRepository<UserLoan, Long> {
 
     @EntityGraph(attributePaths = "financialProduct")
     Optional<UserLoan> findByUser_UserIdAndStatus(Long userId, LoanStatus status);
+
+    @EntityGraph(attributePaths = "financialProduct")
+    List<UserLoan> findAllByUser_UserIdAndStatus(Long userId, LoanStatus status);
 }
