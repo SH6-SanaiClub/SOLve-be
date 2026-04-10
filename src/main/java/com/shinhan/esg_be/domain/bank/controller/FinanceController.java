@@ -1,5 +1,7 @@
 package com.shinhan.esg_be.domain.bank.controller;
 
+import com.shinhan.esg_be.domain.bank.dto.response.FinanceHistoryResponse;
+import com.shinhan.esg_be.domain.bank.dto.response.FinanceMyResponse;
 import com.shinhan.esg_be.domain.bank.dto.response.FinanceProductListResponse;
 import com.shinhan.esg_be.domain.bank.service.FinanceService;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +18,20 @@ import org.springframework.web.bind.annotation.RestController;
 public class FinanceController {
 
     private final FinanceService financeService;
+
+    @GetMapping("/my")
+    public ResponseEntity<FinanceMyResponse> getMyFinance(
+            @AuthenticationPrincipal String loginId
+    ) {
+        return ResponseEntity.ok(financeService.getMyFinance(loginId));
+    }
+
+    @GetMapping("/history")
+    public ResponseEntity<FinanceHistoryResponse> getFinanceHistory(
+            @AuthenticationPrincipal String loginId
+    ) {
+        return ResponseEntity.ok(financeService.getFinanceHistory(loginId));
+    }
 
     @GetMapping("/list")
     public ResponseEntity<FinanceProductListResponse> getFinanceProducts(
