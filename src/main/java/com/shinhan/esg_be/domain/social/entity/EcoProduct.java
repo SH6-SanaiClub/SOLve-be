@@ -25,6 +25,9 @@ public class EcoProduct extends BaseTimeEntity {
     @Column(nullable = false)
     private String name;
 
+    @Column(name = "store_name", nullable = false)
+    private String storeName;
+
     @Column(nullable = false)
     private String category;
 
