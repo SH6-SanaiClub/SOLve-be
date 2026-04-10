@@ -9,4 +9,5 @@ public class IdentityVerificationResponse {
 
     private boolean verified;
     private String verificationToken;
+    private String preservedLoginId;
 }
