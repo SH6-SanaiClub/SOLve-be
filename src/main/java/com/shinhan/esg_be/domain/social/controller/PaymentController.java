@@ -2,10 +2,13 @@ package com.shinhan.esg_be.domain.social.controller;
 
 import com.shinhan.esg_be.domain.social.dto.request.PaymentPrepareRequest;
 import com.shinhan.esg_be.domain.social.dto.request.PaymentVerifyRequest;
+import com.shinhan.esg_be.domain.social.dto.request.ProductPaymentPrepareRequest;
 import com.shinhan.esg_be.domain.social.dto.response.PaymentPrepareResponse;
 import com.shinhan.esg_be.domain.social.dto.response.PaymentVerifyResponse;
+import com.shinhan.esg_be.domain.social.dto.response.ProductPaymentPrepareResponse;
 import com.shinhan.esg_be.domain.social.service.PaymentPrepareService;
 import com.shinhan.esg_be.domain.social.service.PaymentVerifyService;
+import com.shinhan.esg_be.domain.social.service.ProductPaymentPrepareService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -22,10 +25,18 @@ public class PaymentController {
 
     private final PaymentPrepareService paymentPrepareService;
     private final PaymentVerifyService paymentVerifyService;
+    private final ProductPaymentPrepareService productPaymentPrepareService;
 
     @PostMapping("/prepare")
     public ResponseEntity<PaymentPrepareResponse> preparePayment(@RequestBody @Valid PaymentPrepareRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(paymentPrepareService.preparePayment(request));
+    }
+
+    @PostMapping("/products/prepare")
+    public ResponseEntity<ProductPaymentPrepareResponse> prepareProductPayment(
+            @RequestBody @Valid ProductPaymentPrepareRequest request
+    ) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(productPaymentPrepareService.preparePayment(request));
     }
 
     @PostMapping("/verify")

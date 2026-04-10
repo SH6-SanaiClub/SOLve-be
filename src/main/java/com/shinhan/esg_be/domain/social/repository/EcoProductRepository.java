@@ -14,6 +14,7 @@ public interface EcoProductRepository extends JpaRepository<EcoProduct, Long> {
 
     List<EcoProduct> findByIsActiveTrue();
     List<EcoProduct> findByIsActiveTrueAndStockGreaterThan(Integer stock);
+    Optional<EcoProduct> findByProductIdAndIsActiveTrue(Long productId);
 
     @Query("""
             select new com.shinhan.esg_be.domain.social.dto.response.EcoProductItemResponse(
