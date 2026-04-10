@@ -7,6 +7,7 @@ public class EcoProductItemResponse {
 
     private final Long productId;
     private final String name;
+    private final String storeName;
     private final String category;
     private final Long price;
     private final String imageUrl;
@@ -17,6 +18,7 @@ public class EcoProductItemResponse {
     public EcoProductItemResponse(
             Long productId,
             String name,
+            String storeName,
             String category,
             Long price,
             String imageUrl,
@@ -25,6 +27,7 @@ public class EcoProductItemResponse {
     ) {
         this.productId = productId;
         this.name = name;
+        this.storeName = storeName;
         this.category = category;
         this.price = price;
         this.imageUrl = imageUrl;

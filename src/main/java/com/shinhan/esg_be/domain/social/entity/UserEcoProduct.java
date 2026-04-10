@@ -46,4 +46,12 @@ public class UserEcoProduct {
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    public static UserEcoProduct create(Payment payment, EcoProduct ecoProduct, User user) {
+        UserEcoProduct userEcoProduct = new UserEcoProduct();
+        userEcoProduct.payment = payment;
+        userEcoProduct.ecoProduct = ecoProduct;
+        userEcoProduct.user = user;
+        return userEcoProduct;
+    }
 }
