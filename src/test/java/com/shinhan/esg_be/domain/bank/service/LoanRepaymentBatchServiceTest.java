@@ -7,6 +7,9 @@ import com.shinhan.esg_be.domain.bank.entity.enums.LoanStatus;
 import com.shinhan.esg_be.domain.bank.entity.enums.ProductType;
 import com.shinhan.esg_be.domain.bank.repository.LoanHistoryRepository;
 import com.shinhan.esg_be.domain.bank.repository.UserLoanRepository;
+import com.shinhan.esg_be.domain.reward.service.RewardService;
+import com.shinhan.esg_be.domain.reward.service.command.ApplyActivityRewardCommand;
+import com.shinhan.esg_be.global.common.enums.ActivityType;
 import com.shinhan.esg_be.domain.user.entity.User;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -49,6 +52,9 @@ class LoanRepaymentBatchServiceTest {
     private LoanHistoryRepository loanHistoryRepository;
 
     @Mock
+    private RewardService rewardService;
+
+    @Mock
     private Clock clock;
 
     @Test
@@ -72,6 +78,14 @@ class LoanRepaymentBatchServiceTest {
         assertThat(savedHistory.getPaymentDate()).isEqualTo(LocalDateTime.of(2026, 4, 10, 9, 0));
         assertThat(userLoan.getStatus()).isEqualTo(LoanStatus.ACTIVE);
         assertThat(userLoan.getNextRepaymentDate()).isEqualTo(LocalDate.of(2026, 5, 10));
+
+        ArgumentCaptor<ApplyActivityRewardCommand> rewardCaptor = ArgumentCaptor.forClass(ApplyActivityRewardCommand.class);
+        verify(rewardService).applyActivityReward(rewardCaptor.capture());
+        ApplyActivityRewardCommand rewardCommand = rewardCaptor.getValue();
+        assertThat(rewardCommand.userId()).isNotNull();
+        assertThat(rewardCommand.activityType()).isEqualTo(ActivityType.LOAN_REPAY);
+        assertThat(rewardCommand.amount()).isNull();
+        assertThat(rewardCommand.activityDateTime()).isEqualTo(LocalDateTime.of(2026, 4, 10, 9, 0));
     }
 
     @Test
@@ -94,10 +108,16 @@ class LoanRepaymentBatchServiceTest {
         assertThat(savedHistory.getAmount()).isEqualTo(1_008_750L);
         assertThat(userLoan.getStatus()).isEqualTo(LoanStatus.COMPLETE);
         assertThat(userLoan.getNextRepaymentDate()).isEqualTo(LocalDate.of(2027, 3, 10));
+
+        ArgumentCaptor<ApplyActivityRewardCommand> rewardCaptor = ArgumentCaptor.forClass(ApplyActivityRewardCommand.class);
+        verify(rewardService).applyActivityReward(rewardCaptor.capture());
+        ApplyActivityRewardCommand rewardCommand = rewardCaptor.getValue();
+        assertThat(rewardCommand.activityType()).isEqualTo(ActivityType.LOAN_REPAY);
     }
 
     private UserLoan createUserLoan(Long loanId, LocalDate nextRepaymentDate, LocalDateTime createdAt) {
         User user = newInstance(User.class);
+        ReflectionTestUtils.setField(user, "userId", 1L);
         FinancialProduct product = newInstance(FinancialProduct.class);
         ReflectionTestUtils.setField(product, "type", ProductType.LOAN);
 

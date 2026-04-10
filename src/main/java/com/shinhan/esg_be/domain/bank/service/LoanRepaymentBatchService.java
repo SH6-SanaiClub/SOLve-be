@@ -5,6 +5,9 @@ import com.shinhan.esg_be.domain.bank.entity.UserLoan;
 import com.shinhan.esg_be.domain.bank.entity.enums.LoanStatus;
 import com.shinhan.esg_be.domain.bank.repository.LoanHistoryRepository;
 import com.shinhan.esg_be.domain.bank.repository.UserLoanRepository;
+import com.shinhan.esg_be.domain.reward.service.RewardService;
+import com.shinhan.esg_be.domain.reward.service.command.ApplyActivityRewardCommand;
+import com.shinhan.esg_be.global.common.enums.ActivityType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +29,7 @@ public class LoanRepaymentBatchService {
 
     private final UserLoanRepository userLoanRepository;
     private final LoanHistoryRepository loanHistoryRepository;
+    private final RewardService rewardService;
     private final Clock clock;
 
     public void processDueRepayments() {
@@ -47,6 +51,14 @@ public class LoanRepaymentBatchService {
                 : calculateMonthlyInterest(userLoan);
 
         loanHistoryRepository.save(LoanHistory.create(userLoan, paymentAmount, paidAt));
+        rewardService.applyActivityReward(
+                new ApplyActivityRewardCommand(
+                        userLoan.getUser().getUserId(),
+                        ActivityType.LOAN_REPAY,
+                        null,
+                        paidAt
+                )
+        );
 
         if (isFinalInstallment(userLoan, nextInstallment)) {
             userLoan.complete();
