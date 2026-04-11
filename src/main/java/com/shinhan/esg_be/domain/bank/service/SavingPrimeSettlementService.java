@@ -24,8 +24,10 @@ import java.util.List;
 @Transactional
 public class SavingPrimeSettlementService {
 
-    private static final String EARTH_DEFENDER_KEYWORD = "지구 수호대";
+    private static final String EARTH_DEFENDER_KEYWORD = "\uC9C0\uAD6C \uC218\uD638\uB300";
+    private static final String WARM_COMPANION_KEYWORD = "\uB530\uB73B\uD55C \uB3D9\uD589";
     private static final BigDecimal EARTH_DEFENDER_MONTHLY_INCREMENT = new BigDecimal("0.20");
+    private static final BigDecimal WARM_COMPANION_MONTHLY_INCREMENT = new BigDecimal("0.30");
 
     private final UserSavingRepository userSavingRepository;
     private final SavingPrimeHistoryRepository savingPrimeHistoryRepository;
@@ -33,37 +35,58 @@ public class SavingPrimeSettlementService {
     private final EsgScorePolicyRepository esgScorePolicyRepository;
     private final Clock clock;
 
-    public void settleEarthDefenderPrime() {
-        settleEarthDefenderPrime(LocalDateTime.now(clock));
+    public void settleMonthlyPrimeRates() {
+        settleMonthlyPrimeRates(LocalDateTime.now(clock));
     }
 
-    public void settleEarthDefenderPrime(LocalDateTime settledAt) {
+    public void settleMonthlyPrimeRates(LocalDateTime settledAt) {
         EsgScorePolicy ePolicy = esgScorePolicyRepository.findByCategoryAndIsActiveTrue(ScoreCategory.E)
                 .orElseThrow(() -> new IllegalArgumentException("ESG score policy not found."));
-        int monthlyTarget = defaultIfNull(ePolicy.getMonthlyMaxScore());
+        EsgScorePolicy sPolicy = esgScorePolicyRepository.findByCategoryAndIsActiveTrue(ScoreCategory.S)
+                .orElseThrow(() -> new IllegalArgumentException("ESG score policy not found."));
+
+        int monthlyETarget = defaultIfNull(ePolicy.getMonthlyMaxScore());
+        int monthlySTarget = defaultIfNull(sPolicy.getMonthlyMaxScore());
 
         List<UserSaving> activeSavings = userSavingRepository.findByStatus(SavingStatus.ACTIVE);
         for (UserSaving userSaving : activeSavings) {
-            if (!isEarthDefenderSaving(userSaving)) {
+            if (isEarthDefenderSaving(userSaving)) {
+                settleOne(
+                        userSaving,
+                        monthlyETarget,
+                        EARTH_DEFENDER_MONTHLY_INCREMENT,
+                        getMonthlyEScore(userSaving),
+                        settledAt
+                );
                 continue;
             }
-            settleOne(userSaving, monthlyTarget, settledAt);
+            if (isWarmCompanionSaving(userSaving)) {
+                settleOne(
+                        userSaving,
+                        monthlySTarget,
+                        WARM_COMPANION_MONTHLY_INCREMENT,
+                        getMonthlySScore(userSaving),
+                        settledAt
+                );
+            }
         }
     }
 
-    private void settleOne(UserSaving userSaving, int monthlyTarget, LocalDateTime settledAt) {
+    private void settleOne(
+            UserSaving userSaving,
+            int monthlyTarget,
+            BigDecimal monthlyIncrement,
+            int monthlyScore,
+            LocalDateTime settledAt
+    ) {
         BigDecimal currentAddedRate = savingPrimeHistoryRepository
                 .findTopByUserSaving_SavingIdOrderByAppliedAtDesc(userSaving.getSavingId())
                 .map(SavingPrimeHistory::getAddedRate)
                 .orElse(BigDecimal.ZERO);
 
-        int monthlyEScore = userMonthlyStatRepository.findByUser(userSaving.getUser())
-                .map(UserMonthlyStat::getMonthlyEScore)
-                .orElse(0);
-
         BigDecimal nextAddedRate = currentAddedRate;
-        if (monthlyEScore >= monthlyTarget && monthlyTarget > 0) {
-            nextAddedRate = currentAddedRate.add(EARTH_DEFENDER_MONTHLY_INCREMENT);
+        if (monthlyScore >= monthlyTarget && monthlyTarget > 0) {
+            nextAddedRate = currentAddedRate.add(monthlyIncrement);
         }
 
         BigDecimal maxAddedRate = userSaving.getFinancialProduct().getMaxRate()
@@ -78,6 +101,23 @@ public class SavingPrimeSettlementService {
     private boolean isEarthDefenderSaving(UserSaving userSaving) {
         String productName = userSaving.getFinancialProduct().getName();
         return productName != null && productName.contains(EARTH_DEFENDER_KEYWORD);
+    }
+
+    private boolean isWarmCompanionSaving(UserSaving userSaving) {
+        String productName = userSaving.getFinancialProduct().getName();
+        return productName != null && productName.contains(WARM_COMPANION_KEYWORD);
+    }
+
+    private int getMonthlyEScore(UserSaving userSaving) {
+        return userMonthlyStatRepository.findByUser(userSaving.getUser())
+                .map(UserMonthlyStat::getMonthlyEScore)
+                .orElse(0);
+    }
+
+    private int getMonthlySScore(UserSaving userSaving) {
+        return userMonthlyStatRepository.findByUser(userSaving.getUser())
+                .map(UserMonthlyStat::getMonthlySScore)
+                .orElse(0);
     }
 
     private int defaultIfNull(Integer value) {

@@ -87,7 +87,7 @@ public class ScoreBatchConfig {
     public Tasklet monthlyScoreSettlementTasklet() {
         return (contribution, chunkContext) -> {
             LocalDateTime settledAt = LocalDateTime.now(clock);
-            savingPrimeSettlementService.settleEarthDefenderPrime(settledAt);
+            savingPrimeSettlementService.settleMonthlyPrimeRates(settledAt);
             List<User> users = userRepository.findAll();
             for (User user : users) {
                 monthlyScoreService.settleMonthlyScore(user.getUserId(), settledAt);

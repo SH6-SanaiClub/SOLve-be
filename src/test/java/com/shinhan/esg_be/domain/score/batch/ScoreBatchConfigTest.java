@@ -68,7 +68,7 @@ class ScoreBatchConfigTest {
 
         ArgumentCaptor<LocalDateTime> settledAtCaptor = ArgumentCaptor.forClass(LocalDateTime.class);
         InOrder inOrder = inOrder(savingPrimeSettlementService, monthlyScoreService);
-        inOrder.verify(savingPrimeSettlementService).settleEarthDefenderPrime(settledAtCaptor.capture());
+        inOrder.verify(savingPrimeSettlementService).settleMonthlyPrimeRates(settledAtCaptor.capture());
         LocalDateTime settledAt = settledAtCaptor.getValue();
         inOrder.verify(monthlyScoreService).settleMonthlyScore(1L, settledAt);
         inOrder.verify(monthlyScoreService).settleMonthlyScore(2L, settledAt);
