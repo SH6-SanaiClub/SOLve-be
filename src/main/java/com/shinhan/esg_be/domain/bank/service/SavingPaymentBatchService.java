@@ -24,10 +24,14 @@ import java.util.List;
 public class SavingPaymentBatchService {
 
     private static final int SAVING_DURATION_MONTHS = 12;
-    private static final String GREEN_STEP_UP_NAME = "그린 스텝업 적금";
+    private static final String GREEN_STEP_UP_NAME = "\uADF8\uB9B0 \uC2A4\uD15D\uC5C5 \uC801\uAE08";
+    private static final String SMART_FINANCE_KEYWORD = "\uBC14\uB978 \uAE08\uC735 \uC2A4\uB9C8\uD2B8";
     private static final int SCORE_STEP = 40;
     private static final BigDecimal STEP_RATE = new BigDecimal("1.00");
     private static final BigDecimal MAX_ADDED_RATE = new BigDecimal("2.40");
+    private static final BigDecimal SMART_FINANCE_MONTHLY_INCREMENT = new BigDecimal("0.10");
+    private static final BigDecimal SMART_FINANCE_MAINTAIN_BONUS = new BigDecimal("0.30");
+    private static final BigDecimal SMART_FINANCE_NO_PENALTY_BONUS = new BigDecimal("1.00");
 
     private final UserSavingRepository userSavingRepository;
     private final SavingHistoryRepository savingHistoryRepository;
@@ -53,6 +57,7 @@ public class SavingPaymentBatchService {
 
         long paymentCount = savingHistoryRepository.countByUserSaving_SavingId(userSaving.getSavingId());
         if (isMatured(userSaving, paymentCount, paidAt.toLocalDate())) {
+            saveMaturityPrimeRateIfSmartFinance(userSaving, paymentCount, paidAt);
             userSaving.complete();
         }
     }
@@ -92,5 +97,45 @@ public class SavingPaymentBatchService {
         }
 
         savingPrimeHistoryRepository.save(SavingPrimeHistory.create(userSaving, addedRate, paidAt));
+    }
+
+    private void saveMaturityPrimeRateIfSmartFinance(
+            UserSaving userSaving,
+            long paymentCount,
+            LocalDateTime paidAt
+    ) {
+        if (!isSmartFinanceSaving(userSaving) || paymentCount < SAVING_DURATION_MONTHS) {
+            return;
+        }
+
+        BigDecimal currentAddedRate = savingPrimeHistoryRepository
+                .findTopByUserSaving_SavingIdOrderByAppliedAtDesc(userSaving.getSavingId())
+                .map(SavingPrimeHistory::getAddedRate)
+                .orElse(BigDecimal.ZERO);
+
+        BigDecimal nextAddedRate = currentAddedRate;
+        BigDecimal fullAchievementRate = SMART_FINANCE_MONTHLY_INCREMENT
+                .multiply(BigDecimal.valueOf(SAVING_DURATION_MONTHS));
+        if (currentAddedRate.compareTo(fullAchievementRate) >= 0) {
+            nextAddedRate = nextAddedRate.add(SMART_FINANCE_MAINTAIN_BONUS);
+        }
+        if (Boolean.FALSE.equals(userSaving.getHasPenalty())) {
+            nextAddedRate = nextAddedRate.add(SMART_FINANCE_NO_PENALTY_BONUS);
+        }
+
+        BigDecimal maxAddedRate = userSaving.getFinancialProduct().getMaxRate()
+                .subtract(userSaving.getFinancialProduct().getBaseRate());
+        if (nextAddedRate.compareTo(maxAddedRate) > 0) {
+            nextAddedRate = maxAddedRate;
+        }
+
+        if (nextAddedRate.compareTo(currentAddedRate) > 0) {
+            savingPrimeHistoryRepository.save(SavingPrimeHistory.create(userSaving, nextAddedRate, paidAt));
+        }
+    }
+
+    private boolean isSmartFinanceSaving(UserSaving userSaving) {
+        String productName = userSaving.getFinancialProduct().getName();
+        return productName != null && productName.contains(SMART_FINANCE_KEYWORD);
     }
 }

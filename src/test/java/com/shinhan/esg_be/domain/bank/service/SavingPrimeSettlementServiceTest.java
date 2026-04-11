@@ -66,6 +66,8 @@ class SavingPrimeSettlementServiceTest {
                 .willReturn(Optional.of(createPolicy(ScoreCategory.E, 25)));
         given(esgScorePolicyRepository.findByCategoryAndIsActiveTrue(ScoreCategory.S))
                 .willReturn(Optional.of(createPolicy(ScoreCategory.S, 25)));
+        given(esgScorePolicyRepository.findByCategoryAndIsActiveTrue(ScoreCategory.G_ACTIVITY))
+                .willReturn(Optional.of(createPolicy(ScoreCategory.G_ACTIVITY, 10)));
         given(userSavingRepository.findByStatus(SavingStatus.ACTIVE)).willReturn(List.of(userSaving));
         given(userMonthlyStatRepository.findByUser(userSaving.getUser())).willReturn(Optional.of(monthlyStat));
         given(savingPrimeHistoryRepository.findTopByUserSaving_SavingIdOrderByAppliedAtDesc(1L))
@@ -89,11 +91,40 @@ class SavingPrimeSettlementServiceTest {
                 .willReturn(Optional.of(createPolicy(ScoreCategory.E, 25)));
         given(esgScorePolicyRepository.findByCategoryAndIsActiveTrue(ScoreCategory.S))
                 .willReturn(Optional.of(createPolicy(ScoreCategory.S, 25)));
+        given(esgScorePolicyRepository.findByCategoryAndIsActiveTrue(ScoreCategory.G_ACTIVITY))
+                .willReturn(Optional.of(createPolicy(ScoreCategory.G_ACTIVITY, 10)));
         given(userSavingRepository.findByStatus(SavingStatus.ACTIVE)).willReturn(List.of(userSaving));
 
         savingPrimeSettlementService.settleMonthlyPrimeRates(settledAt);
 
         verifyNoInteractions(savingPrimeHistoryRepository, userMonthlyStatRepository);
+    }
+
+    @Test
+    @DisplayName("스마트 적금은 월 G 목표 달성 시 0.10%p 우대금리를 누적한다")
+    void settleMonthlyPrimeRatesForSmartFinance() {
+        LocalDateTime settledAt = LocalDateTime.of(2026, 5, 1, 0, 1);
+        UserSaving userSaving = createUserSaving(3L, "\uBC14\uB978 \uAE08\uC735 \uC2A4\uB9C8\uD2B8 \uC801\uAE08", "3.00", "5.50");
+        UserMonthlyStat monthlyStat = UserMonthlyStat.create(userSaving.getUser());
+        ReflectionTestUtils.setField(monthlyStat, "monthlyGScore", 12);
+
+        given(esgScorePolicyRepository.findByCategoryAndIsActiveTrue(ScoreCategory.E))
+                .willReturn(Optional.of(createPolicy(ScoreCategory.E, 25)));
+        given(esgScorePolicyRepository.findByCategoryAndIsActiveTrue(ScoreCategory.S))
+                .willReturn(Optional.of(createPolicy(ScoreCategory.S, 25)));
+        given(esgScorePolicyRepository.findByCategoryAndIsActiveTrue(ScoreCategory.G_ACTIVITY))
+                .willReturn(Optional.of(createPolicy(ScoreCategory.G_ACTIVITY, 10)));
+        given(userSavingRepository.findByStatus(SavingStatus.ACTIVE)).willReturn(List.of(userSaving));
+        given(userMonthlyStatRepository.findByUser(userSaving.getUser())).willReturn(Optional.of(monthlyStat));
+        given(savingPrimeHistoryRepository.findTopByUserSaving_SavingIdOrderByAppliedAtDesc(3L))
+                .willReturn(Optional.of(SavingPrimeHistory.create(userSaving, new BigDecimal("0.20"), settledAt.minusMonths(1))));
+
+        savingPrimeSettlementService.settleMonthlyPrimeRates(settledAt);
+
+        ArgumentCaptor<SavingPrimeHistory> captor = ArgumentCaptor.forClass(SavingPrimeHistory.class);
+        verify(savingPrimeHistoryRepository).save(captor.capture());
+        assertThat(captor.getValue().getAddedRate()).isEqualByComparingTo("0.30");
+        assertThat(captor.getValue().getAppliedAt()).isEqualTo(settledAt);
     }
 
     private UserSaving createUserSaving(Long savingId, String name, String baseRate, String maxRate) {

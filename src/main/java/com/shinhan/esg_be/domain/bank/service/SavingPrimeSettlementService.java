@@ -26,8 +26,10 @@ public class SavingPrimeSettlementService {
 
     private static final String EARTH_DEFENDER_KEYWORD = "\uC9C0\uAD6C \uC218\uD638\uB300";
     private static final String WARM_COMPANION_KEYWORD = "\uB530\uB73B\uD55C \uB3D9\uD589";
+    private static final String SMART_FINANCE_KEYWORD = "\uBC14\uB978 \uAE08\uC735 \uC2A4\uB9C8\uD2B8";
     private static final BigDecimal EARTH_DEFENDER_MONTHLY_INCREMENT = new BigDecimal("0.20");
     private static final BigDecimal WARM_COMPANION_MONTHLY_INCREMENT = new BigDecimal("0.30");
+    private static final BigDecimal SMART_FINANCE_MONTHLY_INCREMENT = new BigDecimal("0.10");
 
     private final UserSavingRepository userSavingRepository;
     private final SavingPrimeHistoryRepository savingPrimeHistoryRepository;
@@ -44,9 +46,12 @@ public class SavingPrimeSettlementService {
                 .orElseThrow(() -> new IllegalArgumentException("ESG score policy not found."));
         EsgScorePolicy sPolicy = esgScorePolicyRepository.findByCategoryAndIsActiveTrue(ScoreCategory.S)
                 .orElseThrow(() -> new IllegalArgumentException("ESG score policy not found."));
+        EsgScorePolicy gPolicy = esgScorePolicyRepository.findByCategoryAndIsActiveTrue(ScoreCategory.G_ACTIVITY)
+                .orElseThrow(() -> new IllegalArgumentException("ESG score policy not found."));
 
         int monthlyETarget = defaultIfNull(ePolicy.getMonthlyMaxScore());
         int monthlySTarget = defaultIfNull(sPolicy.getMonthlyMaxScore());
+        int monthlyGTarget = defaultIfNull(gPolicy.getMonthlyMaxScore());
 
         List<UserSaving> activeSavings = userSavingRepository.findByStatus(SavingStatus.ACTIVE);
         for (UserSaving userSaving : activeSavings) {
@@ -66,6 +71,16 @@ public class SavingPrimeSettlementService {
                         monthlySTarget,
                         WARM_COMPANION_MONTHLY_INCREMENT,
                         getMonthlySScore(userSaving),
+                        settledAt
+                );
+                continue;
+            }
+            if (isSmartFinanceSaving(userSaving)) {
+                settleOne(
+                        userSaving,
+                        monthlyGTarget,
+                        SMART_FINANCE_MONTHLY_INCREMENT,
+                        getMonthlyGScore(userSaving),
                         settledAt
                 );
             }
@@ -108,6 +123,11 @@ public class SavingPrimeSettlementService {
         return productName != null && productName.contains(WARM_COMPANION_KEYWORD);
     }
 
+    private boolean isSmartFinanceSaving(UserSaving userSaving) {
+        String productName = userSaving.getFinancialProduct().getName();
+        return productName != null && productName.contains(SMART_FINANCE_KEYWORD);
+    }
+
     private int getMonthlyEScore(UserSaving userSaving) {
         return userMonthlyStatRepository.findByUser(userSaving.getUser())
                 .map(UserMonthlyStat::getMonthlyEScore)
@@ -117,6 +137,12 @@ public class SavingPrimeSettlementService {
     private int getMonthlySScore(UserSaving userSaving) {
         return userMonthlyStatRepository.findByUser(userSaving.getUser())
                 .map(UserMonthlyStat::getMonthlySScore)
+                .orElse(0);
+    }
+
+    private int getMonthlyGScore(UserSaving userSaving) {
+        return userMonthlyStatRepository.findByUser(userSaving.getUser())
+                .map(UserMonthlyStat::getMonthlyGScore)
                 .orElse(0);
     }
 
