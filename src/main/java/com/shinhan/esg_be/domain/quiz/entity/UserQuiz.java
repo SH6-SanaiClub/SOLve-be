@@ -48,4 +48,13 @@ public class UserQuiz {
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    public static UserQuiz create(Quiz quiz, User user, Boolean isCorrect, String userAnswer) {
+        UserQuiz userQuiz = new UserQuiz();
+        userQuiz.quiz = quiz;
+        userQuiz.user = user;
+        userQuiz.isCorrect = isCorrect;
+        userQuiz.userAnswer = userAnswer;
+        return userQuiz;
+    }
 }
