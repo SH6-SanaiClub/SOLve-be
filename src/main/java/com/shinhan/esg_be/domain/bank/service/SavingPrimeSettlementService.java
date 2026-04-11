@@ -27,6 +27,8 @@ public class SavingPrimeSettlementService {
     private static final String EARTH_DEFENDER_KEYWORD = "\uC9C0\uAD6C \uC218\uD638\uB300";
     private static final String WARM_COMPANION_KEYWORD = "\uB530\uB73B\uD55C \uB3D9\uD589";
     private static final String SMART_FINANCE_KEYWORD = "\uBC14\uB978 \uAE08\uC735 \uC2A4\uB9C8\uD2B8";
+    private static final String ESG_MASTER_KEYWORD = "ESG \uB9C8\uC2A4\uD130";
+    private static final int ESG_MASTER_MIN_TOTAL_SCORE = 900;
     private static final BigDecimal EARTH_DEFENDER_MONTHLY_INCREMENT = new BigDecimal("0.20");
     private static final BigDecimal WARM_COMPANION_MONTHLY_INCREMENT = new BigDecimal("0.30");
     private static final BigDecimal SMART_FINANCE_MONTHLY_INCREMENT = new BigDecimal("0.10");
@@ -55,6 +57,10 @@ public class SavingPrimeSettlementService {
 
         List<UserSaving> activeSavings = userSavingRepository.findByStatus(SavingStatus.ACTIVE);
         for (UserSaving userSaving : activeSavings) {
+            if (isEsgMasterSaving(userSaving)) {
+                settleEsgMasterEligibility(userSaving);
+                continue;
+            }
             if (isEarthDefenderSaving(userSaving)) {
                 settleOne(
                         userSaving,
@@ -126,6 +132,17 @@ public class SavingPrimeSettlementService {
     private boolean isSmartFinanceSaving(UserSaving userSaving) {
         String productName = userSaving.getFinancialProduct().getName();
         return productName != null && productName.contains(SMART_FINANCE_KEYWORD);
+    }
+
+    private boolean isEsgMasterSaving(UserSaving userSaving) {
+        String productName = userSaving.getFinancialProduct().getName();
+        return productName != null && productName.contains(ESG_MASTER_KEYWORD);
+    }
+
+    private void settleEsgMasterEligibility(UserSaving userSaving) {
+        if (userSaving.getUser().getTotalScore() < ESG_MASTER_MIN_TOTAL_SCORE) {
+            userSaving.revokeMasterBonus();
+        }
     }
 
     private int getMonthlyEScore(UserSaving userSaving) {

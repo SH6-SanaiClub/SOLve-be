@@ -217,6 +217,46 @@ class SavingPaymentBatchServiceTest {
         verify(savingPrimeHistoryRepository, never()).save(any(SavingPrimeHistory.class));
     }
 
+    @Test
+    @DisplayName("ESG 마스터 적금은 만기 시 자격 유지면 최대 우대금리를 적용한다")
+    void processDuePaymentsAppliesMaturityPrimeForEsgMasterWhenEligible() {
+        UserSaving userSaving = createUserSaving(1L, LocalDate.of(2026, 4, 10), LocalDateTime.of(2025, 4, 10, 0, 0));
+        ReflectionTestUtils.setField(userSaving.getFinancialProduct(), "name", "ESG \uB9C8\uC2A4\uD130 \uC801\uAE08");
+        ReflectionTestUtils.setField(userSaving.getFinancialProduct(), "baseRate", new BigDecimal("4.00"));
+        ReflectionTestUtils.setField(userSaving.getFinancialProduct(), "maxRate", new BigDecimal("10.00"));
+        ReflectionTestUtils.setField(userSaving, "masterBonusEligible", true);
+
+        given(clock.getZone()).willReturn(FIXED_CLOCK.getZone());
+        given(clock.instant()).willReturn(FIXED_CLOCK.instant());
+        given(userSavingRepository.findByStatus(SavingStatus.ACTIVE)).willReturn(List.of(userSaving));
+        given(savingHistoryRepository.countByUserSaving_SavingId(1L)).willReturn(11L, 12L);
+
+        savingPaymentBatchService.processDuePayments();
+
+        ArgumentCaptor<SavingPrimeHistory> primeCaptor = ArgumentCaptor.forClass(SavingPrimeHistory.class);
+        verify(savingPrimeHistoryRepository).save(primeCaptor.capture());
+        assertThat(primeCaptor.getValue().getAddedRate()).isEqualByComparingTo(new BigDecimal("6.00"));
+    }
+
+    @Test
+    @DisplayName("ESG 마스터 적금은 자격 소멸 상태면 만기 우대금리를 적용하지 않는다")
+    void processDuePaymentsSkipsMaturityPrimeForEsgMasterWhenIneligible() {
+        UserSaving userSaving = createUserSaving(1L, LocalDate.of(2026, 4, 10), LocalDateTime.of(2025, 4, 10, 0, 0));
+        ReflectionTestUtils.setField(userSaving.getFinancialProduct(), "name", "ESG \uB9C8\uC2A4\uD130 \uC801\uAE08");
+        ReflectionTestUtils.setField(userSaving.getFinancialProduct(), "baseRate", new BigDecimal("4.00"));
+        ReflectionTestUtils.setField(userSaving.getFinancialProduct(), "maxRate", new BigDecimal("10.00"));
+        ReflectionTestUtils.setField(userSaving, "masterBonusEligible", false);
+
+        given(clock.getZone()).willReturn(FIXED_CLOCK.getZone());
+        given(clock.instant()).willReturn(FIXED_CLOCK.instant());
+        given(userSavingRepository.findByStatus(SavingStatus.ACTIVE)).willReturn(List.of(userSaving));
+        given(savingHistoryRepository.countByUserSaving_SavingId(1L)).willReturn(11L, 12L);
+
+        savingPaymentBatchService.processDuePayments();
+
+        verify(savingPrimeHistoryRepository, never()).save(any(SavingPrimeHistory.class));
+    }
+
     private UserSaving createUserSaving(Long savingId, LocalDate maturityDate, LocalDateTime joinedAt) {
         User user = newInstance(User.class);
         FinancialProduct product = newInstance(FinancialProduct.class);
@@ -233,6 +273,7 @@ class SavingPaymentBatchServiceTest {
         ReflectionTestUtils.setField(userSaving, "maturityDate", maturityDate);
         ReflectionTestUtils.setField(userSaving, "status", SavingStatus.ACTIVE);
         ReflectionTestUtils.setField(userSaving, "hasPenalty", false);
+        ReflectionTestUtils.setField(userSaving, "masterBonusEligible", true);
         ReflectionTestUtils.setField(userSaving, "score", 800);
         ReflectionTestUtils.setField(userSaving, "joinedAt", joinedAt);
         return userSaving;

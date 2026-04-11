@@ -127,6 +127,30 @@ class SavingPrimeSettlementServiceTest {
         assertThat(captor.getValue().getAppliedAt()).isEqualTo(settledAt);
     }
 
+    @Test
+    @DisplayName("ESG 마스터 적금은 월 정산 시 총점이 900 미만이면 우대 자격을 소멸시킨다")
+    void settleMonthlyPrimeRatesRevokesMasterBonusEligibility() {
+        LocalDateTime settledAt = LocalDateTime.of(2026, 5, 1, 0, 1);
+        UserSaving userSaving = createUserSaving(4L, "ESG \uB9C8\uC2A4\uD130 \uC801\uAE08", "4.00", "10.00");
+        ReflectionTestUtils.setField(userSaving.getUser(), "eScore", 300);
+        ReflectionTestUtils.setField(userSaving.getUser(), "sScore", 300);
+        ReflectionTestUtils.setField(userSaving.getUser(), "gActivityScore", 200);
+        ReflectionTestUtils.setField(userSaving.getUser(), "gRepaymentScore", 90);
+
+        given(esgScorePolicyRepository.findByCategoryAndIsActiveTrue(ScoreCategory.E))
+                .willReturn(Optional.of(createPolicy(ScoreCategory.E, 25)));
+        given(esgScorePolicyRepository.findByCategoryAndIsActiveTrue(ScoreCategory.S))
+                .willReturn(Optional.of(createPolicy(ScoreCategory.S, 25)));
+        given(esgScorePolicyRepository.findByCategoryAndIsActiveTrue(ScoreCategory.G_ACTIVITY))
+                .willReturn(Optional.of(createPolicy(ScoreCategory.G_ACTIVITY, 10)));
+        given(userSavingRepository.findByStatus(SavingStatus.ACTIVE)).willReturn(List.of(userSaving));
+
+        savingPrimeSettlementService.settleMonthlyPrimeRates(settledAt);
+
+        assertThat(userSaving.getMasterBonusEligible()).isFalse();
+        verifyNoInteractions(savingPrimeHistoryRepository);
+    }
+
     private UserSaving createUserSaving(Long savingId, String name, String baseRate, String maxRate) {
         User user = newInstance(User.class);
         FinancialProduct product = newInstance(FinancialProduct.class);
@@ -139,6 +163,7 @@ class SavingPrimeSettlementServiceTest {
         ReflectionTestUtils.setField(userSaving, "user", user);
         ReflectionTestUtils.setField(userSaving, "financialProduct", product);
         ReflectionTestUtils.setField(userSaving, "status", SavingStatus.ACTIVE);
+        ReflectionTestUtils.setField(userSaving, "masterBonusEligible", true);
         return userSaving;
     }
 

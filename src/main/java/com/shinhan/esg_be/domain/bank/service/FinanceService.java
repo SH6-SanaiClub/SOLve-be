@@ -197,6 +197,7 @@ public class FinanceService {
                 userSaving.getStatus().name(),
                 product.getDurationMonths(),
                 userSaving.getHasPenalty(),
+                userSaving.getMasterBonusEligible(),
                 userSaving.getMaturityDate(),
                 userSaving.getJoinedAt()
         );

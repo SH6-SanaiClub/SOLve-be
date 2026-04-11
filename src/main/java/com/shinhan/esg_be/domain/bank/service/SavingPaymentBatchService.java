@@ -26,6 +26,7 @@ public class SavingPaymentBatchService {
     private static final int SAVING_DURATION_MONTHS = 12;
     private static final String GREEN_STEP_UP_NAME = "\uADF8\uB9B0 \uC2A4\uD15D\uC5C5 \uC801\uAE08";
     private static final String SMART_FINANCE_KEYWORD = "\uBC14\uB978 \uAE08\uC735 \uC2A4\uB9C8\uD2B8";
+    private static final String ESG_MASTER_KEYWORD = "ESG \uB9C8\uC2A4\uD130";
     private static final int SCORE_STEP = 40;
     private static final BigDecimal STEP_RATE = new BigDecimal("1.00");
     private static final BigDecimal MAX_ADDED_RATE = new BigDecimal("2.40");
@@ -58,6 +59,7 @@ public class SavingPaymentBatchService {
         long paymentCount = savingHistoryRepository.countByUserSaving_SavingId(userSaving.getSavingId());
         if (isMatured(userSaving, paymentCount, paidAt.toLocalDate())) {
             saveMaturityPrimeRateIfSmartFinance(userSaving, paymentCount, paidAt);
+            saveMaturityPrimeRateIfEsgMaster(userSaving, paymentCount, paidAt);
             userSaving.complete();
         }
     }
@@ -137,5 +139,27 @@ public class SavingPaymentBatchService {
     private boolean isSmartFinanceSaving(UserSaving userSaving) {
         String productName = userSaving.getFinancialProduct().getName();
         return productName != null && productName.contains(SMART_FINANCE_KEYWORD);
+    }
+
+    private void saveMaturityPrimeRateIfEsgMaster(
+            UserSaving userSaving,
+            long paymentCount,
+            LocalDateTime paidAt
+    ) {
+        if (!isEsgMasterSaving(userSaving) || paymentCount < SAVING_DURATION_MONTHS) {
+            return;
+        }
+        if (Boolean.FALSE.equals(userSaving.getMasterBonusEligible())) {
+            return;
+        }
+
+        BigDecimal maxAddedRate = userSaving.getFinancialProduct().getMaxRate()
+                .subtract(userSaving.getFinancialProduct().getBaseRate());
+        savingPrimeHistoryRepository.save(SavingPrimeHistory.create(userSaving, maxAddedRate, paidAt));
+    }
+
+    private boolean isEsgMasterSaving(UserSaving userSaving) {
+        String productName = userSaving.getFinancialProduct().getName();
+        return productName != null && productName.contains(ESG_MASTER_KEYWORD);
     }
 }

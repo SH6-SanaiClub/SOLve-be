@@ -17,6 +17,7 @@ public record ActiveSavingResponse(
         String status,
         Integer durationMonths,
         Boolean hasPenalty,
+        Boolean masterBonusEligible,
         LocalDate maturityDate,
         LocalDateTime joinedAt
 ) {

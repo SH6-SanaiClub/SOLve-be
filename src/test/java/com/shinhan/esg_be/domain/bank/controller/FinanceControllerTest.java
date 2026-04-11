@@ -90,6 +90,7 @@ class FinanceControllerTest {
                         "ACTIVE",
                         12,
                         false,
+                        true,
                         LocalDate.of(2027, 4, 1),
                         LocalDateTime.of(2026, 4, 1, 0, 0)
                 ))
@@ -110,7 +111,8 @@ class FinanceControllerTest {
                 .andExpect(jsonPath("$.savings[0].appliedRate").value(3.00))
                 .andExpect(jsonPath("$.savings[0].paidAmount").value(300000))
                 .andExpect(jsonPath("$.savings[0].paymentCount").value(1))
-                .andExpect(jsonPath("$.savings[0].remainingCount").value(11));
+                .andExpect(jsonPath("$.savings[0].remainingCount").value(11))
+                .andExpect(jsonPath("$.savings[0].masterBonusEligible").value(true));
     }
 
     @Test

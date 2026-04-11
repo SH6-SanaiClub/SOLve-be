@@ -109,6 +109,7 @@ class FinanceServiceTest {
         assertThat(response.savings().get(0).paidAmount()).isEqualTo(300_000L);
         assertThat(response.savings().get(0).paymentCount()).isEqualTo(1L);
         assertThat(response.savings().get(0).remainingCount()).isEqualTo(11L);
+        assertThat(response.savings().get(0).masterBonusEligible()).isTrue();
     }
 
     @Test
@@ -258,6 +259,7 @@ class FinanceServiceTest {
         ReflectionTestUtils.setField(userSaving, "monthlyAmount", 300_000L);
         ReflectionTestUtils.setField(userSaving, "status", SavingStatus.ACTIVE);
         ReflectionTestUtils.setField(userSaving, "hasPenalty", false);
+        ReflectionTestUtils.setField(userSaving, "masterBonusEligible", true);
         ReflectionTestUtils.setField(userSaving, "score", user.getTotalScore());
         ReflectionTestUtils.setField(userSaving, "maturityDate", LocalDate.of(2027, 4, 1));
         ReflectionTestUtils.setField(userSaving, "joinedAt", LocalDateTime.of(2026, 4, 1, 0, 0));
