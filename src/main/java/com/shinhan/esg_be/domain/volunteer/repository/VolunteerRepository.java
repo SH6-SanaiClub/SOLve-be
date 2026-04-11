@@ -1,5 +1,6 @@
 package com.shinhan.esg_be.domain.volunteer.repository;
 
+import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerDetailResponse;
 import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerItemResponse;
 import com.shinhan.esg_be.domain.volunteer.entity.Volunteer;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -8,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface VolunteerRepository extends JpaRepository<Volunteer, Long> {
 
@@ -30,6 +32,28 @@ public interface VolunteerRepository extends JpaRepository<Volunteer, Long> {
             order by v.activityDate asc
             """)
     List<VolunteerItemResponse> findActiveVolunteerList(@Param("now") LocalDateTime now);
+
+    @Query("""
+            select new com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerDetailResponse(
+                v.volunteerId,
+                v.name,
+                v.description,
+                v.activityDate,
+                v.location,
+                v.capacity,
+                v.currentEnrolled,
+                v.volunteerHour,
+                v.organization
+            )
+            from Volunteer v
+            where v.volunteerId = :volunteerId
+              and v.isActive = true
+              and v.activityDate > :now
+            """)
+    Optional<VolunteerDetailResponse> findActiveVolunteerDetail(
+            @Param("volunteerId") Long volunteerId,
+            @Param("now") LocalDateTime now
+    );
 
     @Query("""
             SELECT v
