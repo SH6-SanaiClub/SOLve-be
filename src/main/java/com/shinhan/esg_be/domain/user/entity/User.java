@@ -85,6 +85,9 @@ public class User extends BaseTimeEntity {
     @Column(name = "is_linked", nullable = false)
     private Boolean isLinked = false;
 
+    @Column(name = "is_survey_completed", nullable = false)
+    private Boolean isSurveyCompleted = false;
+
     public static User create(String loginId, String password, String name, String email,
                               String phoneNumber, LocalDate birthdate, String ciDi) {
         User user = new User();
@@ -105,6 +108,7 @@ public class User extends BaseTimeEntity {
         user.totalPoints = 0;
         user.isActive = true;
         user.isLinked = false;
+        user.isSurveyCompleted = false;
 
         return user;
     }
@@ -177,6 +181,11 @@ public class User extends BaseTimeEntity {
 
     public void updateLastActivityDate(LocalDateTime activityDateTime) {
         this.lastActivityDate = activityDateTime;
+    }
+
+    public void completeSurvey(UserType userType) {
+        this.userType = userType;
+        this.isSurveyCompleted = true;
     }
 
     public int getScore(ScoreCategory scoreCategory) {
