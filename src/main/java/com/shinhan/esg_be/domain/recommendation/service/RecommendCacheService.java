@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.util.Optional;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -17,9 +18,7 @@ public class RecommendCacheService {
     private final RedisTemplate<String, Object> redisTemplate;
 
     private static final String KEY_PREFIX_ACTIVITY = "activity_recommend:";
-    private static final String KEY_PREFIX_LOCK = "recommend_lock:";
     private static final Duration TTL_ACTIVITY = Duration.ofMinutes(30);
-    private static final Duration TTL_LOCK = Duration.ofSeconds(10);
 
     // 활동 추천 결과 조회
     public Optional<ActivityRecommendResponse> findActivityRecommend(Long userId) {
@@ -59,39 +58,18 @@ public class RecommendCacheService {
         }
     }
 
-    // 비동기 갱신 중 중복 실행 방지 락
-    public boolean acquireLock(Long userId) {
-        String key = KEY_PREFIX_LOCK + userId;
+    public int evictAllActivityRecommend() {
         try {
-            Boolean acquired = redisTemplate.opsForValue().setIfAbsent(key, "locked", TTL_LOCK);
-            boolean result = Boolean.TRUE.equals(acquired);
-            log.debug("락 획득 {} - key={}", result ? "성공" : "실패", key);
-            return result;
+            Set<String> keys = redisTemplate.keys(KEY_PREFIX_ACTIVITY + "*");
+            if (keys == null || keys.isEmpty()) {
+                return 0;
+            }
+            redisTemplate.delete(keys);
+            log.info("전체 추천 캐시 삭제 완료 - count={}", keys.size());
+            return keys.size();
         } catch (Exception e) {
-            log.error("락 획득 실패 - key={}", key, e);
-            return false;
-        }
-    }
-
-    // 락 해제
-    public void releaseLock(Long userId) {
-        String key = KEY_PREFIX_LOCK + userId;
-        try {
-            redisTemplate.delete(key);
-            log.debug("락 해제 - key={}", key);
-        } catch (Exception e) {
-            log.error("락 해제 실패 - key={}", key, e);
-        }
-    }
-
-    // 락 보유 여부 확인 (비동기 갱신 중 프론트 요청 처리용)
-    public boolean isLocked(Long userId) {
-        String key = KEY_PREFIX_LOCK + userId;
-        try {
-            return Boolean.TRUE.equals(redisTemplate.hasKey(key));
-        } catch (Exception e) {
-            log.error("락 확인 실패 - key={}", key, e);
-            return false;
+            log.error("전체 추천 캐시 삭제 실패", e);
+            return 0;
         }
     }
 }

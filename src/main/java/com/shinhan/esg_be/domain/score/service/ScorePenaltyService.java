@@ -3,6 +3,7 @@ package com.shinhan.esg_be.domain.score.service;
 import com.shinhan.esg_be.domain.policy.entity.PenaltyPolicy;
 import com.shinhan.esg_be.domain.policy.entity.enums.PenaltyType;
 import com.shinhan.esg_be.domain.policy.repository.PenaltyPolicyRepository;
+import com.shinhan.esg_be.domain.recommendation.service.RecommendCacheService;
 import com.shinhan.esg_be.domain.score.entity.ValidScoreHistory;
 import com.shinhan.esg_be.domain.score.repository.ValidScoreHistoryRepository;
 import com.shinhan.esg_be.domain.score.service.result.PenaltyApplicationResult;
@@ -30,6 +31,7 @@ public class ScorePenaltyService {
     private final UserRepository userRepository;
     private final PenaltyPolicyRepository penaltyPolicyRepository;
     private final ValidScoreHistoryRepository validScoreHistoryRepository;
+    private final RecommendCacheService recommendCacheService;
 
     @Transactional
     public PenaltyApplicationResult applyAbusePenalty(Long userId, LocalDateTime penalizedAt) {
@@ -52,6 +54,8 @@ public class ScorePenaltyService {
         if (Boolean.TRUE.equals(penaltyPolicy.getIsBlockLoan())) {
             user.blockLoan();
         }
+
+        recommendCacheService.evictActivityRecommend(userId);
 
         return new PenaltyApplicationResult(
                 ScoreReason.ABUSE,
@@ -91,7 +95,7 @@ public class ScorePenaltyService {
         applyPenaltyHistory(user, ScoreCategory.S, sReduction, ScoreReason.NO_ACTIVITY, baseDateTime);
         applyPenaltyHistory(user, ScoreCategory.G_ACTIVITY, gReduction, ScoreReason.NO_ACTIVITY, baseDateTime);
 
-        return new PenaltyApplicationResult(
+        PenaltyApplicationResult result = new PenaltyApplicationResult(
                 ScoreReason.NO_ACTIVITY,
                 eReduction,
                 sReduction,
@@ -99,6 +103,12 @@ public class ScorePenaltyService {
                 user.getIsLoanBlocked(),
                 eReduction > 0 || sReduction > 0 || gReduction > 0
         );
+
+        if (result.applied()) {
+            recommendCacheService.evictActivityRecommend(userId);
+        }
+
+        return result;
     }
 
     private boolean isInactiveForOneMonth(User user, LocalDateTime baseDateTime) {

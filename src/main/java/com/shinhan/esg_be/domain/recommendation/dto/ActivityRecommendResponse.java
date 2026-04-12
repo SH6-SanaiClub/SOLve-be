@@ -42,5 +42,9 @@ public class ActivityRecommendResponse {
 
         // LLM 생성 카드 멘트
         private String description;
+
+        // 인기 활동 전용 상태 필드
+        private Boolean alreadyParticipatedToday; // 오늘 이미 참여했는지 (E/G)
+        private Boolean monthlyLimitReached;      // 월 점수 한도 도달 여부
     }
 }
