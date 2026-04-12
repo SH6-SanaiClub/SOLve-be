@@ -1,11 +1,13 @@
 package com.shinhan.esg_be.domain.recommendation.scheduler;
 
 import com.shinhan.esg_be.domain.recommendation.service.PopularityService;
-import com.shinhan.esg_be.domain.recommendation.service.RecommendCacheService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+
+import java.util.Set;
 
 @Slf4j
 @Component
@@ -13,9 +15,9 @@ import org.springframework.stereotype.Component;
 public class PopularityScheduler {
 
     private final PopularityService popularityService;
-    private final RecommendCacheService recommendCacheService;
+    private final RedisTemplate<String, Object> redisTemplate;
 
-    @Scheduled(cron = "0 0 2 * * *")
+    @Scheduled(cron = "0 0 * * * *")
     public void aggregatePopularity() {
         log.info("인기도 집계 배치 시작");
         popularityService.aggregateAndCache();
@@ -25,8 +27,12 @@ public class PopularityScheduler {
     @Scheduled(cron = "0 0 0 1 * *")
     public void evictAllRecommendCachesOnMonthReset() {
         log.info("월 초기화 - 전체 추천 캐시 삭제 시작");
-        int deleted = recommendCacheService.evictAllActivityRecommend();
-        log.info("월 초기화 - {}개 추천 캐시 삭제 완료", deleted);
+        Set<String> keys = redisTemplate.keys("activity_recommend:*");
+        if (keys != null && !keys.isEmpty()) {
+            redisTemplate.delete(keys);
+            log.info("월 초기화 - {}개 추천 캐시 삭제 완료", keys.size());
+        }
         popularityService.evictPopularityCache();
+        log.info("월 초기화 - 완료");
     }
 }
