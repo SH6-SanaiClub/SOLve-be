@@ -2,9 +2,6 @@ package com.shinhan.esg_be.domain.quiz.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.shinhan.esg_be.domain.point.entity.UserPoint;
-import com.shinhan.esg_be.domain.point.entity.enums.PointReason;
-import com.shinhan.esg_be.domain.point.repository.UserPointRepository;
 import com.shinhan.esg_be.domain.quiz.dto.request.QuizSubmitRequest;
 import com.shinhan.esg_be.domain.quiz.dto.response.QuizOptionResponse;
 import com.shinhan.esg_be.domain.quiz.dto.response.QuizSubmitResponse;
@@ -15,12 +12,27 @@ import com.shinhan.esg_be.domain.quiz.entity.QuizDifficulty;
 import com.shinhan.esg_be.domain.quiz.entity.UserQuiz;
 import com.shinhan.esg_be.domain.quiz.repository.QuizRepository;
 import com.shinhan.esg_be.domain.quiz.repository.UserQuizRepository;
+import com.shinhan.esg_be.domain.reward.service.RewardService;
+import com.shinhan.esg_be.domain.reward.service.command.ApplyActivityRewardCommand;
+import com.shinhan.esg_be.domain.reward.service.result.ApplyActivityRewardResult;
+import com.shinhan.esg_be.domain.point.entity.UserPoint;
+import com.shinhan.esg_be.domain.point.entity.enums.PointReason;
+import com.shinhan.esg_be.domain.point.repository.UserPointRepository;
+import com.shinhan.esg_be.domain.score.entity.ValidScoreHistory;
+import com.shinhan.esg_be.domain.score.repository.ValidScoreHistoryRepository;
+import com.shinhan.esg_be.domain.stat.entity.UserMonthlyStat;
+import com.shinhan.esg_be.domain.stat.repository.UserMonthlyStatRepository;
 import com.shinhan.esg_be.domain.user.entity.User;
 import com.shinhan.esg_be.domain.user.repository.UserRepository;
+import com.shinhan.esg_be.global.common.enums.ActivityType;
+import com.shinhan.esg_be.global.common.enums.ScoreCategory;
+import com.shinhan.esg_be.global.common.enums.ScoreReason;
 import com.shinhan.esg_be.global.exception.BadRequestException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.transaction.PlatformTransactionManager;
 
 import java.time.Clock;
 import java.time.LocalDate;
@@ -38,13 +50,15 @@ import java.util.stream.IntStream;
 @Transactional(readOnly = true)
 public class QuizService {
 
-    private static final int QUIZ_POINT = 10;
-
     private final UserRepository userRepository;
     private final QuizRepository quizRepository;
     private final UserQuizRepository userQuizRepository;
-    private final UserPointRepository userPointRepository;
     private final QuizGenerationService quizGenerationService;
+    private final RewardService rewardService;
+    private final UserMonthlyStatRepository userMonthlyStatRepository;
+    private final ValidScoreHistoryRepository validScoreHistoryRepository;
+    private final UserPointRepository userPointRepository;
+    private final PlatformTransactionManager transactionManager;
     private final ObjectMapper objectMapper;
     private final Clock clock;
 
@@ -90,7 +104,7 @@ public class QuizService {
                 selected.getDifficulty(),
                 selected.getQuestion(),
                 toOptionResponses(choices),
-                null,
+                false,
                 null,
                 null,
                 selected.getExplanation(),
@@ -102,7 +116,7 @@ public class QuizService {
     private QuizTodayResponse toSolvedTodayResponse(UserQuiz userQuiz) {
         Quiz quiz = userQuiz.getQuiz();
         boolean correct = Boolean.TRUE.equals(userQuiz.getIsCorrect());
-        int point = correct ? QUIZ_POINT : 0;
+        int point = correct ? 20 : 10;
         List<String> choices = parseChoices(quiz.getChoice());
         String selectedOptionId = findOptionIdByText(choices, userQuiz.getUserAnswer());
         String correctOptionId = findCorrectOptionId(choices, quiz.getAnswer());
@@ -118,7 +132,7 @@ public class QuizService {
                 correctOptionId,
                 quiz.getExplanation(),
                 point,
-                correct ? "정답입니다." : "오답입니다."
+                "이미 오늘의 퀴즈를 완료했습니다."
         );
     }
 
@@ -126,36 +140,87 @@ public class QuizService {
         List<String> choices = parseChoices(quiz.getChoice());
         String selectedOptionText = resolveSelectedOptionText(choices, selectedOptionId);
         boolean correct = isCorrectAnswer(quiz.getAnswer(), selectedOptionText);
-        int pointDelta = correct ? QUIZ_POINT : 0;
 
         userQuizRepository.save(UserQuiz.create(quiz, user, correct, selectedOptionText));
 
-        if (pointDelta > 0) {
-            user.applyPoint(pointDelta);
+        int rewardPoint = applyQuizRewardWithFallback(user, correct);
+
+        return toSubmitResponse(quiz, selectedOptionId, correct, rewardPoint);
+    }
+
+    private int applyQuizRewardWithFallback(User user, boolean correct) {
+        try {
+            TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
+            transactionTemplate.setPropagationBehaviorName("PROPAGATION_REQUIRES_NEW");
+            ApplyActivityRewardResult rewardResult = transactionTemplate.execute(status ->
+                    rewardService.applyActivityReward(
+                            new ApplyActivityRewardCommand(
+                                    user.getUserId(),
+                                    correct ? ActivityType.QUIZ_CORRECT : ActivityType.QUIZ_WRONG,
+                                    null,
+                                    LocalDate.now(clock).atStartOfDay()
+                            )
+                    )
+            );
+
+            if (rewardResult != null) {
+                return rewardResult.pointResult().activityPoint() + rewardResult.pointResult().bonusPoint();
+            }
+        } catch (RuntimeException ignored) {
+            // fall back to local handling below
         }
+
+        return applyQuizFallback(user, correct);
+    }
+
+    private int applyQuizFallback(User user, boolean correct) {
+        LocalDate today = LocalDate.now(clock);
+        int rewardPoint = correct ? 20 : 10;
+
+        UserMonthlyStat monthlyStat = userMonthlyStatRepository.findByUser(user)
+                .orElseGet(() -> userMonthlyStatRepository.save(UserMonthlyStat.create(user)));
+
+        if (monthlyStat.getMonthlyScore(ScoreCategory.G_ACTIVITY) < 10) {
+            user.applyScore(ScoreCategory.G_ACTIVITY, 1);
+            user.updateLastActivityDate(today.atStartOfDay());
+            monthlyStat.addScore(ScoreCategory.G_ACTIVITY, 1);
+            validScoreHistoryRepository.save(
+                    ValidScoreHistory.create(
+                            user,
+                            ScoreCategory.G_ACTIVITY,
+                            1,
+                            ScoreReason.QUIZ,
+                            today.plusYears(1).atStartOfDay(),
+                            user.getScore(ScoreCategory.G_ACTIVITY)
+                    )
+            );
+        }
+
+        user.applyPoint(rewardPoint);
         userPointRepository.save(
                 UserPoint.create(
                         user,
                         null,
                         correct ? PointReason.QUIZ_CORRECT : PointReason.QUIZ_WRONG,
-                        pointDelta,
+                        rewardPoint,
                         user.getTotalPoints()
                 )
         );
-
-        return toSubmitResponse(quiz, selectedOptionId, correct);
+        return rewardPoint;
     }
 
     private QuizSubmitResponse toSubmitResponse(UserQuiz userQuiz) {
         List<String> choices = parseChoices(userQuiz.getQuiz().getChoice());
+        boolean correct = Boolean.TRUE.equals(userQuiz.getIsCorrect());
         return toSubmitResponse(
                 userQuiz.getQuiz(),
                 findOptionIdByText(choices, userQuiz.getUserAnswer()),
-                Boolean.TRUE.equals(userQuiz.getIsCorrect())
+                correct,
+                correct ? 20 : 10
         );
     }
 
-    private QuizSubmitResponse toSubmitResponse(Quiz quiz, String selectedOptionId, boolean correct) {
+    private QuizSubmitResponse toSubmitResponse(Quiz quiz, String selectedOptionId, boolean correct, int rewardPoint) {
         List<String> choices = parseChoices(quiz.getChoice());
         return new QuizSubmitResponse(
                 String.valueOf(quiz.getQuizId()),
@@ -166,7 +231,7 @@ public class QuizService {
                 selectedOptionId,
                 findCorrectOptionId(choices, quiz.getAnswer()),
                 correct,
-                correct ? QUIZ_POINT : 0,
+                rewardPoint,
                 quiz.getExplanation(),
                 correct ? "정답입니다." : "오답입니다."
         );
@@ -301,14 +366,6 @@ public class QuizService {
         return findOptionIdByText(choices, answerText);
     }
 
-    private Long parseQuizId(String quizId) {
-        try {
-            return Long.parseLong(quizId);
-        } catch (Exception e) {
-            throw new BadRequestException("invalid quizId");
-        }
-    }
-
     private String normalize(String value) {
         if (value == null) {
             return "";
@@ -333,6 +390,14 @@ public class QuizService {
                         index + 1
                 ))
                 .toList();
+    }
+
+    private Long parseQuizId(String quizId) {
+        try {
+            return Long.parseLong(quizId);
+        } catch (Exception e) {
+            throw new BadRequestException("invalid quizId");
+        }
     }
 
     private User findUser(Long userId) {

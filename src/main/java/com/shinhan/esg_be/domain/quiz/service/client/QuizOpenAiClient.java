@@ -199,34 +199,6 @@ public class QuizOpenAiClient {
                     "It is charged immediately from the linked account",
                     "A debit card deducts money from the linked account at the time of payment."
             );
-            case INVESTMENT -> fallback(
-                    quizDate,
-                    category,
-                    difficulty,
-                    "What is the purpose of diversification?",
-                    List.of(
-                            "To put all risk into one asset",
-                            "To make investment returns always zero",
-                            "To spread risk across multiple assets",
-                            "To avoid investing altogether"
-                    ),
-                    "To spread risk across multiple assets",
-                    "Diversification is a common way to reduce the impact of volatility in one asset."
-            );
-            case INSURANCE -> fallback(
-                    quizDate,
-                    category,
-                    difficulty,
-                    "What is the basic role of insurance?",
-                    List.of(
-                            "To prepare for unexpected risks",
-                            "To guarantee profit",
-                            "To eliminate all spending",
-                            "To remove taxes"
-                    ),
-                    "To prepare for unexpected risks",
-                    "Insurance works as a safety net when unexpected losses occur."
-            );
         };
     }
 
