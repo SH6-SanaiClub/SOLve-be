@@ -11,5 +11,5 @@ spring:
 
 logging:
   level:
-    com.esg.platform: DEBUG
-    org.hibernate.SQL: DEBUG
+    com.esg.platform: INFO
+    org.hibernate.SQL: INFO

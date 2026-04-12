@@ -19,8 +19,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -38,22 +36,12 @@ public class PopularityService {
     private static final String POPULARITY_KEY = "activity_popularity";
     private static final Duration POPULARITY_TTL = Duration.ofHours(24);
 
-    // ── 인기 추천 1개 반환 (Top3와 겹치면 차순위) ──────────────────
-    public Optional<ActivityCandidateDto> findPopular(
-            List<ActivityCandidateDto> filtered,
-            List<ActivityCandidateDto> top3
-    ) {
-        // Top 3에 포함된 활동 식별자 Set
-        Set<String> top3Keys = top3.stream()
-                .map(c -> c.getActivityType() + ":" + c.getReferenceId())
-                .collect(Collectors.toSet());
-
-        // 인기도 맵 조회 (캐시 우선)
+    // ── 인기 추천 1개 반환 (전체 후보 기준, 필터 없음) ──────────────────────────────
+    public Optional<ActivityCandidateDto> findPopular(List<ActivityCandidateDto> allCandidates) {
         Map<String, Long> popularityMap = getPopularityMap();
 
-        // 필터 통과한 후보 중 Top3 제외 후 인기도 내림차순 정렬
-        return filtered.stream()
-                .filter(c -> !top3Keys.contains(c.getActivityType() + ":" + c.getReferenceId()))
+        // 전체 후보에서 인기도 1위 선정 (Top3 제외 없음)
+        return allCandidates.stream()
                 .max(Comparator.comparingLong(c -> resolvePopularityCount(popularityMap, c)));
     }
 
@@ -108,6 +96,15 @@ public class PopularityService {
         }
 
         return popularityMap;
+    }
+
+    public void evictPopularityCache() {
+        try {
+            redisTemplate.delete(POPULARITY_KEY);
+            log.info("인기도 캐시 삭제 완료");
+        } catch (Exception e) {
+            log.error("인기도 캐시 삭제 실패", e);
+        }
     }
 
     private long resolvePopularityCount(Map<String, Long> popularityMap, ActivityCandidateDto candidate) {

@@ -3,11 +3,14 @@ package com.shinhan.esg_be.domain.reward.service;
 import com.shinhan.esg_be.domain.point.service.PointService;
 import com.shinhan.esg_be.domain.point.service.command.ApplyActivityPointCommand;
 import com.shinhan.esg_be.domain.point.service.result.ApplyActivityPointResult;
+import com.shinhan.esg_be.domain.recommendation.service.PopularityService;
+import com.shinhan.esg_be.domain.recommendation.service.RecommendCacheService;
 import com.shinhan.esg_be.domain.reward.service.command.ApplyActivityRewardCommand;
 import com.shinhan.esg_be.domain.reward.service.result.ApplyActivityRewardResult;
 import com.shinhan.esg_be.domain.score.service.ScoreService;
 import com.shinhan.esg_be.domain.score.service.command.ApplyActivityScoreCommand;
 import com.shinhan.esg_be.domain.score.service.result.ApplyActivityScoreResult;
+import com.shinhan.esg_be.global.common.enums.ActivityType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +22,8 @@ public class RewardService {
 
     private final ScoreService scoreService;
     private final PointService pointService;
+    private final RecommendCacheService recommendCacheService;
+    private final PopularityService popularityService;
 
     /**
      * 활동이 최종 확정된 시점에 이 메서드 하나만 호출하면 점수와 포인트가 함께 반영됩니다.
@@ -73,6 +78,18 @@ public class RewardService {
                 )
         );
 
+        recommendCacheService.evictActivityRecommend(command.userId());
+        if (isPopularityActivity(command.activityType())) {
+            popularityService.evictPopularityCache();
+        }
+
         return new ApplyActivityRewardResult(scoreResult, pointResult);
+    }
+
+    private boolean isPopularityActivity(ActivityType activityType) {
+        return switch (activityType) {
+            case PHOTO, DONATION, VOLUNTEER, PURCHASE, QUIZ_CORRECT, QUIZ_WRONG -> true;
+            default -> false;
+        };
     }
 }
