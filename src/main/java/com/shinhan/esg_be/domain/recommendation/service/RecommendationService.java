@@ -5,10 +5,8 @@ import com.shinhan.esg_be.domain.recommendation.dto.ActivityCandidateDto;
 import com.shinhan.esg_be.domain.recommendation.dto.ActivityRecommendResponse;
 import com.shinhan.esg_be.domain.recommendation.dto.ActivityRecommendResponse.RecommendedActivity;
 import com.shinhan.esg_be.domain.recommendation.dto.UserFeatureDto;
-import com.shinhan.esg_be.domain.recommendation.event.RecommendRefreshEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -29,7 +27,6 @@ public class RecommendationService {
     private final ActivityBoostService      boostService;
     private final PopularityService         popularityService;
     private final RecommendCacheService     cacheService;
-    private final ApplicationEventPublisher eventPublisher;
     private final AIService                 aiService;
 
     private static final int TOP_N = 3;
@@ -41,33 +38,13 @@ public class RecommendationService {
             log.info("캐시 HIT - userId={}", userId);
             return cached.get();
         }
-        if (cacheService.isLocked(userId)) {
-            log.info("추천 갱신 중 - userId={}", userId);
-            return buildEmptyResponse();
-        }
         log.info("캐시 MISS - 추천 파이프라인 실행 userId={}", userId);
         return runPipelineAndCache(userId);
     }
 
-    public void triggerRefresh(Long userId) {
+    public void evictRecommendCache(Long userId) {
         cacheService.evictActivityRecommend(userId);
-        eventPublisher.publishEvent(new RecommendRefreshEvent(userId));
-        log.info("추천 갱신 이벤트 발행 - userId={}", userId);
-    }
-
-    public void refreshCache(Long userId) {
-        if (!cacheService.acquireLock(userId)) {
-            log.debug("이미 갱신 중 - userId={}", userId);
-            return;
-        }
-        try {
-            runPipelineAndCache(userId);
-            log.info("캐시 갱신 완료 - userId={}", userId);
-        } catch (Exception e) {
-            log.error("캐시 갱신 실패 - userId={}", userId, e);
-        } finally {
-            cacheService.releaseLock(userId);
-        }
+        log.info("추천 캐시 삭제 - userId={}", userId);
     }
 
     private ActivityRecommendResponse runPipelineAndCache(Long userId) {
@@ -142,14 +119,6 @@ public class RecommendationService {
                 .currentEnrolled(c.getCurrentEnrolled())
                 .capacity(c.getCapacity())
                 .description(null)
-                .build();
-    }
-
-    private ActivityRecommendResponse buildEmptyResponse() {
-        return ActivityRecommendResponse.builder()
-                .activities(List.of())
-                .popularActivity(null)
-                .llmSummary(null)
                 .build();
     }
 

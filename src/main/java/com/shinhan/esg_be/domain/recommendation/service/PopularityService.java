@@ -110,6 +110,15 @@ public class PopularityService {
         return popularityMap;
     }
 
+    public void evictPopularityCache() {
+        try {
+            redisTemplate.delete(POPULARITY_KEY);
+            log.info("인기도 캐시 삭제");
+        } catch (Exception e) {
+            log.error("인기도 캐시 삭제 실패", e);
+        }
+    }
+
     private long resolvePopularityCount(Map<String, Long> popularityMap, ActivityCandidateDto candidate) {
         if ("QUIZ".equals(candidate.getActivityType())) {
             return popularityMap.getOrDefault("QUIZ:0", 0L);
