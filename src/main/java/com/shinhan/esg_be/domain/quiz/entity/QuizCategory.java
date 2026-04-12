@@ -4,7 +4,5 @@ public enum QuizCategory {
     BASIC_FINANCE,
     SAVING,
     LOAN,
-    CARD,
-    INVESTMENT,
-    INSURANCE
+    CARD
 }
