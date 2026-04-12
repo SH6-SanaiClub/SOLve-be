@@ -1,12 +1,18 @@
 package com.shinhan.esg_be.domain.volunteer.controller;
 
+import com.shinhan.esg_be.domain.volunteer.dto.request.VolunteerApplyRequest;
+import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerApplyResponse;
 import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerDetailResponse;
 import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerResponse;
 import com.shinhan.esg_be.domain.volunteer.service.VolunteerService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -25,5 +31,10 @@ public class VolunteerController {
     @GetMapping("/volunteers/{volunteerId}")
     public ResponseEntity<VolunteerDetailResponse> getVolunteer(@PathVariable Long volunteerId) {
         return ResponseEntity.ok(volunteerService.getVolunteer(volunteerId));
+    }
+
+    @PostMapping("/volunteers/apply")
+    public ResponseEntity<VolunteerApplyResponse> applyVolunteer(@RequestBody @Valid VolunteerApplyRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(volunteerService.applyVolunteer(request));
     }
 }

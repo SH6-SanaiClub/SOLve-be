@@ -52,4 +52,13 @@ public class UserVolunteer {
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    public static UserVolunteer create(User user, Volunteer volunteer) {
+        UserVolunteer userVolunteer = new UserVolunteer();
+        userVolunteer.user = user;
+        userVolunteer.volunteer = volunteer;
+        userVolunteer.status = VolunteerStatus.APPLIED;
+        userVolunteer.volunteerHour = volunteer.getVolunteerHour();
+        return userVolunteer;
+    }
 }
