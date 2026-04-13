@@ -171,7 +171,9 @@ class FinanceServiceTest {
         User user = createUser("finance-user-2", 100, 500, 200, 100);
         FinancialProduct product = createFinancialProduct("ESG Loan", ProductType.LOAN, "8.50", "8.50", 12);
         UserLoan activeLoan = createUserLoan(user, product);
+        ReflectionTestUtils.setField(activeLoan, "loanId", 301L);
 
+        ReflectionTestUtils.setField(user, "userId", 1L);
         given(userRepository.findByLoginId(user.getLoginId())).willReturn(Optional.of(user));
         given(financialProductRepository.findByTypeAndIsActiveTrue(ProductType.LOAN)).willReturn(List.of(product));
         given(userLoanRepository.findByUserAndStatus(user, LoanStatus.ACTIVE)).willReturn(List.of(activeLoan));
@@ -192,8 +194,10 @@ class FinanceServiceTest {
         User user = createUser("finance-user-3", 50, 250, 100, 100);
         FinancialProduct product = createFinancialProduct("Green Saving", ProductType.SAVINGS, "2.00", "4.40", 12);
 
+        ReflectionTestUtils.setField(user, "userId", 1L);
         given(userRepository.findByLoginId(user.getLoginId())).willReturn(Optional.of(user));
         given(financialProductRepository.findByTypeAndIsActiveTrue(ProductType.SAVINGS)).willReturn(List.of(product));
+        given(userSavingRepository.findAllByUser_UserIdAndStatus(1L, SavingStatus.ACTIVE)).willReturn(List.of());
 
         FinanceProductListResponse response = financeService.getFinanceProducts(user.getLoginId(), "savings");
 
@@ -204,6 +208,31 @@ class FinanceServiceTest {
         assertThat(response.products().get(0).maxRate()).isEqualByComparingTo("4.40");
         assertThat(response.products().get(0).appliedRate()).isEqualByComparingTo("2.00");
         assertThat(response.products().get(0).monthlyPaymentAmount()).isEqualTo(300_000L);
+    }
+
+    @Test
+    @DisplayName("적금 상품 조회 시 이미 가입한 적금 상품은 제외한다")
+    void getSavingProductsExcludesActiveSavingProduct() {
+        User user = createUser("finance-user-4", 50, 250, 100, 100);
+        ReflectionTestUtils.setField(user, "userId", 1L);
+
+        FinancialProduct joinedProduct = createFinancialProduct("Joined Saving", ProductType.SAVINGS, "2.00", "4.40", 12);
+        ReflectionTestUtils.setField(joinedProduct, "finProductId", 10L);
+        FinancialProduct availableProduct = createFinancialProduct("Available Saving", ProductType.SAVINGS, "3.00", "5.40", 12);
+        ReflectionTestUtils.setField(availableProduct, "finProductId", 20L);
+        UserSaving activeSaving = createUserSaving(user, joinedProduct);
+
+        given(userRepository.findByLoginId(user.getLoginId())).willReturn(Optional.of(user));
+        given(financialProductRepository.findByTypeAndIsActiveTrue(ProductType.SAVINGS))
+                .willReturn(List.of(joinedProduct, availableProduct));
+        given(userSavingRepository.findAllByUser_UserIdAndStatus(1L, SavingStatus.ACTIVE))
+                .willReturn(List.of(activeSaving));
+
+        FinanceProductListResponse response = financeService.getFinanceProducts(user.getLoginId(), "savings");
+
+        assertThat(response.products()).hasSize(1);
+        assertThat(response.products().get(0).id()).isEqualTo(20L);
+        assertThat(response.products().get(0).name()).isEqualTo("Available Saving");
     }
 
     private User createUser(String loginId, int eScore, int sScore, int gActivityScore, int gRepaymentScore) {

@@ -5,6 +5,7 @@ import com.shinhan.esg_be.domain.bank.dto.response.SavingApplyResponse;
 import com.shinhan.esg_be.domain.bank.entity.FinancialProduct;
 import com.shinhan.esg_be.domain.bank.entity.UserSaving;
 import com.shinhan.esg_be.domain.bank.entity.enums.ProductType;
+import com.shinhan.esg_be.domain.bank.entity.enums.SavingStatus;
 import com.shinhan.esg_be.domain.bank.repository.FinancialProductRepository;
 import com.shinhan.esg_be.domain.bank.repository.UserSavingRepository;
 import com.shinhan.esg_be.domain.user.entity.User;
@@ -36,6 +37,10 @@ public class SavingService {
                         ProductType.SAVINGS
                 )
                 .orElseThrow(() -> new BadRequestException("적금 상품을 찾을 수 없습니다."));
+
+        if (userSavingRepository.existsByUserAndFinancialProductAndStatus(user, product, SavingStatus.ACTIVE)) {
+            throw new BadRequestException("Already joined saving product.");
+        }
 
         Long monthlyAmount = product.getMonthlyPaymentAmount() != null
                 ? product.getMonthlyPaymentAmount()

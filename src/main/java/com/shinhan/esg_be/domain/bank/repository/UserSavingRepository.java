@@ -2,6 +2,8 @@ package com.shinhan.esg_be.domain.bank.repository;
 
 import com.shinhan.esg_be.domain.bank.entity.UserSaving;
 import com.shinhan.esg_be.domain.bank.entity.enums.SavingStatus;
+import com.shinhan.esg_be.domain.bank.entity.FinancialProduct;
+import com.shinhan.esg_be.domain.user.entity.User;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -17,4 +19,10 @@ public interface UserSavingRepository extends JpaRepository<UserSaving, Long> {
     List<UserSaving> findAllByUser_UserIdAndStatus(Long userId, SavingStatus status);
 
     List<UserSaving> findByStatus(SavingStatus status);
+
+    boolean existsByUserAndFinancialProductAndStatus(
+            User user,
+            FinancialProduct financialProduct,
+            SavingStatus status
+    );
 }

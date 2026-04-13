@@ -83,6 +83,10 @@ public class LoanService {
             throw new BadRequestException("대출이 제한된 사용자입니다.");
         }
 
+        if (userLoanRepository.existsByUserAndFinancialProductAndStatus(user, product, LoanStatus.ACTIVE)) {
+            throw new BadRequestException("Already joined loan product.");
+        }
+
         if (!userLoanRepository.findByUserAndStatus(user, LoanStatus.ACTIVE).isEmpty()) {
             throw new BadRequestException("기존 대출 상환 전까지 추가 대출이 불가능합니다.");
         }

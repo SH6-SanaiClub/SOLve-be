@@ -35,6 +35,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -100,12 +102,25 @@ public class FinanceService {
         User user = getUser(loginId);
 
         ProductType productType = parseProductType(type);
+        Set<Long> activeSavingProductIds = getActiveSavingProductIds(user, productType);
         var products = financialProductRepository.findByTypeAndIsActiveTrue(productType)
                 .stream()
+                .filter(product -> productType == ProductType.LOAN || !activeSavingProductIds.contains(product.getFinProductId()))
                 .map(product -> toResponse(user, product, productType))
                 .toList();
 
         return new FinanceProductListResponse(products);
+    }
+
+    private Set<Long> getActiveSavingProductIds(User user, ProductType productType) {
+        if (productType == ProductType.LOAN) {
+            return Set.of();
+        }
+
+        return userSavingRepository.findAllByUser_UserIdAndStatus(user.getUserId(), SavingStatus.ACTIVE)
+                .stream()
+                .map(userSaving -> userSaving.getFinancialProduct().getFinProductId())
+                .collect(Collectors.toSet());
     }
 
     private FinanceProductResponse toResponse(User user, FinancialProduct product, ProductType productType) {

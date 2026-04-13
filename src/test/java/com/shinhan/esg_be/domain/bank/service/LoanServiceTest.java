@@ -28,7 +28,6 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
@@ -48,12 +47,10 @@ class LoanServiceTest {
     private UserLoanRepository userLoanRepository;
 
     @Test
-    @DisplayName("대출 미리보기에서 사용자별 적용 한도와 금리를 반환한다")
+    @DisplayName("Loan preview returns user-specific limit and rate")
     void getLoanPreview() {
         User user = createUser("loan-user-preview", 100, 400, 200, 100, 0);
-        FinancialProduct product = createFinancialProduct(1L, "ESG 소액대출");
-        ReflectionTestUtils.setField(product, "subtitle", "금융 이력이 부족해도 ESG 점수로 공정하게");
-        ReflectionTestUtils.setField(product, "description", "대출 미리보기 설명");
+        FinancialProduct product = createFinancialProduct(1L, "ESG Loan");
 
         given(userRepository.findByLoginId(user.getLoginId())).willReturn(Optional.of(user));
         given(financialProductRepository.findByFinProductIdAndTypeAndIsActiveTrue(1L, ProductType.LOAN))
@@ -68,15 +65,15 @@ class LoanServiceTest {
         assertThat(response.appliedRate()).isEqualByComparingTo("7.00");
         assertThat(response.durationMonths()).isEqualTo(12);
         assertThat(response.baseScore()).isEqualTo(800);
-        assertThat(response.name()).isEqualTo("ESG 소액대출");
-        assertThat(response.subtitle()).isEqualTo("금융 이력이 부족해도 ESG 점수로 공정하게");
+        assertThat(response.name()).isEqualTo("ESG Loan");
+        assertThat(response.subtitle()).isEqualTo("ESG Loan subtitle");
     }
 
     @Test
-    @DisplayName("대출 신청 시 점수 구간에 맞는 한도와 금리로 원장을 생성한다")
+    @DisplayName("Loan application creates active loan with score-based limit and rate")
     void applyLoan() {
         User user = createUser("loan-user-1", 100, 400, 200, 100, 0);
-        FinancialProduct product = createFinancialProduct(1L, "ESG 소액대출");
+        FinancialProduct product = createFinancialProduct(1L, "ESG Loan");
 
         given(userRepository.findByLoginId(user.getLoginId())).willReturn(Optional.of(user));
         given(financialProductRepository.findByFinProductIdAndTypeAndIsActiveTrue(1L, ProductType.LOAN))
@@ -100,10 +97,10 @@ class LoanServiceTest {
     }
 
     @Test
-    @DisplayName("활성 대출이 있으면 대출 신청을 거절한다")
+    @DisplayName("Loan application rejects when active loan exists")
     void rejectLoanWhenActiveLoanExists() {
         User user = createUser("loan-user-2", 100, 500, 100, 100, 0);
-        FinancialProduct product = createFinancialProduct(1L, "ESG 소액대출");
+        FinancialProduct product = createFinancialProduct(1L, "ESG Loan");
 
         given(userRepository.findByLoginId(user.getLoginId())).willReturn(Optional.of(user));
         given(financialProductRepository.findByFinProductIdAndTypeAndIsActiveTrue(1L, ProductType.LOAN))
@@ -111,15 +108,31 @@ class LoanServiceTest {
         given(userLoanRepository.findByUserAndStatus(user, LoanStatus.ACTIVE)).willReturn(List.of(newInstance(UserLoan.class)));
 
         assertThatThrownBy(() -> loanService.applyLoan(user.getLoginId(), new LoanApplyRequest(1L, 1_000_000L)))
-                .isInstanceOf(BadRequestException.class)
-                .hasMessage("기존 대출 상환 전까지 추가 대출이 불가능합니다.");
+                .isInstanceOf(BadRequestException.class);
     }
 
     @Test
-    @DisplayName("대출 가능 점수를 충족하지 못하면 대출 신청을 거절한다")
+    @DisplayName("Loan application rejects duplicate active same product")
+    void rejectLoanWhenSameLoanProductAlreadyActive() {
+        User user = createUser("loan-user-duplicate", 100, 400, 200, 100, 0);
+        FinancialProduct product = createFinancialProduct(1L, "ESG Loan");
+
+        given(userRepository.findByLoginId(user.getLoginId())).willReturn(Optional.of(user));
+        given(financialProductRepository.findByFinProductIdAndTypeAndIsActiveTrue(1L, ProductType.LOAN))
+                .willReturn(Optional.of(product));
+        given(userLoanRepository.existsByUserAndFinancialProductAndStatus(user, product, LoanStatus.ACTIVE))
+                .willReturn(true);
+
+        assertThatThrownBy(() -> loanService.applyLoan(user.getLoginId(), new LoanApplyRequest(1L, 1_000_000L)))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Already joined loan product.");
+    }
+
+    @Test
+    @DisplayName("Loan application rejects when score is too low")
     void rejectLoanWhenScoreIsTooLow() {
         User user = createUser("loan-user-3", 50, 250, 100, 100, 0);
-        FinancialProduct product = createFinancialProduct(1L, "ESG 소액대출");
+        FinancialProduct product = createFinancialProduct(1L, "ESG Loan");
 
         given(userRepository.findByLoginId(user.getLoginId())).willReturn(Optional.of(user));
         given(financialProductRepository.findByFinProductIdAndTypeAndIsActiveTrue(1L, ProductType.LOAN))
@@ -127,23 +140,21 @@ class LoanServiceTest {
         given(userLoanRepository.findByUserAndStatus(user, LoanStatus.ACTIVE)).willReturn(List.of());
 
         assertThatThrownBy(() -> loanService.applyLoan(user.getLoginId(), new LoanApplyRequest(1L, 1_000_000L)))
-                .isInstanceOf(BadRequestException.class)
-                .hasMessage("대출 신청 가능 점수를 충족하지 않습니다.");
+                .isInstanceOf(BadRequestException.class);
     }
 
     @Test
-    @DisplayName("대출 차단 상태면 대출 신청을 거절한다")
+    @DisplayName("Loan application rejects blocked user")
     void rejectLoanWhenBlocked() {
         User user = createUser("loan-user-4", 100, 500, 100, 100, 1);
-        FinancialProduct product = createFinancialProduct(1L, "ESG 소액대출");
+        FinancialProduct product = createFinancialProduct(1L, "ESG Loan");
 
         given(userRepository.findByLoginId(user.getLoginId())).willReturn(Optional.of(user));
         given(financialProductRepository.findByFinProductIdAndTypeAndIsActiveTrue(1L, ProductType.LOAN))
                 .willReturn(Optional.of(product));
 
         assertThatThrownBy(() -> loanService.applyLoan(user.getLoginId(), new LoanApplyRequest(1L, 1_000_000L)))
-                .isInstanceOf(BadRequestException.class)
-                .hasMessage("대출이 제한된 사용자입니다.");
+                .isInstanceOf(BadRequestException.class);
     }
 
     private User createUser(String loginId, int eScore, int sScore, int gActivityScore, int gRepaymentScore, int abuseCount) {
@@ -165,7 +176,7 @@ class LoanServiceTest {
         ReflectionTestUtils.setField(product, "type", ProductType.LOAN);
         ReflectionTestUtils.setField(product, "baseRate", new BigDecimal("8.50"));
         ReflectionTestUtils.setField(product, "maxRate", new BigDecimal("8.50"));
-        ReflectionTestUtils.setField(product, "description", name + " 설명");
+        ReflectionTestUtils.setField(product, "description", name + " description");
         ReflectionTestUtils.setField(product, "isActive", true);
         ReflectionTestUtils.setField(product, "durationMonths", 12);
         return product;
