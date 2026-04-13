@@ -5,6 +5,7 @@ import com.shinhan.esg_be.domain.user.repository.UserRepository;
 import com.shinhan.esg_be.domain.volunteer.dto.request.VolunteerApplyRequest;
 import com.shinhan.esg_be.domain.volunteer.dto.request.VolunteerCheckInRequest;
 import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerApplyResponse;
+import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerAttendanceResponse;
 import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerCheckInResponse;
 import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerItemResponse;
 import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerDetailResponse;
@@ -103,6 +104,30 @@ public class VolunteerService {
                 volunteer.getLocation(),
                 volunteer.getActivityDate(),
                 userVolunteer.getStatus()
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public VolunteerAttendanceResponse getVolunteerAttendance(String qrToken) {
+        Long userId = authContext.currentUserId();
+
+        Volunteer volunteer = volunteerRepository.findByQrTokenAndIsActiveTrue(qrToken)
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "유효한 QR 정보가 없습니다."));
+
+        UserVolunteer userVolunteer = userVolunteerRepository
+                .findByUser_UserIdAndVolunteer_VolunteerId(userId, volunteer.getVolunteerId())
+                .orElseThrow(() -> new BadRequestException("신청한 봉사활동만 접근할 수 있습니다."));
+
+        return new VolunteerAttendanceResponse(
+                volunteer.getVolunteerId(),
+                volunteer.getName(),
+                volunteer.getLocation(),
+                volunteer.getActivityDate(),
+                volunteer.getVolunteerHour(),
+                volunteer.getOrganization(),
+                userVolunteer.getStatus(),
+                userVolunteer.getCheckInAt(),
+                userVolunteer.getCheckOutAt()
         );
     }
 

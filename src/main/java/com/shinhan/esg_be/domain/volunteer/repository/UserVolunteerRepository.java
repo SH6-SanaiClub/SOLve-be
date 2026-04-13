@@ -21,6 +21,10 @@ public interface UserVolunteerRepository extends JpaRepository<UserVolunteer, Lo
             Long userId, Long volunteerId, VolunteerStatus status
     );
 
+    Optional<UserVolunteer> findByUser_UserIdAndVolunteer_VolunteerId(
+            Long userId, Long volunteerId
+    );
+
     @Query("""
             SELECT COUNT(uv)
             FROM UserVolunteer uv
