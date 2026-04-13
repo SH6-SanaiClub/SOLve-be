@@ -7,6 +7,7 @@ import org.springframework.data.repository.query.Param;
 import com.shinhan.esg_be.domain.user.entity.User;
 
 import java.util.Optional;
+import java.util.List;
 
 public interface UserMonthlyStatRepository extends JpaRepository<UserMonthlyStat, Long> {
 
@@ -24,4 +25,8 @@ public interface UserMonthlyStatRepository extends JpaRepository<UserMonthlyStat
     );
     
     Optional<UserMonthlyStat> findByUser(User user);
+
+    List<UserMonthlyStat> findTop3ByUser_UserIdOrderByCreatedAtDesc(Long userId);
+
+    long countByUser_UserId(Long userId);
 }
