@@ -1,7 +1,9 @@
 package com.shinhan.esg_be.domain.volunteer.controller;
 
 import com.shinhan.esg_be.domain.volunteer.dto.request.VolunteerApplyRequest;
+import com.shinhan.esg_be.domain.volunteer.dto.request.VolunteerCheckInRequest;
 import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerApplyResponse;
+import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerCheckInResponse;
 import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerDetailResponse;
 import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerResponse;
 import com.shinhan.esg_be.domain.volunteer.service.VolunteerService;
@@ -36,5 +38,12 @@ public class VolunteerController {
     @PostMapping("/volunteers/apply")
     public ResponseEntity<VolunteerApplyResponse> applyVolunteer(@RequestBody @Valid VolunteerApplyRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(volunteerService.applyVolunteer(request));
+    }
+
+    @PostMapping("/volunteers/check-in")
+    public ResponseEntity<VolunteerCheckInResponse> checkInVolunteer(
+            @RequestBody @Valid VolunteerCheckInRequest request
+    ) {
+        return ResponseEntity.ok(volunteerService.checkInVolunteer(request));
     }
 }

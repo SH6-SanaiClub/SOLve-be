@@ -67,4 +67,9 @@ public class UserVolunteer {
         userVolunteer.volunteerHour = volunteer.getVolunteerHour();
         return userVolunteer;
     }
+
+    public void markCheckIn(LocalDateTime checkedInAt) {
+        this.checkInAt = checkedInAt;
+        this.status = VolunteerStatus.ATTENDED;
+    }
 }
