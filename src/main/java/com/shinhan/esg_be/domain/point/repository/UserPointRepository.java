@@ -28,6 +28,19 @@ public interface UserPointRepository extends JpaRepository<UserPoint, Long> {
             @Param("reason") PointReason reason
     );
 
+    @Query("""
+            select up
+            from UserPoint up
+            left join fetch up.item i
+            where up.user.userId = :userId
+              and up.createdAt >= :startDateTime
+            order by up.createdAt desc
+            """)
+    List<UserPoint> findPointHistoriesByUserIdAndStartDateTime(
+            @Param("userId") Long userId,
+            @Param("startDateTime") LocalDateTime startDateTime
+    );
+
     long countByUserAndReason(User user, PointReason reason);
 
     boolean existsByUserAndReasonAndCreatedAtBetween(

@@ -1,16 +1,17 @@
 package com.shinhan.esg_be.domain.recommendation.service;
 
 import com.shinhan.esg_be.domain.ai.service.AIService;
+import com.shinhan.esg_be.domain.environment.repository.UserEnvironmentActivityRepository;
+import com.shinhan.esg_be.domain.quiz.repository.UserQuizRepository;
 import com.shinhan.esg_be.domain.recommendation.dto.ActivityCandidateDto;
 import com.shinhan.esg_be.domain.recommendation.dto.ActivityRecommendResponse;
 import com.shinhan.esg_be.domain.recommendation.dto.ActivityRecommendResponse.RecommendedActivity;
 import com.shinhan.esg_be.domain.recommendation.dto.UserFeatureDto;
-import com.shinhan.esg_be.domain.recommendation.event.RecommendRefreshEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
@@ -29,7 +30,8 @@ public class RecommendationService {
     private final ActivityBoostService      boostService;
     private final PopularityService         popularityService;
     private final RecommendCacheService     cacheService;
-    private final ApplicationEventPublisher eventPublisher;
+    private final UserEnvironmentActivityRepository userActivityRepository;
+    private final UserQuizRepository userQuizRepository;
     private final AIService                 aiService;
 
     private static final int TOP_N = 3;
@@ -41,33 +43,13 @@ public class RecommendationService {
             log.info("캐시 HIT - userId={}", userId);
             return cached.get();
         }
-        if (cacheService.isLocked(userId)) {
-            log.info("추천 갱신 중 - userId={}", userId);
-            return buildEmptyResponse();
-        }
         log.info("캐시 MISS - 추천 파이프라인 실행 userId={}", userId);
         return runPipelineAndCache(userId);
     }
 
-    public void triggerRefresh(Long userId) {
+    public void evictRecommendCache(Long userId) {
         cacheService.evictActivityRecommend(userId);
-        eventPublisher.publishEvent(new RecommendRefreshEvent(userId));
-        log.info("추천 갱신 이벤트 발행 - userId={}", userId);
-    }
-
-    public void refreshCache(Long userId) {
-        if (!cacheService.acquireLock(userId)) {
-            log.debug("이미 갱신 중 - userId={}", userId);
-            return;
-        }
-        try {
-            runPipelineAndCache(userId);
-            log.info("캐시 갱신 완료 - userId={}", userId);
-        } catch (Exception e) {
-            log.error("캐시 갱신 실패 - userId={}", userId, e);
-        } finally {
-            cacheService.releaseLock(userId);
-        }
+        log.info("추천 캐시 삭제 - userId={}", userId);
     }
 
     private ActivityRecommendResponse runPipelineAndCache(Long userId) {
@@ -99,16 +81,16 @@ public class RecommendationService {
                 .limit(TOP_N)
                 .collect(Collectors.toList());
 
-        // Step 7: 인기 추천 선정 (Top 3와 겹치면 차순위)
+        // Step 7: 인기 추천 선정 (전체 후보 기준)
         Optional<ActivityCandidateDto> popular =
-                popularityService.findPopular(filtered, top3);
+                popularityService.findPopular(candidates);
 
         // Step 8: RecommendedActivity 변환
         List<RecommendedActivity> activities = top3.stream()
                 .map(this::toRecommendedActivity)
                 .collect(Collectors.toList());
         RecommendedActivity popularActivity =
-                popular.map(this::toRecommendedActivity).orElse(null);
+                popular.map(c -> toPopularRecommendedActivity(c, feature)).orElse(null);
 
         // Step 9: LLM 호출 → description + llmSummary 채우기
         AIService.LLMResult llmResult =
@@ -145,12 +127,51 @@ public class RecommendationService {
                 .build();
     }
 
-    private ActivityRecommendResponse buildEmptyResponse() {
-        return ActivityRecommendResponse.builder()
-                .activities(List.of())
-                .popularActivity(null)
-                .llmSummary(null)
+    // ── 인기 활동 전용 변환 (상태 필드 추가 계산) ────────────────────────────────
+    private RecommendedActivity toPopularRecommendedActivity(
+            ActivityCandidateDto c, UserFeatureDto feature
+    ) {
+        boolean alreadyToday = checkAlreadyParticipatedToday(c, feature.getUserId());
+        boolean monthlyLimit = checkMonthlyLimitReached(c, feature);
+
+        return RecommendedActivity.builder()
+                .activityType(c.getActivityType())
+                .referenceId(c.getReferenceId())
+                .name(c.getName())
+                .scoreCategory(c.getScoreCategory())
+                .scoreValue(c.getScoreValue())
+                .pointValue(c.getPointValue())
+                .pointRate(c.getPointRate())
+                .deadlineDate(c.getDeadlineDate())
+                .finalScore(c.getFinalScore())
+                .mainReason(c.getMainReason())
+                .currentAmount(c.getCurrentAmount())
+                .targetAmount(c.getTargetAmount())
+                .currentEnrolled(c.getCurrentEnrolled())
+                .capacity(c.getCapacity())
+                .description(null)
+                .alreadyParticipatedToday(alreadyToday)
+                .monthlyLimitReached(monthlyLimit)
                 .build();
+    }
+
+    private boolean checkAlreadyParticipatedToday(ActivityCandidateDto c, Long userId) {
+        LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
+        return switch (c.getActivityType()) {
+            case "PHOTO" -> userActivityRepository
+                    .countTodayApproved(userId, c.getReferenceId(), startOfDay) > 0;
+            case "QUIZ" -> userQuizRepository.countToday(userId, startOfDay) > 0;
+            default -> false; // S 활동은 일일 참여 제한 없음
+        };
+    }
+
+    private boolean checkMonthlyLimitReached(ActivityCandidateDto c, UserFeatureDto feature) {
+        return switch (c.getScoreCategory()) {
+            case "E" -> feature.getMonthlyEScore() >= 5;
+            case "S" -> feature.getMonthlySScore() >= 25;
+            case "G" -> feature.getMonthlyGScore() >= 10;
+            default -> false;
+        };
     }
 
     // B2 raw 효율 계산 (ActivityScorer와 동일 로직 — maxB2 계산용)

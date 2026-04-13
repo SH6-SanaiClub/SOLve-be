@@ -42,37 +42,74 @@ public class AuthService {
     @Transactional
     public void join(AuthJoinRequest req) {
         VerifiedIdentity verifiedIdentity = getVerifiedIdentity(req.getVerificationToken());
-        validateJoinRequest(req, verifiedIdentity.getCiDi());
+        User existingUser = userRepository.findByCiDi(verifiedIdentity.getCiDi()).orElse(null);
+        String loginId = existingUser != null ? existingUser.getLoginId() : req.getLoginId();
 
-        User user = User.create(
-                req.getLoginId(),
-                passwordEncoder.encode(req.getPassword()),
-                req.getName(),
-                req.getEmail(),
-                req.getPhoneNumber().trim(),
-                req.getBirthdate(),
-                verifiedIdentity.getCiDi()
+        if (existingUser != null && Boolean.TRUE.equals(existingUser.getIsActive())) {
+            throw new BadRequestException("이미 가입된 본인 인증 정보입니다.");
+        }
+
+        validateJoinRequest(
+                req,
+                verifiedIdentity.getCiDi(),
+                existingUser == null ? null : existingUser.getUserId(),
+                loginId
         );
 
-        userRepository.save(user);
+        if (existingUser != null) {
+            existingUser.reactivate(
+                    loginId,
+                    passwordEncoder.encode(req.getPassword()),
+                    req.getName(),
+                    req.getEmail(),
+                    req.getPhoneNumber().trim(),
+                    req.getBirthdate(),
+                    verifiedIdentity.getCiDi()
+            );
+        } else {
+            User user = User.create(
+                    loginId,
+                    passwordEncoder.encode(req.getPassword()),
+                    req.getName(),
+                    req.getEmail(),
+                    req.getPhoneNumber().trim(),
+                    req.getBirthdate(),
+                    verifiedIdentity.getCiDi()
+            );
+
+            userRepository.save(user);
+        }
+
         redisTemplate.delete(getVerifiedIdentityKey(req.getVerificationToken()));
     }
 
     @Transactional
     public IdentityVerificationResponse verifyIdentity(String impUid) {
         VerifiedIdentity verifiedIdentity = portOneIdentityVerificationService.verify(impUid);
-        ensureCiDiNotRegistered(verifiedIdentity.getCiDi());
+        User existingUser = userRepository.findByCiDi(verifiedIdentity.getCiDi()).orElse(null);
+
+        if (existingUser != null && Boolean.TRUE.equals(existingUser.getIsActive())) {
+            throw new BadRequestException("이미 가입된 본인 인증 정보입니다.");
+        }
 
         String verificationToken = UUID.randomUUID().toString();
         storeVerifiedIdentity(verificationToken, verifiedIdentity);
 
-        return new IdentityVerificationResponse(true, verificationToken);
+        return new IdentityVerificationResponse(
+                true,
+                verificationToken,
+                existingUser != null ? existingUser.getLoginId() : null
+        );
     }
 
     @Transactional
     public TokenResponse login(AuthLoginRequest req) {
         User user = userRepository.findByLoginId(req.getLoginId())
                 .orElseThrow(() -> new BadRequestException("사용자를 찾을 수 없습니다."));
+
+        if (!Boolean.TRUE.equals(user.getIsActive())) {
+            throw new BadRequestException("탈퇴한 계정은 로그인할 수 없습니다.");
+        }
 
         if (!passwordEncoder.matches(req.getPassword(), user.getPassword())) {
             throw new BadRequestException("비밀번호가 일치하지 않습니다.");
@@ -84,13 +121,19 @@ public class AuthService {
     @Transactional
     public TokenResponse reissue(String refreshToken) {
         TokenSubject tokenSubject = validateRefreshToken(refreshToken);
+        User user = userRepository.findByLoginId(tokenSubject.loginId())
+                .orElseThrow(() -> new BadRequestException("사용자를 찾을 수 없습니다."));
         String savedRefreshToken = redisTemplate.opsForValue().get(getRefreshTokenKey(tokenSubject.loginId()));
+
+        if (!Boolean.TRUE.equals(user.getIsActive())) {
+            throw new BadRequestException("탈퇴한 계정은 로그인할 수 없습니다.");
+        }
 
         if (savedRefreshToken == null || !savedRefreshToken.equals(refreshToken)) {
             throw new BadRequestException("저장된 리프레시 토큰과 일치하지 않습니다.");
         }
 
-        return issueTokenPair(tokenSubject.userId(), tokenSubject.loginId());
+        return issueTokenPair(user.getUserId(), user.getLoginId());
     }
 
     @Transactional
@@ -103,17 +146,35 @@ public class AuthService {
         return userRepository.existsByLoginId(loginId);
     }
 
-    private void validateJoinRequest(AuthJoinRequest req, String ciDi) {
-        if (userRepository.existsByLoginId(req.getLoginId())) {
+    private void validateJoinRequest(AuthJoinRequest req, String ciDi, Long excludeUserId, String loginId) {
+        String phoneNumber = req.getPhoneNumber().trim();
+
+        if (excludeUserId == null) {
+            if (userRepository.existsByLoginId(loginId)) {
+                throw new BadRequestException("이미 존재하는 아이디입니다.");
+            }
+            if (userRepository.existsByEmail(req.getEmail())) {
+                throw new BadRequestException("이미 사용 중인 이메일입니다.");
+            }
+            if (userRepository.existsByPhoneNumber(phoneNumber)) {
+                throw new BadRequestException("이미 등록된 전화번호입니다.");
+            }
+            ensureCiDiNotRegistered(ciDi);
+            return;
+        }
+
+        if (userRepository.existsByLoginIdAndUserIdNot(loginId, excludeUserId)) {
             throw new BadRequestException("이미 존재하는 아이디입니다.");
         }
-        if (userRepository.existsByEmail(req.getEmail())) {
+        if (userRepository.existsByEmailAndUserIdNot(req.getEmail(), excludeUserId)) {
             throw new BadRequestException("이미 사용 중인 이메일입니다.");
         }
-        if (userRepository.existsByPhoneNumber(req.getPhoneNumber().trim())) {
+        if (userRepository.existsByPhoneNumberAndUserIdNot(phoneNumber, excludeUserId)) {
             throw new BadRequestException("이미 등록된 전화번호입니다.");
         }
-        ensureCiDiNotRegistered(ciDi);
+        if (userRepository.existsByCiDiAndUserIdNot(ciDi, excludeUserId)) {
+            throw new BadRequestException("이미 가입된 본인 인증 정보입니다.");
+        }
     }
 
     private void ensureCiDiNotRegistered(String ciDi) {

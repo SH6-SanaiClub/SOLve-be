@@ -85,6 +85,9 @@ public class User extends BaseTimeEntity {
     @Column(name = "is_linked", nullable = false)
     private Boolean isLinked = false;
 
+    @Column(name = "is_survey_completed", nullable = false)
+    private Boolean isSurveyCompleted = false;
+
     public static User create(String loginId, String password, String name, String email,
                               String phoneNumber, LocalDate birthdate, String ciDi) {
         User user = new User();
@@ -105,10 +108,32 @@ public class User extends BaseTimeEntity {
         user.totalPoints = 0;
         user.isActive = true;
         user.isLinked = false;
+        user.isSurveyCompleted = false;
 
         return user;
     }
-  
+
+    // 본인인증 후 새 휴대폰 번호와 ciDi를 함께 변경
+    public void updatePhoneNumberAndCiDi(String phoneNumber, String ciDi) {
+        this.phoneNumber = phoneNumber;
+        this.ciDi = ciDi;
+    }
+
+    // 이메일 주소 변경
+    public void updateEmail(String email) {
+        this.email = email;
+    }
+
+    // 암호화된 비밀번호 값으로 변경
+    public void updatePassword(String password) {
+        this.password = password;
+    }
+
+    // 회원탈퇴 시 계정을 비활성 상태로 변경
+    public void withdraw() {
+        this.isActive = false;
+    }
+
     public void applyScore(ScoreCategory scoreCategory, int scoreDelta) {
         if (scoreDelta == 0) {
             return;
@@ -158,6 +183,11 @@ public class User extends BaseTimeEntity {
         this.lastActivityDate = activityDateTime;
     }
 
+    public void completeSurvey(UserType userType) {
+        this.userType = userType;
+        this.isSurveyCompleted = true;
+    }
+
     public int getScore(ScoreCategory scoreCategory) {
         return switch (scoreCategory) {
             case E -> eScore;
@@ -190,5 +220,24 @@ public class User extends BaseTimeEntity {
             return;
         }
         currentGrade = Grade.SEED;
+    }
+
+    public void reactivate(
+            String loginId,
+            String password,
+            String name,
+            String email,
+            String phoneNumber,
+            LocalDate birthdate,
+            String ciDi
+    ) {
+        this.loginId = loginId;
+        this.password = password;
+        this.name = name;
+        this.email = email;
+        this.phoneNumber = phoneNumber;
+        this.birthdate = birthdate;
+        this.ciDi = ciDi;
+        this.isActive = true;
     }
 }
