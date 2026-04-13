@@ -40,7 +40,14 @@ dependencies {
 	// AWS S3
 	implementation 'org.springframework.cloud:spring-cloud-starter-aws:2.2.6.RELEASE'
 
-	runtimeOnly 'org.postgresql:postgresql'
+	if (System.getProperty('os.name').toLowerCase().contains('mac')) {
+		def macOsClassifier = System.getProperty('os.arch') == 'aarch64' ? 'osx-aarch_64' : 'osx-x86_64'
+		runtimeOnly("io.netty:netty-resolver-dns-native-macos") {
+			artifact {
+				classifier = macOsClassifier
+			}
+		}
+	}
 	compileOnly 'org.projectlombok:lombok'
 
 	annotationProcessor 'org.projectlombok:lombok'
