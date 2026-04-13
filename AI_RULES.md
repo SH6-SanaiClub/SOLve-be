@@ -605,13 +605,10 @@ log.error("Failed to create user: {}", email, e);
     - 비고: 등급별 혜택 및 다음 등급까지 점수 Gap 계산
 
 ## 온보딩/AI
-- ONB-01: 설문 응답 제출 `POST /api/v1/onboarding/survey`
+- ONB-01: 설문 응답 제출 `POST /api/v1/survey/submit`
     - Req: `{ answers[] }` / Res: `{ message }` / Status: 201
     - 비고: 가입 후 최초 1회, Raw 데이터 저장
-- ONB-02: 유형 분류 확정 `POST /api/v1/onboarding/analyze`
-    - Req: `-` / Res: `{ type, typeDesc }` / Status: 200
-    - 비고: 가중치 합산 후 ESG 유형 업데이트
-- ONB-03: AI 맞춤 추천 `GET /api/v1/chat/recommend`
+- ONB-02: AI 맞춤 추천 `GET /api/v1/chat/recommend`
     - Req: `-` / Res: `{ recommendations[] }` / Status: 200
     - 비고: 점수/유형 기반 LLM 개인화 추천
 - CHAT-01: AI 챗봇 상담 `POST /api/v1/chat/messages`
