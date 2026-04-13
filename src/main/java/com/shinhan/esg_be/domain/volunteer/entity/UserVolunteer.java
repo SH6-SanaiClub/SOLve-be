@@ -49,6 +49,12 @@ public class UserVolunteer {
     @Column(name = "volunteer_hour", nullable = false)
     private Integer volunteerHour;
 
+    @Column(name = "check_in_at")
+    private LocalDateTime checkInAt;
+
+    @Column(name = "check_out_at")
+    private LocalDateTime checkOutAt;
+
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

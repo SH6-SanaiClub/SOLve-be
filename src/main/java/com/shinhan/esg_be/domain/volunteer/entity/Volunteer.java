@@ -50,4 +50,13 @@ public class Volunteer extends BaseTimeEntity {
 
     @Column(nullable = false)
     private String organization;
+
+    @Column(name = "qr_token", unique = true)
+    private String qrToken;
+
+    @Column(name = "latitude")
+    private Double latitude;
+
+    @Column(name = "longitude")
+    private Double longitude;
 }
