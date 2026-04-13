@@ -1,5 +1,6 @@
 package com.shinhan.esg_be.domain.score.batch;
 
+import com.shinhan.esg_be.domain.bank.service.SavingPrimeSettlementService;
 import com.shinhan.esg_be.domain.score.service.MonthlyScoreService;
 import com.shinhan.esg_be.domain.score.service.ScoreExpirationService;
 import com.shinhan.esg_be.domain.score.service.ScorePenaltyService;
@@ -28,6 +29,7 @@ public class ScoreBatchConfig {
     private final MonthlyScoreService monthlyScoreService;
     private final ScoreExpirationService scoreExpirationService;
     private final ScorePenaltyService scorePenaltyService;
+    private final SavingPrimeSettlementService savingPrimeSettlementService;
     private final Clock clock;
 
     @Bean
@@ -85,6 +87,7 @@ public class ScoreBatchConfig {
     public Tasklet monthlyScoreSettlementTasklet() {
         return (contribution, chunkContext) -> {
             LocalDateTime settledAt = LocalDateTime.now(clock);
+            savingPrimeSettlementService.settleMonthlyPrimeRates(settledAt);
             List<User> users = userRepository.findAll();
             for (User user : users) {
                 monthlyScoreService.settleMonthlyScore(user.getUserId(), settledAt);

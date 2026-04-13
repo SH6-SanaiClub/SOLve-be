@@ -6,6 +6,7 @@ import com.shinhan.esg_be.domain.bank.dto.response.LoanApplyResponse;
 import com.shinhan.esg_be.domain.bank.dto.response.LoanPreviewResponse;
 import com.shinhan.esg_be.domain.bank.service.LoanService;
 import com.shinhan.esg_be.global.exception.GlobalExceptionHandler;
+import com.shinhan.esg_be.global.security.AuthContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -22,7 +23,6 @@ import java.math.BigDecimal;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -31,6 +31,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @ExtendWith(MockitoExtension.class)
 class LoanControllerTest {
+
+    private static final String LOGIN_ID = "test-user";
 
     private MockMvc mockMvc;
 
@@ -42,8 +44,12 @@ class LoanControllerTest {
     @Mock
     private LoanService loanService;
 
+    @Mock
+    private AuthContext authContext;
+
     @BeforeEach
     void setUp() {
+        given(authContext.currentLoginId()).willReturn(LOGIN_ID);
         mockMvc = MockMvcBuilders.standaloneSetup(loanController)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .setMessageConverters(new MappingJackson2HttpMessageConverter())
@@ -68,7 +74,7 @@ class LoanControllerTest {
                 false
         );
 
-        given(loanService.getLoanPreview(isNull(), eq(1L))).willReturn(response);
+        given(loanService.getLoanPreview(eq(LOGIN_ID), eq(1L))).willReturn(response);
 
         mockMvc.perform(get("/api/v1/finance/loans/1/preview"))
                 .andExpect(status().isOk())
@@ -83,7 +89,7 @@ class LoanControllerTest {
     @DisplayName("대출 신청 API는 생성 상태를 반환한다")
     void applyLoan() throws Exception {
         LoanApplyRequest request = new LoanApplyRequest(1L, 1_500_000L);
-        given(loanService.applyLoan(isNull(), any(LoanApplyRequest.class)))
+        given(loanService.applyLoan(eq(LOGIN_ID), any(LoanApplyRequest.class)))
                 .willReturn(new LoanApplyResponse("ACTIVE"));
 
         mockMvc.perform(post("/api/v1/finance/loans/apply")

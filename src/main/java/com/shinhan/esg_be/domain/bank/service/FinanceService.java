@@ -11,30 +11,40 @@ import com.shinhan.esg_be.domain.bank.dto.response.SavingHistoryResponse;
 import com.shinhan.esg_be.domain.bank.entity.FinancialProduct;
 import com.shinhan.esg_be.domain.bank.entity.LoanHistory;
 import com.shinhan.esg_be.domain.bank.entity.SavingHistory;
+import com.shinhan.esg_be.domain.bank.entity.SavingPrimeHistory;
 import com.shinhan.esg_be.domain.bank.entity.UserLoan;
 import com.shinhan.esg_be.domain.bank.entity.UserSaving;
 import com.shinhan.esg_be.domain.bank.entity.enums.LoanStatus;
 import com.shinhan.esg_be.domain.bank.entity.enums.ProductType;
+import com.shinhan.esg_be.domain.bank.entity.enums.SavingHistoryType;
 import com.shinhan.esg_be.domain.bank.entity.enums.SavingStatus;
 import com.shinhan.esg_be.domain.bank.repository.FinancialProductRepository;
 import com.shinhan.esg_be.domain.bank.repository.LoanHistoryRepository;
 import com.shinhan.esg_be.domain.bank.repository.SavingHistoryRepository;
+import com.shinhan.esg_be.domain.bank.repository.SavingPrimeHistoryRepository;
 import com.shinhan.esg_be.domain.bank.repository.UserLoanRepository;
 import com.shinhan.esg_be.domain.bank.repository.UserSavingRepository;
 import com.shinhan.esg_be.domain.user.entity.User;
 import com.shinhan.esg_be.domain.user.repository.UserRepository;
 import com.shinhan.esg_be.global.exception.BadRequestException;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.IncorrectResultSizeDataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class FinanceService {
+
+    private static final long SAVING_DURATION_MONTHS = 12L;
 
     private static final long LOAN_LIMIT_700 = 1_000_000L;
     private static final long LOAN_LIMIT_800 = 2_000_000L;
@@ -47,22 +57,30 @@ public class FinanceService {
     private final FinancialProductRepository financialProductRepository;
     private final LoanHistoryRepository loanHistoryRepository;
     private final SavingHistoryRepository savingHistoryRepository;
+    private final SavingPrimeHistoryRepository savingPrimeHistoryRepository;
     private final UserLoanRepository userLoanRepository;
     private final UserSavingRepository userSavingRepository;
     private final UserRepository userRepository;
+    
+    @PersistenceContext
+    private EntityManager entityManager;
 
     public FinanceMyResponse getMyFinance(String loginId) {
         User user = getUser(loginId);
 
-        ActiveLoanResponse activeLoan = userLoanRepository.findByUser_UserIdAndStatus(user.getUserId(), LoanStatus.ACTIVE)
+        List<ActiveLoanResponse> loans = userLoanRepository
+                .findAllByUser_UserId(user.getUserId())
+                .stream()
                 .map(this::toActiveLoanResponse)
-                .orElse(null);
+                .toList();
 
-        ActiveSavingResponse activeSaving = userSavingRepository.findByUser_UserIdAndStatus(user.getUserId(), SavingStatus.ACTIVE)
+        List<ActiveSavingResponse> savings = userSavingRepository
+                .findAllByUser_UserId(user.getUserId())
+                .stream()
                 .map(this::toActiveSavingResponse)
-                .orElse(null);
+                .toList();
 
-        return new FinanceMyResponse(activeLoan, activeSaving);
+        return new FinanceMyResponse(loans, savings);
     }
 
     public FinanceHistoryResponse getFinanceHistory(String loginId) {
@@ -81,16 +99,45 @@ public class FinanceService {
         return new FinanceHistoryResponse(loans, savings);
     }
 
+    public List<SavingHistoryResponse> getSavingHistory(String loginId, Long savingId) {
+        User user = getUser(loginId);
+
+        boolean hasSaving = userSavingRepository.findAllByUser_UserId(user.getUserId())
+                .stream()
+                .anyMatch(userSaving -> userSaving.getSavingId().equals(savingId));
+        if (!hasSaving) {
+            throw new BadRequestException("Saving product not found.");
+        }
+
+        return savingHistoryRepository.findAllByUserIdAndSavingId(user.getUserId(), savingId)
+                .stream()
+                .map(this::toSavingHistoryResponse)
+                .toList();
+    }
+
     public FinanceProductListResponse getFinanceProducts(String loginId, String type) {
         User user = getUser(loginId);
 
         ProductType productType = parseProductType(type);
+        Set<Long> activeSavingProductIds = getActiveSavingProductIds(user, productType);
         var products = financialProductRepository.findByTypeAndIsActiveTrue(productType)
                 .stream()
+                .filter(product -> productType == ProductType.LOAN || !activeSavingProductIds.contains(product.getFinProductId()))
                 .map(product -> toResponse(user, product, productType))
                 .toList();
 
         return new FinanceProductListResponse(products);
+    }
+
+    private Set<Long> getActiveSavingProductIds(User user, ProductType productType) {
+        if (productType == ProductType.LOAN) {
+            return Set.of();
+        }
+
+        return userSavingRepository.findAllByUser_UserIdAndStatus(user.getUserId(), SavingStatus.ACTIVE)
+                .stream()
+                .map(userSaving -> userSaving.getFinancialProduct().getFinProductId())
+                .collect(Collectors.toSet());
     }
 
     private FinanceProductResponse toResponse(User user, FinancialProduct product, ProductType productType) {
@@ -133,12 +180,19 @@ public class FinanceService {
 
     private ActiveLoanResponse toActiveLoanResponse(UserLoan userLoan) {
         FinancialProduct product = userLoan.getFinancialProduct();
+        long paidAmount = loanHistoryRepository.sumRepaymentAmountByLoanId(userLoan.getLoanId());
+        long remainingAmount = Math.max(userLoan.getTotalAmount() - paidAmount, 0L);
+        long repaymentCount = loanHistoryRepository.countRepaymentsByLoanId(userLoan.getLoanId());
+
         return new ActiveLoanResponse(
                 userLoan.getLoanId(),
                 product.getFinProductId(),
                 product.getName(),
                 userLoan.getPrincipalAmount(),
                 userLoan.getTotalAmount(),
+                paidAmount,
+                remainingAmount,
+                repaymentCount,
                 userLoan.getCurrentRate(),
                 userLoan.getStatus().name(),
                 product.getDurationMonths(),
@@ -149,14 +203,39 @@ public class FinanceService {
 
     private ActiveSavingResponse toActiveSavingResponse(UserSaving userSaving) {
         FinancialProduct product = userSaving.getFinancialProduct();
+        BigDecimal addedRate = savingPrimeHistoryRepository
+                .findTopByUserSaving_SavingIdOrderByAppliedAtDesc(userSaving.getSavingId())
+                .map(SavingPrimeHistory::getAddedRate)
+                .orElse(BigDecimal.ZERO)
+                .setScale(2, java.math.RoundingMode.DOWN);
+        BigDecimal appliedRate = product.getBaseRate()
+                .add(addedRate)
+                .min(product.getMaxRate());
+
+        long paidAmount = savingHistoryRepository.sumAmountBySavingIdAndType(
+                userSaving.getSavingId(),
+                SavingHistoryType.PAYMENT
+        );
+        long paymentCount = savingHistoryRepository.countBySavingIdAndType(
+                userSaving.getSavingId(),
+                SavingHistoryType.PAYMENT
+        );
+        long remainingCount = Math.max(SAVING_DURATION_MONTHS - paymentCount, 0L);
+
         return new ActiveSavingResponse(
                 userSaving.getSavingId(),
                 product.getFinProductId(),
                 product.getName(),
                 userSaving.getMonthlyAmount(),
+                addedRate,
+                appliedRate,
+                paidAmount,
+                paymentCount,
+                remainingCount,
                 userSaving.getStatus().name(),
                 product.getDurationMonths(),
                 userSaving.getHasPenalty(),
+                userSaving.getMasterBonusEligible(),
                 userSaving.getMaturityDate(),
                 userSaving.getJoinedAt()
         );
@@ -184,6 +263,7 @@ public class FinanceService {
                 product.getFinProductId(),
                 product.getName(),
                 savingHistory.getAmount(),
+                savingHistory.getType().name(),
                 savingHistory.getPaymentDate()
         );
     }
@@ -216,8 +296,21 @@ public class FinanceService {
     }
 
     private User getUser(String loginId) {
-        return userRepository.findByLoginId(loginId)
-                .orElseThrow(() -> new BadRequestException("User not found."));
+        try {
+            return userRepository.findByLoginId(loginId)
+                    .orElseThrow(() -> new BadRequestException("User not found."));
+        } catch (IncorrectResultSizeDataAccessException ignored) {
+            return entityManager.createQuery(
+                            "select u from User u where u.loginId = :loginId order by u.userId desc",
+                            User.class
+                    )
+                    .setParameter("loginId", loginId)
+                    .setMaxResults(1)
+                    .getResultList()
+                    .stream()
+                    .findFirst()
+                    .orElseThrow(() -> new BadRequestException("User not found."));
+        }
     }
 
     private record LoanOffer(

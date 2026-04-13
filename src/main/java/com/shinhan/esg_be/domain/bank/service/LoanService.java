@@ -4,10 +4,12 @@ import com.shinhan.esg_be.domain.bank.dto.request.LoanApplyRequest;
 import com.shinhan.esg_be.domain.bank.dto.response.LoanApplyResponse;
 import com.shinhan.esg_be.domain.bank.dto.response.LoanPreviewResponse;
 import com.shinhan.esg_be.domain.bank.entity.FinancialProduct;
+import com.shinhan.esg_be.domain.bank.entity.LoanHistory;
 import com.shinhan.esg_be.domain.bank.entity.UserLoan;
 import com.shinhan.esg_be.domain.bank.entity.enums.LoanStatus;
 import com.shinhan.esg_be.domain.bank.entity.enums.ProductType;
 import com.shinhan.esg_be.domain.bank.repository.FinancialProductRepository;
+import com.shinhan.esg_be.domain.bank.repository.LoanHistoryRepository;
 import com.shinhan.esg_be.domain.bank.repository.UserLoanRepository;
 import com.shinhan.esg_be.domain.user.entity.User;
 import com.shinhan.esg_be.domain.user.repository.UserRepository;
@@ -18,7 +20,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Clock;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -36,6 +40,8 @@ public class LoanService {
     private final UserRepository userRepository;
     private final FinancialProductRepository financialProductRepository;
     private final UserLoanRepository userLoanRepository;
+    private final LoanHistoryRepository loanHistoryRepository;
+    private final Clock clock;
 
     @Transactional(readOnly = true)
     public LoanPreviewResponse getLoanPreview(String loginId, Long productId) {
@@ -83,6 +89,10 @@ public class LoanService {
             throw new BadRequestException("대출이 제한된 사용자입니다.");
         }
 
+        if (userLoanRepository.existsByUserAndFinancialProductAndStatus(user, product, LoanStatus.ACTIVE)) {
+            throw new BadRequestException("Already joined loan product.");
+        }
+
         if (!userLoanRepository.findByUserAndStatus(user, LoanStatus.ACTIVE).isEmpty()) {
             throw new BadRequestException("기존 대출 상환 전까지 추가 대출이 불가능합니다.");
         }
@@ -102,11 +112,12 @@ public class LoanService {
                 request.amount(),
                 loanOffer.appliedRate(),
                 calculateTotalAmount(request.amount(), loanOffer.appliedRate()),
-                LocalDate.now().plusMonths(1),
+                LocalDate.now(clock).plusMonths(1),
                 user.getTotalScore()
         );
 
         userLoanRepository.save(userLoan);
+        loanHistoryRepository.save(LoanHistory.create(userLoan, request.amount(), LocalDateTime.now(clock)));
         return new LoanApplyResponse(userLoan.getStatus().name());
     }
 

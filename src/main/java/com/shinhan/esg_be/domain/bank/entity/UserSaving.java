@@ -57,6 +57,9 @@ public class UserSaving {
     @Column(name = "has_penalty", nullable = false)
     private Boolean hasPenalty;
 
+    @Column(name = "master_bonus_eligible", nullable = false)
+    private Boolean masterBonusEligible;
+
     @Column(nullable = false)
     private Integer score;
 
@@ -82,7 +85,16 @@ public class UserSaving {
         userSaving.maturityDate = maturityDate;
         userSaving.status = SavingStatus.ACTIVE;
         userSaving.hasPenalty = false;
+        userSaving.masterBonusEligible = true;
         userSaving.score = score;
         return userSaving;
+    }
+
+    public void complete() {
+        this.status = SavingStatus.COMPLETE;
+    }
+
+    public void revokeMasterBonus() {
+        this.masterBonusEligible = false;
     }
 }
