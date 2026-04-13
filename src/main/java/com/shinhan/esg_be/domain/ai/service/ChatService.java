@@ -49,16 +49,20 @@ public class ChatService {
                 List<Map<String, String>> messages = buildMessages(systemPrompt, history, userMessage);
 
                 StringBuilder fullResponse = new StringBuilder();
+                StringBuilder streamBuffer = new StringBuilder();
                 llmClient.stream(
                         messages,
                         chunk -> {
                             fullResponse.append(chunk);
-                            sendEvent(emitter, "chunk", chunk);
+                            streamBuffer.append(chunk);
+                            flushBufferedChunk(emitter, streamBuffer, false);
                         },
                         () -> {
+                            flushBufferedChunk(emitter, streamBuffer, true);
+
                             String response = fullResponse.toString();
                             List<ChatAction> actions = parseActions(response);
-                            String cleanResponse = removeActionsBlock(response);
+                            String cleanResponse = sanitizeAssistantText(removeActionsBlock(response));
 
                             if (!actions.isEmpty()) {
                                 sendEvent(emitter, "actions", serializeActions(actions));
@@ -84,7 +88,7 @@ public class ChatService {
         if (cachedStaticPolicy != null) {
             return cachedStaticPolicy;
         }
-        Resource resource = resourceLoader.getResource("classpath:prompt/chat-system-policy.txt");
+        Resource resource = resourceLoader.getResource("classpath:prompt/chatbot-prompt.txt");
         cachedStaticPolicy = resource.getContentAsString(StandardCharsets.UTF_8);
         return cachedStaticPolicy;
     }
@@ -170,6 +174,51 @@ public class ChatService {
 
     private String removeActionsBlock(String response) {
         return response.replaceAll("(?s)\\[ACTIONS\\].*?\\[/ACTIONS\\]", "").trim();
+    }
+
+    private String sanitizeAssistantText(String text) {
+        String sanitized = text
+                .replace("**", "")
+                .replace("__", "")
+                .replace("`", "")
+                .replace("#", "");
+        return sanitized.replaceAll("[ \\t]{2,}", " ").trim();
+    }
+
+    private void flushBufferedChunk(SseEmitter emitter, StringBuilder buffer, boolean force) {
+        if (buffer.length() == 0) {
+            return;
+        }
+
+        if (!force && !shouldFlush(buffer)) {
+            return;
+        }
+
+        int flushLength = buffer.length();
+        if (!force) {
+            while (flushLength > 0 && Character.isWhitespace(buffer.charAt(flushLength - 1))) {
+                flushLength--;
+            }
+            if (flushLength == 0) {
+                return;
+            }
+        }
+
+        String chunk = buffer.substring(0, flushLength);
+        String sanitizedChunk = sanitizeAssistantText(chunk);
+        if (!sanitizedChunk.isEmpty()) {
+            sendEvent(emitter, "chunk", sanitizedChunk);
+        }
+        buffer.delete(0, flushLength);
+    }
+
+    private boolean shouldFlush(StringBuilder buffer) {
+        if (buffer.length() >= 24) {
+            return true;
+        }
+        char last = buffer.charAt(buffer.length() - 1);
+        return last == '.' || last == '!' || last == '?' || last == '\n'
+                || last == '。' || last == '！' || last == '？';
     }
 
     private String serializeActions(List<ChatAction> actions) {
