@@ -33,6 +33,7 @@ public class UserFeatureDto {
     private int recentECount;
     private int recentSCount;
     private int recentGCount;
+    private int totalActivityCount; // 최근 90일 총 활동 횟수 (C1 α 계산용)
 
     // 가장 활동 비율이 낮은 카테고리
     private String weakestCategory;

@@ -74,6 +74,7 @@ public class FeatureExtractor {
         );
         int recentGCount = (int) userQuizRepository
                 .countSince(userId, since90);
+        int totalActivityCount = recentECount + recentSCount + recentGCount;
 
         // 5. 미활동 패널티 위험 여부 (최근 30일 활동 없음)
         long totalRecent30 =
@@ -124,6 +125,7 @@ public class FeatureExtractor {
                 .recentECount(recentECount)
                 .recentSCount(recentSCount)
                 .recentGCount(recentGCount)
+                .totalActivityCount(totalActivityCount)
                 .weakestCategory(weakestCategory)
                 .todayQuizDone(todayQuizDone)
                 .inactivityRisk(inactivityRisk)
