@@ -4,10 +4,12 @@ import com.shinhan.esg_be.domain.bank.dto.request.LoanApplyRequest;
 import com.shinhan.esg_be.domain.bank.dto.response.LoanApplyResponse;
 import com.shinhan.esg_be.domain.bank.dto.response.LoanPreviewResponse;
 import com.shinhan.esg_be.domain.bank.entity.FinancialProduct;
+import com.shinhan.esg_be.domain.bank.entity.LoanHistory;
 import com.shinhan.esg_be.domain.bank.entity.UserLoan;
 import com.shinhan.esg_be.domain.bank.entity.enums.LoanStatus;
 import com.shinhan.esg_be.domain.bank.entity.enums.ProductType;
 import com.shinhan.esg_be.domain.bank.repository.FinancialProductRepository;
+import com.shinhan.esg_be.domain.bank.repository.LoanHistoryRepository;
 import com.shinhan.esg_be.domain.bank.repository.UserLoanRepository;
 import com.shinhan.esg_be.domain.user.entity.User;
 import com.shinhan.esg_be.domain.user.repository.UserRepository;
@@ -23,6 +25,10 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.lang.reflect.Constructor;
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 
@@ -45,6 +51,12 @@ class LoanServiceTest {
 
     @Mock
     private UserLoanRepository userLoanRepository;
+
+    @Mock
+    private LoanHistoryRepository loanHistoryRepository;
+
+    @Mock
+    private Clock clock;
 
     @Test
     @DisplayName("Loan preview returns user-specific limit and rate")
@@ -79,6 +91,8 @@ class LoanServiceTest {
         given(financialProductRepository.findByFinProductIdAndTypeAndIsActiveTrue(1L, ProductType.LOAN))
                 .willReturn(Optional.of(product));
         given(userLoanRepository.findByUserAndStatus(user, LoanStatus.ACTIVE)).willReturn(List.of());
+        given(clock.getZone()).willReturn(ZoneId.of("Asia/Seoul"));
+        given(clock.instant()).willReturn(Instant.parse("2026-04-10T00:00:00Z"));
 
         LoanApplyResponse response = loanService.applyLoan(
                 user.getLoginId(),
@@ -94,6 +108,12 @@ class LoanServiceTest {
         assertThat(savedLoan.getCurrentRate()).isEqualByComparingTo("7.00");
         assertThat(savedLoan.getTotalAmount()).isEqualTo(1_605_000L);
         assertThat(savedLoan.getBaseEsgScore()).isEqualTo(800);
+
+        ArgumentCaptor<LoanHistory> historyCaptor = ArgumentCaptor.forClass(LoanHistory.class);
+        verify(loanHistoryRepository).save(historyCaptor.capture());
+        LoanHistory savedHistory = historyCaptor.getValue();
+        assertThat(savedHistory.getAmount()).isEqualTo(1_500_000L);
+        assertThat(savedHistory.getPaymentDate()).isEqualTo(LocalDateTime.of(2026, 4, 10, 9, 0));
     }
 
     @Test

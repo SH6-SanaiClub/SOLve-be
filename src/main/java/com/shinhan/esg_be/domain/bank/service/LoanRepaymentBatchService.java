@@ -43,14 +43,14 @@ public class LoanRepaymentBatchService {
     }
 
     void processRepayment(UserLoan userLoan, LocalDateTime paidAt) {
-        long repaymentCount = loanHistoryRepository.countByUserLoan_LoanId(userLoan.getLoanId());
+        long repaymentCount = loanHistoryRepository.countRepaymentsByLoanId(userLoan.getLoanId());
         long nextInstallment = repaymentCount + 1L;
 
         long paymentAmount = isFinalInstallment(userLoan, nextInstallment)
                 ? calculateFinalRepaymentAmount(userLoan)
                 : calculateMonthlyInterest(userLoan);
 
-        loanHistoryRepository.save(LoanHistory.create(userLoan, paymentAmount, paidAt));
+        loanHistoryRepository.save(LoanHistory.create(userLoan, -paymentAmount, paidAt));
         rewardService.applyActivityReward(
                 new ApplyActivityRewardCommand(
                         userLoan.getUser().getUserId(),

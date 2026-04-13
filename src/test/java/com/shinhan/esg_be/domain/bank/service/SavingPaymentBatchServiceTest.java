@@ -5,12 +5,12 @@ import com.shinhan.esg_be.domain.bank.entity.SavingHistory;
 import com.shinhan.esg_be.domain.bank.entity.SavingPrimeHistory;
 import com.shinhan.esg_be.domain.bank.entity.UserSaving;
 import com.shinhan.esg_be.domain.bank.entity.enums.ProductType;
+import com.shinhan.esg_be.domain.bank.entity.enums.SavingHistoryType;
 import com.shinhan.esg_be.domain.bank.entity.enums.SavingStatus;
 import com.shinhan.esg_be.domain.bank.repository.SavingHistoryRepository;
 import com.shinhan.esg_be.domain.bank.repository.SavingPrimeHistoryRepository;
 import com.shinhan.esg_be.domain.bank.repository.UserSavingRepository;
 import com.shinhan.esg_be.domain.user.entity.User;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -33,6 +33,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
@@ -60,14 +61,13 @@ class SavingPaymentBatchServiceTest {
     private Clock clock;
 
     @Test
-    @DisplayName("자동 적금 납입일이 도래하면 납입 이력을 생성한다")
     void processDuePaymentsCreatesMonthlySavingHistory() {
         UserSaving userSaving = createUserSaving(1L, LocalDate.of(2027, 3, 10), LocalDateTime.of(2026, 3, 10, 0, 0));
 
         given(clock.getZone()).willReturn(FIXED_CLOCK.getZone());
         given(clock.instant()).willReturn(FIXED_CLOCK.instant());
         given(userSavingRepository.findByStatus(SavingStatus.ACTIVE)).willReturn(List.of(userSaving));
-        given(savingHistoryRepository.countByUserSaving_SavingId(1L)).willReturn(0L, 1L);
+        given(savingHistoryRepository.countBySavingIdAndType(1L, SavingHistoryType.PAYMENT)).willReturn(0L, 1L);
 
         savingPaymentBatchService.processDuePayments();
 
@@ -76,31 +76,36 @@ class SavingPaymentBatchServiceTest {
         SavingHistory savedHistory = captor.getValue();
 
         assertThat(savedHistory.getAmount()).isEqualTo(300_000L);
+        assertThat(savedHistory.getType()).isEqualTo(SavingHistoryType.PAYMENT);
         assertThat(savedHistory.getPaymentDate()).isEqualTo(LocalDateTime.of(2026, 4, 10, 9, 0));
         assertThat(userSaving.getStatus()).isEqualTo(SavingStatus.ACTIVE);
     }
 
     @Test
-    @DisplayName("자동 적금 납입 후 만기 도달 시 적금 상태를 완료로 변경한다")
     void processDuePaymentsCompletesSavingAtMaturity() {
         UserSaving userSaving = createUserSaving(1L, LocalDate.of(2026, 4, 10), LocalDateTime.of(2025, 4, 10, 0, 0));
 
         given(clock.getZone()).willReturn(FIXED_CLOCK.getZone());
         given(clock.instant()).willReturn(FIXED_CLOCK.instant());
         given(userSavingRepository.findByStatus(SavingStatus.ACTIVE)).willReturn(List.of(userSaving));
-        given(savingHistoryRepository.countByUserSaving_SavingId(1L)).willReturn(11L, 12L);
+        given(savingHistoryRepository.countBySavingIdAndType(1L, SavingHistoryType.PAYMENT)).willReturn(11L, 12L);
+        given(savingHistoryRepository.sumAmountBySavingIdAndType(1L, SavingHistoryType.PAYMENT)).willReturn(3_600_000L);
 
         savingPaymentBatchService.processDuePayments();
 
         ArgumentCaptor<SavingHistory> captor = ArgumentCaptor.forClass(SavingHistory.class);
-        verify(savingHistoryRepository).save(captor.capture());
+        verify(savingHistoryRepository, times(2)).save(captor.capture());
 
-        assertThat(captor.getValue().getAmount()).isEqualTo(300_000L);
+        assertThat(captor.getAllValues())
+                .extracting(SavingHistory::getAmount)
+                .containsExactly(300_000L, 72_000L);
+        assertThat(captor.getAllValues())
+                .extracting(SavingHistory::getType)
+                .containsExactly(SavingHistoryType.PAYMENT, SavingHistoryType.INTEREST);
         assertThat(userSaving.getStatus()).isEqualTo(SavingStatus.COMPLETE);
     }
 
     @Test
-    @DisplayName("그린 스텝업 적금 자동 납입 시 우대금리 이력을 저장한다")
     void processDuePaymentsSavesPrimeHistoryForGreenStepUp() {
         UserSaving userSaving = createUserSaving(1L, LocalDate.of(2027, 3, 10), LocalDateTime.of(2026, 3, 10, 0, 0));
         ReflectionTestUtils.setField(userSaving.getFinancialProduct(), "name", "\uADF8\uB9B0 \uC2A4\uD15D\uC5C5 \uC801\uAE08");
@@ -113,7 +118,7 @@ class SavingPaymentBatchServiceTest {
         given(clock.getZone()).willReturn(FIXED_CLOCK.getZone());
         given(clock.instant()).willReturn(FIXED_CLOCK.instant());
         given(userSavingRepository.findByStatus(SavingStatus.ACTIVE)).willReturn(List.of(userSaving));
-        given(savingHistoryRepository.countByUserSaving_SavingId(1L)).willReturn(0L, 1L);
+        given(savingHistoryRepository.countBySavingIdAndType(1L, SavingHistoryType.PAYMENT)).willReturn(0L, 1L);
 
         savingPaymentBatchService.processDuePayments();
 
@@ -125,7 +130,6 @@ class SavingPaymentBatchServiceTest {
     }
 
     @Test
-    @DisplayName("그린 스텝업이 아닌 적금은 납입 시 우대금리 이력을 만들지 않는다")
     void processDuePaymentsDoesNotSavePrimeHistoryForNonGreenStepUp() {
         UserSaving userSaving = createUserSaving(1L, LocalDate.of(2027, 3, 10), LocalDateTime.of(2026, 3, 10, 0, 0));
         ReflectionTestUtils.setField(userSaving.getFinancialProduct(), "name", "Other Saving");
@@ -133,7 +137,7 @@ class SavingPaymentBatchServiceTest {
         given(clock.getZone()).willReturn(FIXED_CLOCK.getZone());
         given(clock.instant()).willReturn(FIXED_CLOCK.instant());
         given(userSavingRepository.findByStatus(SavingStatus.ACTIVE)).willReturn(List.of(userSaving));
-        given(savingHistoryRepository.countByUserSaving_SavingId(1L)).willReturn(0L, 1L);
+        given(savingHistoryRepository.countBySavingIdAndType(1L, SavingHistoryType.PAYMENT)).willReturn(0L, 1L);
 
         savingPaymentBatchService.processDuePayments();
 
@@ -141,7 +145,6 @@ class SavingPaymentBatchServiceTest {
     }
 
     @Test
-    @DisplayName("그린 스텝업 적금 점수 상승이 40 미만이면 우대금리 0.00을 저장한다")
     void processDuePaymentsSavesZeroPrimeRateWhenScoreDiffBelowStep() {
         UserSaving userSaving = createUserSaving(1L, LocalDate.of(2027, 3, 10), LocalDateTime.of(2026, 3, 10, 0, 0));
         ReflectionTestUtils.setField(userSaving.getFinancialProduct(), "name", "\uADF8\uB9B0 \uC2A4\uD15D\uC5C5 \uC801\uAE08");
@@ -154,7 +157,7 @@ class SavingPaymentBatchServiceTest {
         given(clock.getZone()).willReturn(FIXED_CLOCK.getZone());
         given(clock.instant()).willReturn(FIXED_CLOCK.instant());
         given(userSavingRepository.findByStatus(SavingStatus.ACTIVE)).willReturn(List.of(userSaving));
-        given(savingHistoryRepository.countByUserSaving_SavingId(1L)).willReturn(0L, 1L);
+        given(savingHistoryRepository.countBySavingIdAndType(1L, SavingHistoryType.PAYMENT)).willReturn(0L, 1L);
 
         savingPaymentBatchService.processDuePayments();
 
@@ -165,7 +168,6 @@ class SavingPaymentBatchServiceTest {
     }
 
     @Test
-    @DisplayName("바른 금융 스마트 적금 만기 시 유지/무패널티 보너스를 반영한다")
     void processDuePaymentsAppliesMaturityBonusForSmartFinance() {
         UserSaving userSaving = createUserSaving(1L, LocalDate.of(2026, 4, 10), LocalDateTime.of(2025, 4, 10, 0, 0));
         ReflectionTestUtils.setField(userSaving.getFinancialProduct(), "name", "\uBC14\uB978 \uAE08\uC735 \uC2A4\uB9C8\uD2B8 \uC801\uAE08");
@@ -176,7 +178,8 @@ class SavingPaymentBatchServiceTest {
         given(clock.getZone()).willReturn(FIXED_CLOCK.getZone());
         given(clock.instant()).willReturn(FIXED_CLOCK.instant());
         given(userSavingRepository.findByStatus(SavingStatus.ACTIVE)).willReturn(List.of(userSaving));
-        given(savingHistoryRepository.countByUserSaving_SavingId(1L)).willReturn(11L, 12L);
+        given(savingHistoryRepository.countBySavingIdAndType(1L, SavingHistoryType.PAYMENT)).willReturn(11L, 12L);
+        given(savingHistoryRepository.sumAmountBySavingIdAndType(1L, SavingHistoryType.PAYMENT)).willReturn(3_600_000L);
         given(savingPrimeHistoryRepository.findTopByUserSaving_SavingIdOrderByAppliedAtDesc(1L))
                 .willReturn(Optional.of(SavingPrimeHistory.create(
                         userSaving,
@@ -193,7 +196,6 @@ class SavingPaymentBatchServiceTest {
     }
 
     @Test
-    @DisplayName("바른 금융 스마트 적금 만기라도 보너스 미충족이면 추가 저장하지 않는다")
     void processDuePaymentsSkipsMaturityBonusWhenNotEligible() {
         UserSaving userSaving = createUserSaving(1L, LocalDate.of(2026, 4, 10), LocalDateTime.of(2025, 4, 10, 0, 0));
         ReflectionTestUtils.setField(userSaving.getFinancialProduct(), "name", "\uBC14\uB978 \uAE08\uC735 \uC2A4\uB9C8\uD2B8 \uC801\uAE08");
@@ -204,7 +206,8 @@ class SavingPaymentBatchServiceTest {
         given(clock.getZone()).willReturn(FIXED_CLOCK.getZone());
         given(clock.instant()).willReturn(FIXED_CLOCK.instant());
         given(userSavingRepository.findByStatus(SavingStatus.ACTIVE)).willReturn(List.of(userSaving));
-        given(savingHistoryRepository.countByUserSaving_SavingId(1L)).willReturn(11L, 12L);
+        given(savingHistoryRepository.countBySavingIdAndType(1L, SavingHistoryType.PAYMENT)).willReturn(11L, 12L);
+        given(savingHistoryRepository.sumAmountBySavingIdAndType(1L, SavingHistoryType.PAYMENT)).willReturn(3_600_000L);
         given(savingPrimeHistoryRepository.findTopByUserSaving_SavingIdOrderByAppliedAtDesc(1L))
                 .willReturn(Optional.of(SavingPrimeHistory.create(
                         userSaving,
@@ -218,7 +221,6 @@ class SavingPaymentBatchServiceTest {
     }
 
     @Test
-    @DisplayName("ESG 마스터 적금은 만기 시 자격 유지면 최대 우대금리를 적용한다")
     void processDuePaymentsAppliesMaturityPrimeForEsgMasterWhenEligible() {
         UserSaving userSaving = createUserSaving(1L, LocalDate.of(2026, 4, 10), LocalDateTime.of(2025, 4, 10, 0, 0));
         ReflectionTestUtils.setField(userSaving.getFinancialProduct(), "name", "ESG \uB9C8\uC2A4\uD130 \uC801\uAE08");
@@ -229,7 +231,8 @@ class SavingPaymentBatchServiceTest {
         given(clock.getZone()).willReturn(FIXED_CLOCK.getZone());
         given(clock.instant()).willReturn(FIXED_CLOCK.instant());
         given(userSavingRepository.findByStatus(SavingStatus.ACTIVE)).willReturn(List.of(userSaving));
-        given(savingHistoryRepository.countByUserSaving_SavingId(1L)).willReturn(11L, 12L);
+        given(savingHistoryRepository.countBySavingIdAndType(1L, SavingHistoryType.PAYMENT)).willReturn(11L, 12L);
+        given(savingHistoryRepository.sumAmountBySavingIdAndType(1L, SavingHistoryType.PAYMENT)).willReturn(3_600_000L);
 
         savingPaymentBatchService.processDuePayments();
 
@@ -239,7 +242,6 @@ class SavingPaymentBatchServiceTest {
     }
 
     @Test
-    @DisplayName("ESG 마스터 적금은 자격 소멸 상태면 만기 우대금리를 적용하지 않는다")
     void processDuePaymentsSkipsMaturityPrimeForEsgMasterWhenIneligible() {
         UserSaving userSaving = createUserSaving(1L, LocalDate.of(2026, 4, 10), LocalDateTime.of(2025, 4, 10, 0, 0));
         ReflectionTestUtils.setField(userSaving.getFinancialProduct(), "name", "ESG \uB9C8\uC2A4\uD130 \uC801\uAE08");
@@ -250,7 +252,8 @@ class SavingPaymentBatchServiceTest {
         given(clock.getZone()).willReturn(FIXED_CLOCK.getZone());
         given(clock.instant()).willReturn(FIXED_CLOCK.instant());
         given(userSavingRepository.findByStatus(SavingStatus.ACTIVE)).willReturn(List.of(userSaving));
-        given(savingHistoryRepository.countByUserSaving_SavingId(1L)).willReturn(11L, 12L);
+        given(savingHistoryRepository.countBySavingIdAndType(1L, SavingHistoryType.PAYMENT)).willReturn(11L, 12L);
+        given(savingHistoryRepository.sumAmountBySavingIdAndType(1L, SavingHistoryType.PAYMENT)).willReturn(3_600_000L);
 
         savingPaymentBatchService.processDuePayments();
 
@@ -289,3 +292,4 @@ class SavingPaymentBatchServiceTest {
         }
     }
 }
+

@@ -1,7 +1,10 @@
 package com.shinhan.esg_be.domain.bank.entity;
 
+import com.shinhan.esg_be.domain.bank.entity.enums.SavingHistoryType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -33,17 +36,23 @@ public class SavingHistory {
     @Column(nullable = false)
     private Long amount;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private SavingHistoryType type;
+
     @Column(name = "payment_date", nullable = false)
     private LocalDateTime paymentDate;
 
     public static SavingHistory create(
             UserSaving userSaving,
             Long amount,
+            SavingHistoryType type,
             LocalDateTime paymentDate
     ) {
         SavingHistory savingHistory = new SavingHistory();
         savingHistory.userSaving = userSaving;
         savingHistory.amount = amount;
+        savingHistory.type = type;
         savingHistory.paymentDate = paymentDate;
         return savingHistory;
     }

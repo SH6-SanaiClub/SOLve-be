@@ -59,7 +59,7 @@ class FinanceControllerTest {
     }
 
     @Test
-    @DisplayName("마이페이지 금융상품 조회 API는 활성 대출/적금 목록을 반환한다")
+    @DisplayName("My finance API returns active loans and savings")
     void getMyFinance() throws Exception {
         FinanceMyResponse response = new FinanceMyResponse(
                 List.of(new ActiveLoanResponse(
@@ -116,7 +116,7 @@ class FinanceControllerTest {
     }
 
     @Test
-    @DisplayName("금융 이력 조회 API는 대출 및 적금 이력을 반환한다")
+    @DisplayName("Finance history API returns loan and saving histories")
     void getFinanceHistory() throws Exception {
         FinanceHistoryResponse response = new FinanceHistoryResponse(
                 List.of(new LoanHistoryResponse(
@@ -133,6 +133,7 @@ class FinanceControllerTest {
                         2L,
                         "Green Saving",
                         300_000L,
+                        "PAYMENT",
                         LocalDateTime.of(2026, 4, 10, 9, 0)
                 ))
         );
@@ -148,7 +149,31 @@ class FinanceControllerTest {
     }
 
     @Test
-    @DisplayName("금융상품 조회 API는 상품 목록을 반환한다")
+    @DisplayName("Specific saving history API returns selected saving histories")
+    void getSavingHistory() throws Exception {
+        List<SavingHistoryResponse> response = List.of(new SavingHistoryResponse(
+                2L,
+                20L,
+                2L,
+                "Green Saving",
+                300_000L,
+                "PAYMENT",
+                LocalDateTime.of(2026, 4, 10, 9, 0)
+        ));
+
+        given(financeService.getSavingHistory(LOGIN_ID, 20L)).willReturn(response);
+
+        mockMvc.perform(get("/api/v1/finance/savings/{savingId}/history", 20L))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].historyId").value(2))
+                .andExpect(jsonPath("$[0].savingId").value(20))
+                .andExpect(jsonPath("$[0].productName").value("Green Saving"))
+                .andExpect(jsonPath("$[0].amount").value(300000))
+                .andExpect(jsonPath("$[0].type").value("PAYMENT"));
+    }
+
+    @Test
+    @DisplayName("Finance product list API returns products")
     void getFinanceProducts() throws Exception {
         FinanceProductResponse response = new FinanceProductResponse(
                 1L,

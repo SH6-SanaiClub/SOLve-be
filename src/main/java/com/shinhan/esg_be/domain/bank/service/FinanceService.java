@@ -16,6 +16,7 @@ import com.shinhan.esg_be.domain.bank.entity.UserLoan;
 import com.shinhan.esg_be.domain.bank.entity.UserSaving;
 import com.shinhan.esg_be.domain.bank.entity.enums.LoanStatus;
 import com.shinhan.esg_be.domain.bank.entity.enums.ProductType;
+import com.shinhan.esg_be.domain.bank.entity.enums.SavingHistoryType;
 import com.shinhan.esg_be.domain.bank.entity.enums.SavingStatus;
 import com.shinhan.esg_be.domain.bank.repository.FinancialProductRepository;
 import com.shinhan.esg_be.domain.bank.repository.LoanHistoryRepository;
@@ -68,13 +69,13 @@ public class FinanceService {
         User user = getUser(loginId);
 
         List<ActiveLoanResponse> loans = userLoanRepository
-                .findAllByUser_UserIdAndStatus(user.getUserId(), LoanStatus.ACTIVE)
+                .findAllByUser_UserId(user.getUserId())
                 .stream()
                 .map(this::toActiveLoanResponse)
                 .toList();
 
         List<ActiveSavingResponse> savings = userSavingRepository
-                .findAllByUser_UserIdAndStatus(user.getUserId(), SavingStatus.ACTIVE)
+                .findAllByUser_UserId(user.getUserId())
                 .stream()
                 .map(this::toActiveSavingResponse)
                 .toList();
@@ -96,6 +97,22 @@ public class FinanceService {
                 .toList();
 
         return new FinanceHistoryResponse(loans, savings);
+    }
+
+    public List<SavingHistoryResponse> getSavingHistory(String loginId, Long savingId) {
+        User user = getUser(loginId);
+
+        boolean hasSaving = userSavingRepository.findAllByUser_UserId(user.getUserId())
+                .stream()
+                .anyMatch(userSaving -> userSaving.getSavingId().equals(savingId));
+        if (!hasSaving) {
+            throw new BadRequestException("Saving product not found.");
+        }
+
+        return savingHistoryRepository.findAllByUserIdAndSavingId(user.getUserId(), savingId)
+                .stream()
+                .map(this::toSavingHistoryResponse)
+                .toList();
     }
 
     public FinanceProductListResponse getFinanceProducts(String loginId, String type) {
@@ -163,9 +180,9 @@ public class FinanceService {
 
     private ActiveLoanResponse toActiveLoanResponse(UserLoan userLoan) {
         FinancialProduct product = userLoan.getFinancialProduct();
-        long paidAmount = loanHistoryRepository.sumAmountByLoanId(userLoan.getLoanId());
+        long paidAmount = loanHistoryRepository.sumRepaymentAmountByLoanId(userLoan.getLoanId());
         long remainingAmount = Math.max(userLoan.getTotalAmount() - paidAmount, 0L);
-        long repaymentCount = loanHistoryRepository.countByUserLoan_LoanId(userLoan.getLoanId());
+        long repaymentCount = loanHistoryRepository.countRepaymentsByLoanId(userLoan.getLoanId());
 
         return new ActiveLoanResponse(
                 userLoan.getLoanId(),
@@ -195,8 +212,14 @@ public class FinanceService {
                 .add(addedRate)
                 .min(product.getMaxRate());
 
-        long paidAmount = savingHistoryRepository.sumAmountBySavingId(userSaving.getSavingId());
-        long paymentCount = savingHistoryRepository.countByUserSaving_SavingId(userSaving.getSavingId());
+        long paidAmount = savingHistoryRepository.sumAmountBySavingIdAndType(
+                userSaving.getSavingId(),
+                SavingHistoryType.PAYMENT
+        );
+        long paymentCount = savingHistoryRepository.countBySavingIdAndType(
+                userSaving.getSavingId(),
+                SavingHistoryType.PAYMENT
+        );
         long remainingCount = Math.max(SAVING_DURATION_MONTHS - paymentCount, 0L);
 
         return new ActiveSavingResponse(
@@ -240,6 +263,7 @@ public class FinanceService {
                 product.getFinProductId(),
                 product.getName(),
                 savingHistory.getAmount(),
+                savingHistory.getType().name(),
                 savingHistory.getPaymentDate()
         );
     }

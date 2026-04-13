@@ -3,6 +3,7 @@ package com.shinhan.esg_be.domain.bank.service;
 import com.shinhan.esg_be.domain.bank.entity.SavingHistory;
 import com.shinhan.esg_be.domain.bank.entity.SavingPrimeHistory;
 import com.shinhan.esg_be.domain.bank.entity.UserSaving;
+import com.shinhan.esg_be.domain.bank.entity.enums.SavingHistoryType;
 import com.shinhan.esg_be.domain.bank.entity.enums.SavingStatus;
 import com.shinhan.esg_be.domain.bank.repository.SavingHistoryRepository;
 import com.shinhan.esg_be.domain.bank.repository.SavingPrimeHistoryRepository;
@@ -33,6 +34,7 @@ public class SavingPaymentBatchService {
     private static final BigDecimal SMART_FINANCE_MONTHLY_INCREMENT = new BigDecimal("0.10");
     private static final BigDecimal SMART_FINANCE_MAINTAIN_BONUS = new BigDecimal("0.30");
     private static final BigDecimal SMART_FINANCE_NO_PENALTY_BONUS = new BigDecimal("1.00");
+    private static final BigDecimal PERCENT = new BigDecimal("100");
 
     private final UserSavingRepository userSavingRepository;
     private final SavingHistoryRepository savingHistoryRepository;
@@ -53,13 +55,27 @@ public class SavingPaymentBatchService {
     }
 
     void processPayment(UserSaving userSaving, LocalDateTime paidAt) {
-        savingHistoryRepository.save(SavingHistory.create(userSaving, userSaving.getMonthlyAmount(), paidAt));
+        savingHistoryRepository.save(SavingHistory.create(
+                userSaving,
+                userSaving.getMonthlyAmount(),
+                SavingHistoryType.PAYMENT,
+                paidAt
+        ));
         savePrimeRateIfGreenStepUp(userSaving, paidAt);
 
-        long paymentCount = savingHistoryRepository.countByUserSaving_SavingId(userSaving.getSavingId());
+        long paymentCount = savingHistoryRepository.countBySavingIdAndType(
+                userSaving.getSavingId(),
+                SavingHistoryType.PAYMENT
+        );
         if (isMatured(userSaving, paymentCount, paidAt.toLocalDate())) {
             saveMaturityPrimeRateIfSmartFinance(userSaving, paymentCount, paidAt);
             saveMaturityPrimeRateIfEsgMaster(userSaving, paymentCount, paidAt);
+            savingHistoryRepository.save(SavingHistory.create(
+                    userSaving,
+                    calculateMaturityInterest(userSaving),
+                    SavingHistoryType.INTEREST,
+                    paidAt
+            ));
             userSaving.complete();
         }
     }
@@ -69,7 +85,10 @@ public class SavingPaymentBatchService {
             return false;
         }
 
-        long paymentCount = savingHistoryRepository.countByUserSaving_SavingId(userSaving.getSavingId());
+        long paymentCount = savingHistoryRepository.countBySavingIdAndType(
+                userSaving.getSavingId(),
+                SavingHistoryType.PAYMENT
+        );
         LocalDate nextPaymentDate = userSaving.getJoinedAt()
                 .toLocalDate()
                 .plusMonths(paymentCount + 1L);
@@ -79,6 +98,24 @@ public class SavingPaymentBatchService {
 
     private boolean isMatured(UserSaving userSaving, long paymentCount, LocalDate today) {
         return paymentCount >= SAVING_DURATION_MONTHS || !today.isBefore(userSaving.getMaturityDate());
+    }
+
+    private long calculateMaturityInterest(UserSaving userSaving) {
+        long paidAmount = savingHistoryRepository.sumAmountBySavingIdAndType(
+                userSaving.getSavingId(),
+                SavingHistoryType.PAYMENT
+        );
+        BigDecimal addedRate = savingPrimeHistoryRepository
+                .findTopByUserSaving_SavingIdOrderByAppliedAtDesc(userSaving.getSavingId())
+                .map(SavingPrimeHistory::getAddedRate)
+                .orElse(BigDecimal.ZERO);
+        BigDecimal appliedRate = userSaving.getFinancialProduct().getBaseRate()
+                .add(addedRate)
+                .min(userSaving.getFinancialProduct().getMaxRate());
+        BigDecimal interest = BigDecimal.valueOf(paidAmount)
+                .multiply(appliedRate)
+                .divide(PERCENT, 0, RoundingMode.HALF_UP);
+        return interest.longValue();
     }
 
     private void savePrimeRateIfGreenStepUp(UserSaving userSaving, LocalDateTime paidAt) {

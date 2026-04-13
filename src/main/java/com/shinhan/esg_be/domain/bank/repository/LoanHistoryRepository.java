@@ -19,12 +19,19 @@ public interface LoanHistoryRepository extends JpaRepository<LoanHistory, Long> 
             """)
     List<LoanHistory> findAllByUserId(Long userId);
 
-    long countByUserLoan_LoanId(Long loanId);
-
     @Query("""
-            select coalesce(sum(loanHistory.amount), 0)
+            select count(loanHistory)
             from LoanHistory loanHistory
             where loanHistory.userLoan.loanId = :loanId
+              and loanHistory.amount < 0
             """)
-    Long sumAmountByLoanId(Long loanId);
+    long countRepaymentsByLoanId(Long loanId);
+
+    @Query("""
+            select coalesce(sum(abs(loanHistory.amount)), 0)
+            from LoanHistory loanHistory
+            where loanHistory.userLoan.loanId = :loanId
+              and loanHistory.amount < 0
+            """)
+    Long sumRepaymentAmountByLoanId(Long loanId);
 }

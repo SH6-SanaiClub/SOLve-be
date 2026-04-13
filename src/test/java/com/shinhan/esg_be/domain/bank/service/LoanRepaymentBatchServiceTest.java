@@ -66,7 +66,7 @@ class LoanRepaymentBatchServiceTest {
         given(clock.instant()).willReturn(FIXED_CLOCK.instant());
         given(userLoanRepository.findByStatusAndNextRepaymentDateLessThanEqual(LoanStatus.ACTIVE, LocalDate.of(2026, 4, 10)))
                 .willReturn(List.of(userLoan));
-        given(loanHistoryRepository.countByUserLoan_LoanId(1L)).willReturn(0L);
+        given(loanHistoryRepository.countRepaymentsByLoanId(1L)).willReturn(0L);
 
         loanRepaymentBatchService.processDueRepayments();
 
@@ -74,7 +74,7 @@ class LoanRepaymentBatchServiceTest {
         verify(loanHistoryRepository).save(captor.capture());
         LoanHistory savedHistory = captor.getValue();
 
-        assertThat(savedHistory.getAmount()).isEqualTo(8_750L);
+        assertThat(savedHistory.getAmount()).isEqualTo(-8_750L);
         assertThat(savedHistory.getPaymentDate()).isEqualTo(LocalDateTime.of(2026, 4, 10, 9, 0));
         assertThat(userLoan.getStatus()).isEqualTo(LoanStatus.ACTIVE);
         assertThat(userLoan.getNextRepaymentDate()).isEqualTo(LocalDate.of(2026, 5, 10));
@@ -97,7 +97,7 @@ class LoanRepaymentBatchServiceTest {
         given(clock.instant()).willReturn(FIXED_CLOCK.instant());
         given(userLoanRepository.findByStatusAndNextRepaymentDateLessThanEqual(LoanStatus.ACTIVE, LocalDate.of(2026, 4, 10)))
                 .willReturn(List.of(userLoan));
-        given(loanHistoryRepository.countByUserLoan_LoanId(1L)).willReturn(11L);
+        given(loanHistoryRepository.countRepaymentsByLoanId(1L)).willReturn(11L);
 
         loanRepaymentBatchService.processDueRepayments();
 
@@ -105,7 +105,7 @@ class LoanRepaymentBatchServiceTest {
         verify(loanHistoryRepository).save(captor.capture());
         LoanHistory savedHistory = captor.getValue();
 
-        assertThat(savedHistory.getAmount()).isEqualTo(1_008_750L);
+        assertThat(savedHistory.getAmount()).isEqualTo(-1_008_750L);
         assertThat(userLoan.getStatus()).isEqualTo(LoanStatus.COMPLETE);
         assertThat(userLoan.getNextRepaymentDate()).isEqualTo(LocalDate.of(2027, 3, 10));
 

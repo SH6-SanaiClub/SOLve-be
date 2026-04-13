@@ -18,6 +18,9 @@ public interface UserSavingRepository extends JpaRepository<UserSaving, Long> {
     @EntityGraph(attributePaths = "financialProduct")
     List<UserSaving> findAllByUser_UserIdAndStatus(Long userId, SavingStatus status);
 
+    @EntityGraph(attributePaths = "financialProduct")
+    List<UserSaving> findAllByUser_UserId(Long userId);
+
     List<UserSaving> findByStatus(SavingStatus status);
 
     boolean existsByUserAndFinancialProductAndStatus(
