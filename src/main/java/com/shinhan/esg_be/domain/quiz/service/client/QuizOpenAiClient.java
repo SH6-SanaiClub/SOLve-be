@@ -9,7 +9,6 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
-import lombok.extern.slf4j.Slf4j;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -18,7 +17,6 @@ import java.util.Locale;
 import java.util.Map;
 
 @Service
-@Slf4j
 public class QuizOpenAiClient {
 
     private final ObjectMapper objectMapper;
@@ -39,11 +37,9 @@ public class QuizOpenAiClient {
         String raw = callOpenAi(buildSystemPrompt(), buildUserPrompt(quizDate, category));
         List<Quiz> parsed = parseResponse(raw, quizDate, category);
         if (parsed.isEmpty()) {
-            log.warn("[quiz-ai] fallback used. date={}, category={}", quizDate, category);
             return buildFallbackQuizzes(quizDate, category);
         }
 
-        log.info("[quiz-ai] openai generated quizzes. date={}, category={}, count={}", quizDate, category, parsed.size());
         return parsed;
     }
 
@@ -79,7 +75,6 @@ public class QuizOpenAiClient {
             Map<?, ?> message = (Map<?, ?>) choice.get("message");
             return message == null ? null : (String) message.get("content");
         } catch (Exception e) {
-            log.warn("[quiz-ai] openai call failed. date prompt request will fallback", e);
             return null;
         }
     }
