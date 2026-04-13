@@ -29,4 +29,6 @@ public interface UserMonthlyStatRepository extends JpaRepository<UserMonthlyStat
     List<UserMonthlyStat> findTop3ByUser_UserIdOrderByCreatedAtDesc(Long userId);
 
     long countByUser_UserId(Long userId);
+
+    Optional<UserMonthlyStat> findTop1ByUser_UserIdOrderByCreatedAtDesc(Long userId);
 }
