@@ -65,12 +65,21 @@ public class QuizService {
     public QuizTodayResponse getTodayQuiz(Long userId) {
         User user = findUser(userId);
         LocalDate today = LocalDate.now(clock);
+        int totalAttempts = Math.toIntExact(userQuizRepository.countByUserUserId(userId));
 
-        quizGenerationService.ensureQuizPool(today);
+        List<Quiz> quizzes = quizRepository.findAllByQuizDateAndIsActiveTrueOrderByQuizIdAsc(today);
+        if (quizzes.isEmpty()) {
+            quizGenerationService.ensureQuizPool(today);
+            quizzes = quizRepository.findAllByQuizDateAndIsActiveTrueOrderByQuizIdAsc(today);
+        }
+        List<Quiz> todayQuizzes = quizzes;
+        List<UserQuiz> history = totalAttempts < 12
+                ? userQuizRepository.findByUserUserIdOrderByCreatedAtDesc(userId)
+                : userQuizRepository.findTop10ByUserUserIdOrderByCreatedAtDesc(userId);
 
-        return userQuizRepository.findFirstByUserUserIdAndQuizQuizDateOrderByCreatedAtDesc(userId, today)
+        return userQuizRepository.findFirstByUserUserIdAndCreatedAtAfterOrderByCreatedAtDesc(userId, today.atStartOfDay())
                 .map(this::toSolvedTodayResponse)
-                .orElseGet(() -> toTodayResponse(user, today));
+                .orElseGet(() -> toTodayResponse(user, today, todayQuizzes, history, totalAttempts));
     }
 
     @Transactional
@@ -85,18 +94,17 @@ public class QuizService {
             throw new BadRequestException("only today's quiz can be submitted");
         }
 
-        return userQuizRepository.findFirstByUserUserIdAndQuizQuizDateOrderByCreatedAtDesc(userId, today)
+        return userQuizRepository.findFirstByUserUserIdAndCreatedAtAfterOrderByCreatedAtDesc(userId, today.atStartOfDay())
                 .map(this::toSubmitResponse)
                 .orElseGet(() -> saveQuizResult(user, quiz, request.getSelectedOptionId()));
     }
 
-    private QuizTodayResponse toTodayResponse(User user, LocalDate today) {
-        List<Quiz> quizzes = quizRepository.findAllByQuizDateAndIsActiveTrueOrderByQuizIdAsc(today);
+    private QuizTodayResponse toTodayResponse(User user, LocalDate today, List<Quiz> quizzes, List<UserQuiz> history, int totalAttempts) {
         if (quizzes.isEmpty()) {
             throw new BadRequestException("today's quizzes are not generated yet");
         }
 
-        Quiz selected = selectRecommendedQuiz(user.getUserId(), today, quizzes);
+        Quiz selected = selectRecommendedQuiz(user.getUserId(), today, quizzes, history, totalAttempts);
         List<String> choices = parseChoices(selected.getChoice());
         return new QuizTodayResponse(
                 String.valueOf(selected.getQuizId()),
@@ -237,13 +245,16 @@ public class QuizService {
         );
     }
 
-    private Quiz selectRecommendedQuiz(Long userId, LocalDate today, List<Quiz> quizzes) {
-        List<UserQuiz> recentQuizzes = userQuizRepository.findTop10ByUserUserIdOrderByCreatedAtDesc(userId);
-        Map<QuizCategory, CategoryStat> stats = buildStats(recentQuizzes);
+    private Quiz selectRecommendedQuiz(Long userId, LocalDate today, List<Quiz> quizzes, List<UserQuiz> history, int totalAttempts) {
+        Map<QuizCategory, CategoryStat> stats = buildStats(history);
         Random random = new Random(Objects.hash(userId, today));
 
-        QuizCategory category = selectCategory(stats, recentQuizzes.size(), random);
-        QuizDifficulty difficulty = selectDifficulty(stats, category, recentQuizzes.size());
+        QuizCategory category = totalAttempts < 12
+                ? selectExplorationCategory(stats, random)
+                : selectCategory(stats, history.size(), random);
+        QuizDifficulty difficulty = totalAttempts < 12
+                ? QuizDifficulty.MEDIUM
+                : selectDifficulty(stats, category, history.size());
 
         return quizzes.stream()
                 .filter(quiz -> quiz.getCategory() == category && quiz.getDifficulty() == difficulty)
@@ -254,8 +265,16 @@ public class QuizService {
                         .orElseGet(() -> quizzes.get(0)));
     }
 
+    private QuizCategory selectExplorationCategory(Map<QuizCategory, CategoryStat> stats, Random random) {
+        List<QuizCategory> candidates = stats.entrySet().stream()
+                .filter(entry -> entry.getValue().attempts() < 3)
+                .map(Map.Entry::getKey)
+                .toList();
+        return candidates.get(random.nextInt(candidates.size()));
+    }
+
     private QuizCategory selectCategory(Map<QuizCategory, CategoryStat> stats, int recentSize, Random random) {
-        if (recentSize < 10) {
+        if (recentSize < 12) {
             int minExposure = stats.values().stream()
                     .mapToInt(CategoryStat::attempts)
                     .min()
@@ -300,7 +319,7 @@ public class QuizService {
             return QuizDifficulty.EASY;
         }
 
-        if (recentSize < 10) {
+        if (recentSize < 12) {
             return QuizDifficulty.MEDIUM;
         }
 

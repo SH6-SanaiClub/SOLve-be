@@ -5,8 +5,6 @@ import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -35,11 +33,16 @@ public interface UserQuizRepository extends JpaRepository<UserQuiz, Long> {
 
     long countByCreatedAtAfter(LocalDateTime since);
 
+    long countByUserUserId(Long userId);
+
+    @EntityGraph(attributePaths = "quiz")
+    List<UserQuiz> findByUserUserIdOrderByCreatedAtDesc(Long userId);
+
     @EntityGraph(attributePaths = "quiz")
     List<UserQuiz> findTop10ByUserUserIdOrderByCreatedAtDesc(Long userId);
 
     @EntityGraph(attributePaths = "quiz")
-    Optional<UserQuiz> findFirstByUserUserIdAndQuizQuizDateOrderByCreatedAtDesc(Long userId, LocalDate quizDate);
+    Optional<UserQuiz> findFirstByUserUserIdAndCreatedAtAfterOrderByCreatedAtDesc(Long userId, LocalDateTime startOfDay);
 
-    boolean existsByUserUserIdAndQuizQuizDate(Long userId, LocalDate quizDate);
+    boolean existsByUserUserIdAndCreatedAtAfter(Long userId, LocalDateTime startOfDay);
 }
