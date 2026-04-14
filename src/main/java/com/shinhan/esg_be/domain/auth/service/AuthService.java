@@ -7,6 +7,7 @@ import com.shinhan.esg_be.domain.auth.dto.request.AuthJoinRequest;
 import com.shinhan.esg_be.domain.auth.dto.request.AuthLoginRequest;
 import com.shinhan.esg_be.domain.auth.dto.response.IdentityVerificationResponse;
 import com.shinhan.esg_be.domain.auth.dto.response.TokenResponse;
+import com.shinhan.esg_be.domain.score.service.ScoreService;
 import com.shinhan.esg_be.domain.user.entity.User;
 import com.shinhan.esg_be.domain.user.repository.UserRepository;
 import com.shinhan.esg_be.global.exception.BadRequestException;
@@ -35,6 +36,7 @@ public class AuthService {
     private final StringRedisTemplate redisTemplate;
     private final PortOneIdentityVerificationService portOneIdentityVerificationService;
     private final ObjectMapper objectMapper;
+    private final ScoreService scoreService;
 
     @Value("${auth.verification-token-expiration}")
     private long verificationTokenValidityInMilliseconds;
@@ -77,7 +79,8 @@ public class AuthService {
                     verifiedIdentity.getCiDi()
             );
 
-            userRepository.save(user);
+            User savedUser = userRepository.save(user);
+            scoreService.initializeUserScore(savedUser.getUserId());
         }
 
         redisTemplate.delete(getVerifiedIdentityKey(req.getVerificationToken()));
