@@ -76,3 +76,24 @@ cloud:
 openai:
   api-key: ${OPENAI_API_KEY}
   model: ${OPENAI_MODEL:gpt-4o-mini}
+
+
+
+app:
+  report:
+    verification-base-url: ${REPORT_VERIFICATION_BASE_URL:http://localhost:5173}
+    watermark-image-url: ${REPORT_WATERMARK_IMAGE_URL:https://solve-s3-storage.s3.ap-northeast-2.amazonaws.com/verified.webp}
+    verification-path-prefix: ${REPORT_VERIFICATION_PATH_PREFIX:/report/verify/}
+    pdf:
+      template-path: ${REPORT_PDF_TEMPLATE_PATH:templates/report/certificate-template.html}
+      font-family: ${REPORT_PDF_FONT_FAMILY:ReportKoreanFont}
+      font-locations:
+        - ${REPORT_PDF_FONT_PATH_1:classpath:fonts/NotoSansKR-Regular.ttf}
+        - ${REPORT_PDF_FONT_PATH_2:classpath:fonts/NotoSansKR-Medium.ttf}
+        - ${REPORT_PDF_FONT_PATH_3:classpath:fonts/NotoSansKR-Bold.ttf}
+
+  cors:
+    allowed-origins:
+      - ${CORS_ALLOWED_ORIGIN_1:http://localhost:5173}
+      - ${CORS_ALLOWED_ORIGIN_2:http://localhost:3000}
+      - ${CORS_ALLOWED_ORIGIN_2:http://192.168.0.101:5173}

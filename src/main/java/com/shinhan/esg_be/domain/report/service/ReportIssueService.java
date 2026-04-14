@@ -8,6 +8,7 @@ import com.shinhan.esg_be.domain.report.entity.ReportIssue;
 import com.shinhan.esg_be.domain.report.repository.ReportIssueRepository;
 import com.shinhan.esg_be.domain.user.entity.User;
 import com.shinhan.esg_be.domain.user.repository.UserRepository;
+import com.shinhan.esg_be.global.config.ReportProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,10 +28,10 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
 public class ReportIssueService {
 
     private static final DateTimeFormatter CERTIFICATE_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyMMdd");
-    private static final String VERIFY_PATH_PREFIX = "/report/verify/";
     private final UserRepository userRepository;
     private final ReportIssueRepository reportIssueRepository;
     private final MyReportService myReportService;
+    private final ReportProperties reportProperties;
     private final Clock clock;
     private final SecureRandom secureRandom = new SecureRandom();
 
@@ -122,7 +123,7 @@ public class ReportIssueService {
                 reportIssue.getReportIssueId(),
                 reportIssue.getCertificateNumber(),
                 reportIssue.getVerificationCode(),
-                VERIFY_PATH_PREFIX + reportIssue.getVerificationToken(),
+                reportProperties.buildVerificationPath(reportIssue.getVerificationToken()),
                 reportIssue.getIssuedAt()
         );
     }
