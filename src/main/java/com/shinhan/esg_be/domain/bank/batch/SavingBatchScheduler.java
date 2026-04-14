@@ -6,6 +6,7 @@ import org.springframework.batch.core.job.parameters.JobParameters;
 import org.springframework.batch.core.job.parameters.JobParametersBuilder;
 import org.springframework.batch.core.launch.JobOperator;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -15,6 +16,7 @@ import java.time.LocalDateTime;
 @Component
 @RequiredArgsConstructor
 @ConditionalOnBean(name = "autoSavingPaymentJob")
+@ConditionalOnProperty(name = "app.batch.enabled", havingValue = "true")
 public class SavingBatchScheduler {
 
     private final JobOperator jobOperator;

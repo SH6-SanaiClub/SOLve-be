@@ -3,6 +3,7 @@ package com.shinhan.esg_be.domain.recommendation.scheduler;
 import com.shinhan.esg_be.domain.recommendation.service.PopularityService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -12,6 +13,7 @@ import java.util.Set;
 @Slf4j
 @Component
 @RequiredArgsConstructor
+@ConditionalOnProperty(name = "app.scheduler.enabled", havingValue = "true")
 public class PopularityScheduler {
 
     private final PopularityService popularityService;

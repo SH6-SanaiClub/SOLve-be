@@ -1,13 +1,34 @@
 spring:
+  datasource:
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:3}
+      minimum-idle: ${DB_POOL_MIN_IDLE:0}
+      connection-timeout: ${DB_POOL_CONNECTION_TIMEOUT:10000}
+      idle-timeout: ${DB_POOL_IDLE_TIMEOUT:60000}
+      max-lifetime: ${DB_POOL_MAX_LIFETIME:1800000}
+      pool-name: ${DB_POOL_NAME:esg-be-dev-pool}
+      data-source-properties:
+        ApplicationName: ${DB_APPLICATION_NAME:esg-be-dev}
   jpa:
     show-sql: false
+    hibernate:
+      ddl-auto: update
     properties:
       hibernate:
         format_sql: true
+  batch:
+    jdbc:
+      initialize-schema: never
   data:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
+
+app:
+  scheduler:
+    enabled: false
+  batch:
+    enabled: false
 
 logging:
   level:

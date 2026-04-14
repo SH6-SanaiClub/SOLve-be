@@ -12,6 +12,7 @@ import org.springframework.batch.core.step.Step;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.core.step.tasklet.Tasklet;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -23,6 +24,7 @@ import java.util.List;
 @Configuration
 @RequiredArgsConstructor
 @ConditionalOnBean(UserPointRepository.class)
+@ConditionalOnProperty(name = "app.batch.enabled", havingValue = "true")
 public class PointBatchConfig {
 
     private final UserRepository userRepository;
