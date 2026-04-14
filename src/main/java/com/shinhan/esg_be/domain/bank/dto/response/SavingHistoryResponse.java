@@ -8,6 +8,7 @@ public record SavingHistoryResponse(
         Long productId,
         String productName,
         Long amount,
+        String type,
         LocalDateTime paymentDate
 ) {
 }

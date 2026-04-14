@@ -15,7 +15,7 @@ spring:
     driver-class-name: org.postgresql.Driver
 
   jpa:
-    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    open-in-view: false
     hibernate:
       ddl-auto: update
   batch:
@@ -23,6 +23,11 @@ spring:
       enabled: false
     jdbc:
       initialize-schema: always
+
+  data:
+    redis:
+      repositories:
+        enabled: false
 
 server:
   port: 8080

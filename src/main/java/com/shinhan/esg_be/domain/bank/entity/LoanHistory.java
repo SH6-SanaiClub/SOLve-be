@@ -35,4 +35,16 @@ public class LoanHistory {
 
     @Column(name = "payment_date", nullable = false)
     private LocalDateTime paymentDate;
+
+    public static LoanHistory create(
+            UserLoan userLoan,
+            Long amount,
+            LocalDateTime paymentDate
+    ) {
+        LoanHistory loanHistory = new LoanHistory();
+        loanHistory.userLoan = userLoan;
+        loanHistory.amount = amount;
+        loanHistory.paymentDate = paymentDate;
+        return loanHistory;
+    }
 }

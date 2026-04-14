@@ -36,4 +36,16 @@ public class SavingPrimeHistory {
 
     @Column(name = "applied_at", nullable = false)
     private LocalDateTime appliedAt;
+
+    public static SavingPrimeHistory create(
+            UserSaving userSaving,
+            BigDecimal addedRate,
+            LocalDateTime appliedAt
+    ) {
+        SavingPrimeHistory savingPrimeHistory = new SavingPrimeHistory();
+        savingPrimeHistory.userSaving = userSaving;
+        savingPrimeHistory.addedRate = addedRate;
+        savingPrimeHistory.appliedAt = appliedAt;
+        return savingPrimeHistory;
+    }
 }

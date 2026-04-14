@@ -38,14 +38,6 @@ public class ActivityScorer {
     private static final Map<String, Integer> MONTHLY_MAX =
             Map.of("E", 5, "S", 25, "G", 10);
 
-    // user_type × 카테고리 Prior 매핑 (AHP 쌍대비교 도출)
-    private static final Map<UserType, Map<String, Double>> TYPE_PRIOR = Map.of(
-            UserType.GREEN, Map.of("E", 1.0, "S", 0.4, "G", 0.2),
-            UserType.SOCIAL, Map.of("E", 0.4, "S", 1.0, "G", 0.2),
-            UserType.FINANCE, Map.of("E", 0.2, "S", 0.4, "G", 1.0),
-            UserType.ALL_ROUNDER, Map.of("E", 0.7, "S", 0.7, "G", 0.7)
-    );
-
     public List<ActivityCandidateDto> score(
             List<ActivityCandidateDto> candidates,
             UserFeatureDto feature,
@@ -187,31 +179,47 @@ public class ActivityScorer {
         return benefit * urgency;
     }
 
-    // ── C1: 행동패턴 적합도 (Prior → 행동 기반 점진 전환) ──
+    // ── C1: Prior + 행동기반 점진 전환 ──
     private double calcC1(ActivityCandidateDto c, UserFeatureDto feature) {
-        int totalCount = feature.getRecentECount() + feature.getRecentSCount() + feature.getRecentGCount();
-
         // α = min(총 활동 횟수 / 30, 0.8)
-        double alpha = Math.min(totalCount / 30.0, 0.8);
+        double alpha = Math.min(feature.getTotalActivityCount() / 30.0, 0.8);
 
-        // Prior (user_type 기반)
-        double prior = TYPE_PRIOR
-                .getOrDefault(feature.getUserType(), TYPE_PRIOR.get(UserType.ALL_ROUNDER))
-                .getOrDefault(c.getScoreCategory(), 0.5);
+        // Prior: userType별 카테고리 선호도
+        double prior = getUserTypePrior(feature.getUserType(), c.getScoreCategory());
 
-        // 행동기반비율
-        double behaviorRatio = 0.0;
-        if (totalCount > 0) {
-            int categoryCount = switch (c.getScoreCategory()) {
+        // 행동기반비율: 해당 카테고리 활동 횟수 / 전체 활동 횟수
+        int total = feature.getTotalActivityCount();
+        double behaviorRatio = (total == 0)
+                ? 1.0 / 3.0
+                : (double) switch (c.getScoreCategory()) {
                 case "E" -> feature.getRecentECount();
                 case "S" -> feature.getRecentSCount();
                 case "G" -> feature.getRecentGCount();
                 default -> 0;
-            };
-            behaviorRatio = (double) categoryCount / totalCount;
-        }
+            } / total;
 
         return clamp01(prior * (1 - alpha) + behaviorRatio * alpha);
+    }
+
+    private double getUserTypePrior(UserType userType, String scoreCategory) {
+        return switch (userType) {
+            case GREEN -> switch (scoreCategory) {
+                case "E" -> 1.0;
+                case "S" -> 0.4;
+                default -> 0.2;
+            };
+            case SOCIAL -> switch (scoreCategory) {
+                case "E" -> 0.4;
+                case "S" -> 1.0;
+                default -> 0.2;
+            };
+            case FINANCE -> switch (scoreCategory) {
+                case "E" -> 0.2;
+                case "S" -> 0.4;
+                default -> 1.0;
+            };
+            case ALL_ROUNDER -> 0.7;
+        };
     }
 
     // 해당 후보의 카테고리가 최근 행동에서 차지하는 비율
