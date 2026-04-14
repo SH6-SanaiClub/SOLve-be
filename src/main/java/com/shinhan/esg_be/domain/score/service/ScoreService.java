@@ -93,6 +93,17 @@ public class ScoreService {
                 .orElseGet(() -> userMonthlyStatRepository.save(UserMonthlyStat.create(user)));
 
         LocalDateTime activityDateTime = resolveActivityDateTime(command.activityDateTime());
+        ScoreReason scoreReason = mapToScoreReason(command.activityType());
+        if (isDailyScoreLimited(command.activityType()) && alreadyAppliedDailyScore(user, scoreReason, activityDateTime)) {
+            return new ApplyActivityScoreResult(
+                    scoreCategory,
+                    0,
+                    user.getScore(scoreCategory),
+                    userMonthlyStat.getMonthlyScore(scoreCategory),
+                    false
+            );
+        }
+
         ScoreCalculationResult calculationResult = scoreCalculatorService.calculateActivity(
                 new ScoreCalculationCommand(
                         scoreCategory,
@@ -115,7 +126,7 @@ public class ScoreService {
                             user,
                             scoreCategory,
                             calculationResult.appliedScore(),
-                            mapToScoreReason(command.activityType()),
+                            scoreReason,
                             activityDateTime.plusYears(1),
                             calculationResult.newScore()
                     )
@@ -141,6 +152,24 @@ public class ScoreService {
 
     private LocalDateTime resolveActivityDateTime(LocalDateTime activityDateTime) {
         return activityDateTime == null ? LocalDateTime.now() : activityDateTime;
+    }
+
+    private boolean isDailyScoreLimited(ActivityType activityType) {
+        return switch (activityType) {
+            case DONATION, VOLUNTEER, PURCHASE, QUIZ_CORRECT, QUIZ_WRONG, PHOTO -> true;
+            case LOAN_REPAY -> false;
+        };
+    }
+
+    private boolean alreadyAppliedDailyScore(User user, ScoreReason scoreReason, LocalDateTime activityDateTime) {
+        LocalDateTime startOfDay = activityDateTime.toLocalDate().atStartOfDay();
+        LocalDateTime nextDay = startOfDay.plusDays(1);
+        return validScoreHistoryRepository.existsByUserAndReasonAndCreatedAtBetween(
+                user,
+                scoreReason,
+                startOfDay,
+                nextDay
+        );
     }
 
     private ScoreReason mapToScoreReason(ActivityType activityType) {

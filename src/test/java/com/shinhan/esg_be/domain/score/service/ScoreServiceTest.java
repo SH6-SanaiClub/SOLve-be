@@ -58,6 +58,7 @@ class ScoreServiceTest {
 
     @BeforeEach
     void setUp() {
+        validScoreHistoryRepository.deleteAllInBatch();
         activityRewardPolicyRepository.deleteAllInBatch();
         esgScorePolicyRepository.deleteAllInBatch();
     }
@@ -173,6 +174,85 @@ class ScoreServiceTest {
         assertThat(scoreHistories).allMatch(history -> history.getReason() == ScoreReason.INITIAL_SCORE);
         assertThat(scoreHistories).extracting(ValidScoreHistory::getChangeAmount)
                 .containsExactly(50, 250, 100, 100);
+    }
+
+    @Test
+    @DisplayName("같은 날 동일 활동으로 이미 점수를 받았다면 추가 점수를 부여하지 않는다")
+    void doNotApplyDuplicateDailyActivityScore() {
+        User user = userRepository.save(createUser("score-user-5", 50, 250, 100, 100));
+        userMonthlyStatRepository.save(createUserMonthlyStat(user, 0, 0, 0));
+        activityRewardPolicyRepository.save(createActivityRewardPolicy(ActivityType.DONATION, ScoreCategory.S, 20));
+        esgScorePolicyRepository.save(createEsgScorePolicy(ScoreCategory.S, 500, 25, 3, 50, 250));
+
+        LocalDateTime activityDateTime = LocalDateTime.now();
+        ApplyActivityScoreResult firstResult = scoreService.applyActivityScore(
+                new ApplyActivityScoreCommand(
+                        user.getUserId(),
+                        ActivityType.DONATION,
+                        BigDecimal.valueOf(30000),
+                        activityDateTime
+                )
+        );
+        ApplyActivityScoreResult secondResult = scoreService.applyActivityScore(
+                new ApplyActivityScoreCommand(
+                        user.getUserId(),
+                        ActivityType.DONATION,
+                        BigDecimal.valueOf(30000),
+                        activityDateTime
+                )
+        );
+
+        User savedUser = userRepository.findById(user.getUserId()).orElseThrow();
+        UserMonthlyStat savedStat = userMonthlyStatRepository.findByUser(savedUser).orElseThrow();
+        List<ValidScoreHistory> scoreHistories = validScoreHistoryRepository.findAll();
+
+        assertThat(firstResult.appliedScore()).isEqualTo(20);
+        assertThat(secondResult.appliedScore()).isZero();
+        assertThat(secondResult.scoreAfter()).isEqualTo(270);
+        assertThat(savedUser.getSScore()).isEqualTo(270);
+        assertThat(savedStat.getMonthlySScore()).isEqualTo(20);
+        assertThat(scoreHistories).hasSize(1);
+        assertThat(scoreHistories.get(0).getReason()).isEqualTo(ScoreReason.DONATION);
+    }
+
+    @Test
+    @DisplayName("퀴즈 정답과 오답은 각각의 정책을 적용하지만 같은 날 점수는 1회만 부여한다")
+    void doNotApplyQuizScoreAgainAfterCorrectOrWrongScore() {
+        User user = userRepository.save(createUser("score-user-6", 50, 250, 100, 100));
+        userMonthlyStatRepository.save(createUserMonthlyStat(user, 0, 0, 0));
+        activityRewardPolicyRepository.save(createActivityRewardPolicy(ActivityType.QUIZ_CORRECT, ScoreCategory.G_ACTIVITY, 2));
+        activityRewardPolicyRepository.save(createActivityRewardPolicy(ActivityType.QUIZ_WRONG, ScoreCategory.G_ACTIVITY, 1));
+        esgScorePolicyRepository.save(createEsgScorePolicy(ScoreCategory.G_ACTIVITY, 200, 10, 3, 20, 100));
+
+        LocalDateTime activityDateTime = LocalDateTime.now();
+        ApplyActivityScoreResult correctResult = scoreService.applyActivityScore(
+                new ApplyActivityScoreCommand(
+                        user.getUserId(),
+                        ActivityType.QUIZ_CORRECT,
+                        null,
+                        activityDateTime
+                )
+        );
+        ApplyActivityScoreResult wrongResult = scoreService.applyActivityScore(
+                new ApplyActivityScoreCommand(
+                        user.getUserId(),
+                        ActivityType.QUIZ_WRONG,
+                        null,
+                        activityDateTime
+                )
+        );
+
+        User savedUser = userRepository.findById(user.getUserId()).orElseThrow();
+        UserMonthlyStat savedStat = userMonthlyStatRepository.findByUser(savedUser).orElseThrow();
+        List<ValidScoreHistory> scoreHistories = validScoreHistoryRepository.findAll();
+
+        assertThat(correctResult.appliedScore()).isEqualTo(2);
+        assertThat(wrongResult.appliedScore()).isZero();
+        assertThat(wrongResult.scoreAfter()).isEqualTo(102);
+        assertThat(savedUser.getGActivityScore()).isEqualTo(102);
+        assertThat(savedStat.getMonthlyGScore()).isEqualTo(2);
+        assertThat(scoreHistories).hasSize(1);
+        assertThat(scoreHistories.get(0).getReason()).isEqualTo(ScoreReason.QUIZ);
     }
 
     private User createUser(String loginId, int eScore, int sScore, int gActivityScore, int gRepaymentScore) {
