@@ -79,18 +79,9 @@
             vertical-align: top;
         }
 
-        .recipient-row {
-            height: 44mm;
-        }
-
-        .summary-row {
-            height: 44mm;
-        }
-
-        .meta-row {
-            height: 44mm;
-        }
-
+        .recipient-row,
+        .summary-row,
+        .meta-row,
         .category-row {
             height: 44mm;
         }
@@ -123,6 +114,14 @@
             border-collapse: collapse;
         }
 
+        .summary-section,
+        .meta-section,
+        .category-section {
+            height: 100%;
+            border-top: 1px solid #eef2f7;
+            padding-top: 10px;
+        }
+
         .summary-table {
             border: 1px solid #e5e7eb;
         }
@@ -148,19 +147,6 @@
             color: #111827;
         }
 
-        .summary-section,
-        .meta-section,
-        .category-section {
-            height: 100%;
-        }
-
-        .summary-section,
-        .meta-section,
-        .category-section {
-            border-top: 1px solid #eef2f7;
-            padding-top: 10px;
-        }
-
         .meta-table td,
         .category-table td {
             padding: 7px 0;
@@ -180,9 +166,17 @@
         }
 
         .section-title {
-            margin: 0 0 10px;
+            margin: 0 0 6px;
             font-size: 13px;
             color: #9ca3af;
+            font-weight: 500;
+        }
+
+        .certify-note {
+            margin: 0 0 10px;
+            text-align: center;
+            font-size: 13px;
+            color: #6b7280;
             font-weight: 500;
         }
 
@@ -281,7 +275,7 @@
             <table class="content-layout">
                 <tr class="recipient-row">
                     <td>
-                        <div class="content-section recipient-section">
+                        <div class="content-section">
                             <p class="recipient-label">발급 대상</p>
                             <p class="recipient-name">{{RECIPIENT_NAME}}</p>
                         </div>
@@ -365,6 +359,7 @@
     </tr>
     <tr class="footer-row">
         <td class="footer-cell">
+            <div class="certify-note">위 사람은 ESG 활동을 꾸준히 실천하였음을 인증합니다.</div>
             <table class="verification-table">
                 <tr>
                     <td class="verification-left">
