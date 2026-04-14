@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -37,14 +38,19 @@ public class RecommendationService {
     private static final int TOP_N = 3;
 
     public ActivityRecommendResponse getRecommendations(Long userId) {
-        Optional<ActivityRecommendResponse> cached =
-                cacheService.findActivityRecommend(userId);
-        if (cached.isPresent()) {
-            log.info("캐시 HIT - userId={}", userId);
-            return cached.get();
+        try {
+            Optional<ActivityRecommendResponse> cached =
+                    cacheService.findActivityRecommend(userId);
+            if (cached.isPresent()) {
+                log.info("캐시 HIT - userId={}", userId);
+                return cached.get();
+            }
+            log.info("캐시 MISS - 추천 파이프라인 실행 userId={}", userId);
+            return runPipelineAndCache(userId);
+        } catch (RuntimeException e) {
+            log.error("추천 조회 실패 userId={}", userId, e);
+            throw e;
         }
-        log.info("캐시 MISS - 추천 파이프라인 실행 userId={}", userId);
-        return runPipelineAndCache(userId);
     }
 
     public void evictRecommendCache(Long userId) {
@@ -57,29 +63,46 @@ public class RecommendationService {
 
         // Step 1: Feature 추출
         UserFeatureDto feature = featureExtractor.extract(userId);
+        log.info("추천 feature 추출 완료 userId={} weakestCategory={} nextGradeGap={}",
+                userId, feature.getWeakestCategory(), feature.getNextGradeGap());
 
         // Step 2: 후보 활동 로드
         List<ActivityCandidateDto> candidates = candidateLoader.loadAll(now);
+        log.info("추천 후보 로드 완료 userId={} candidates={}", userId, candidates.size());
 
-        // Step 3: 하드 필터
+        // Step 3: 실행 가능한 후보 우선 필터링
         List<ActivityCandidateDto> filtered = filterService.filter(candidates, feature);
+        log.info("추천 후보 필터 완료 userId={} filtered={}", userId, filtered.size());
 
-        // Step 4: B+C 랭킹 점수 계산
-        //   (B2 정규화를 위해 후보 기준 maxB2Raw를 미리 계산)
-        double maxB2Raw = filtered.stream()
-                .mapToDouble(this::calcB2Raw)
-                .max()
-                .orElse(1.0);
-        filtered = scorer.score(filtered, feature, maxB2Raw);
+        // Step 4: 우선 추천 랭킹 계산
+        List<ActivityCandidateDto> rankedPrimary = rankCandidates(filtered, feature);
 
-        // Step 5: 소프트 부스트
-        filtered = boostService.applyBoost(filtered, feature);
-
-        // Step 6: 정렬 → Top 3 선정
-        List<ActivityCandidateDto> top3 = filtered.stream()
-                .sorted(Comparator.comparingDouble(ActivityCandidateDto::getFinalScore).reversed())
+        // Step 5: Top 3 선정, 부족하면 월 한도만 걸린 후보로 보충
+        List<ActivityCandidateDto> top3 = new ArrayList<>(rankedPrimary.stream()
                 .limit(TOP_N)
-                .collect(Collectors.toList());
+                .collect(Collectors.toList()));
+
+        int fallbackCount = 0;
+        if (top3.size() < TOP_N) {
+            List<ActivityCandidateDto> fallbackCandidates = filterService
+                    .filterIgnoringMonthlyLimit(candidates, feature)
+                    .stream()
+                    .filter(c -> checkMonthlyLimitReached(c, feature))
+                    .filter(c -> top3.stream().noneMatch(selected -> isSameActivity(selected, c)))
+                    .collect(Collectors.toList());
+
+            List<ActivityCandidateDto> rankedFallback = rankCandidates(fallbackCandidates, feature);
+            int remaining = TOP_N - top3.size();
+            List<ActivityCandidateDto> fallbackTop = rankedFallback.stream()
+                    .limit(remaining)
+                    .collect(Collectors.toList());
+            top3.addAll(fallbackTop);
+            fallbackCount = fallbackTop.size();
+            log.info("추천 fallback 보충 완료 userId={} fallbackCandidates={} fallbackSelected={}",
+                    userId, fallbackCandidates.size(), fallbackCount);
+        }
+        log.info("추천 TOP{} 선정 완료 userId={} top={} fallback={}",
+                TOP_N, userId, top3.size(), fallbackCount);
 
         // Step 7: 인기 추천 선정 (전체 후보 기준)
         Optional<ActivityCandidateDto> popular =
@@ -87,7 +110,7 @@ public class RecommendationService {
 
         // Step 8: RecommendedActivity 변환
         List<RecommendedActivity> activities = top3.stream()
-                .map(this::toRecommendedActivity)
+                .map(c -> toRecommendedActivity(c, feature))
                 .collect(Collectors.toList());
         RecommendedActivity popularActivity =
                 popular.map(c -> toPopularRecommendedActivity(c, feature)).orElse(null);
@@ -95,6 +118,8 @@ public class RecommendationService {
         // Step 9: LLM 호출 → description + llmSummary 채우기
         AIService.LLMResult llmResult =
                 aiService.generateDescriptions(activities, feature);
+        log.info("추천 LLM 처리 완료 userId={} describedActivities={} hasSummary={}",
+                userId, llmResult.activities().size(), llmResult.summary() != null);
 
         // Step 10: 최종 Response 조립 후 Redis 저장 (LLM 완료 후 저장)
         ActivityRecommendResponse response = ActivityRecommendResponse.builder()
@@ -104,10 +129,41 @@ public class RecommendationService {
                 .build();
 
         cacheService.saveActivityRecommend(userId, response);
+        log.info("추천 응답 생성 및 캐시 저장 완료 userId={} activities={} popular={}",
+                userId, response.getActivities().size(), response.getPopularActivity() != null);
         return response;
     }
 
-    private RecommendedActivity toRecommendedActivity(ActivityCandidateDto c) {
+    private List<ActivityCandidateDto> rankCandidates(
+            List<ActivityCandidateDto> candidates,
+            UserFeatureDto feature
+    ) {
+        if (candidates.isEmpty()) {
+            return List.of();
+        }
+
+        double maxB2Raw = candidates.stream()
+                .mapToDouble(this::calcB2Raw)
+                .max()
+                .orElse(1.0);
+        List<ActivityCandidateDto> scored = scorer.score(candidates, feature, maxB2Raw);
+        return boostService.applyBoost(scored, feature).stream()
+                .sorted(Comparator.comparingDouble(ActivityCandidateDto::getFinalScore).reversed())
+                .collect(Collectors.toList());
+    }
+
+    private boolean isSameActivity(ActivityCandidateDto left, ActivityCandidateDto right) {
+        return left.getActivityType().equals(right.getActivityType())
+                && left.getReferenceId().equals(right.getReferenceId());
+    }
+
+    private RecommendedActivity toRecommendedActivity(
+            ActivityCandidateDto c,
+            UserFeatureDto feature
+    ) {
+        boolean alreadyToday = checkAlreadyParticipatedToday(c, feature.getUserId());
+        boolean monthlyLimit = checkMonthlyLimitReached(c, feature);
+
         return RecommendedActivity.builder()
                 .activityType(c.getActivityType())
                 .referenceId(c.getReferenceId())
@@ -124,6 +180,8 @@ public class RecommendationService {
                 .currentEnrolled(c.getCurrentEnrolled())
                 .capacity(c.getCapacity())
                 .description(null)
+                .alreadyParticipatedToday(alreadyToday)
+                .monthlyLimitReached(monthlyLimit)
                 .build();
     }
 

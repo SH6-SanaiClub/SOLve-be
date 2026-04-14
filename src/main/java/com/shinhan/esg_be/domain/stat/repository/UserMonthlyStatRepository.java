@@ -15,13 +15,13 @@ public interface UserMonthlyStatRepository extends JpaRepository<UserMonthlyStat
     @Query("""
             SELECT ums FROM UserMonthlyStat ums
             WHERE ums.user.userId = :userId
-              AND YEAR(ums.createdAt) = :year
-              AND MONTH(ums.createdAt) = :month
+              AND ums.createdAt >= :monthStart
+              AND ums.createdAt < :monthEnd
             """)
     Optional<UserMonthlyStat> findByUserAndMonth(
             @Param("userId") Long userId,
-            @Param("year") int year,
-            @Param("month") int month
+            @Param("monthStart") java.time.LocalDateTime monthStart,
+            @Param("monthEnd") java.time.LocalDateTime monthEnd
     );
     
     Optional<UserMonthlyStat> findByUser(User user);

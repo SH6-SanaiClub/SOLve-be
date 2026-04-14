@@ -29,6 +29,8 @@ public interface UserSavingRepository extends JpaRepository<UserSaving, Long> {
 
     List<UserSaving> findByStatus(SavingStatus status);
 
+    boolean existsByUser_UserIdAndStatus(Long userId, SavingStatus status);
+
     boolean existsByUserAndFinancialProductAndStatus(
             User user,
             FinancialProduct financialProduct,
