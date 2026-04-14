@@ -34,6 +34,11 @@ public class VolunteerController {
         return ResponseEntity.ok(volunteerService.getVolunteers());
     }
 
+    @GetMapping("/volunteers/applications")
+    public ResponseEntity<VolunteerResponse> getVolunteerApplications() {
+        return ResponseEntity.ok(volunteerService.getMyVolunteerApplications());
+    }
+
     @GetMapping("/volunteers/{volunteerId}")
     public ResponseEntity<VolunteerDetailResponse> getVolunteer(@PathVariable Long volunteerId) {
         return ResponseEntity.ok(volunteerService.getVolunteer(volunteerId));

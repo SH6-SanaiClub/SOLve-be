@@ -25,6 +25,29 @@ public interface UserVolunteerRepository extends JpaRepository<UserVolunteer, Lo
             Long userId, Long volunteerId
     );
 
+    @Query("""
+            select new com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerItemResponse(
+                v.volunteerId,
+                v.name,
+                v.description,
+                v.activityDate,
+                v.location,
+                v.capacity,
+                v.currentEnrolled,
+                v.volunteerHour,
+                v.organization
+            )
+            from UserVolunteer uv
+            join uv.volunteer v
+            where uv.user.userId = :userId
+              and uv.status = com.shinhan.esg_be.domain.volunteer.entity.enums.VolunteerStatus.APPLIED
+              and v.isActive = true
+            order by v.activityDate asc
+            """)
+    List<com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerItemResponse> findApplicationVolunteersByUserId(
+            @Param("userId") Long userId
+    );
+
     List<UserVolunteer> findAllByVolunteerApplicationsIdIn(List<Long> volunteerApplicationIds);
 
     @Query("""

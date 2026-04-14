@@ -54,6 +54,12 @@ public class VolunteerService {
         );
     }
 
+    @Transactional(readOnly = true)
+    public VolunteerResponse getMyVolunteerApplications() {
+        Long userId = authContext.currentUserId();
+        return new VolunteerResponse(userVolunteerRepository.findApplicationVolunteersByUserId(userId));
+    }
+
     public VolunteerDetailResponse getVolunteer(Long volunteerId) {
         Long userId = authContext.currentUserId();
         Volunteer volunteer = volunteerRepository.findActiveVolunteerDetail(volunteerId, LocalDateTime.now())
