@@ -58,6 +58,8 @@ public interface VolunteerRepository extends JpaRepository<Volunteer, Long> {
             @Param("now") LocalDateTime now
     );
 
+    Optional<Volunteer> findByQrTokenAndIsActiveTrue(String qrToken);
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
             update Volunteer v

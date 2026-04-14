@@ -49,6 +49,12 @@ public class UserVolunteer {
     @Column(name = "volunteer_hour", nullable = false)
     private Integer volunteerHour;
 
+    @Column(name = "check_in_at")
+    private LocalDateTime checkInAt;
+
+    @Column(name = "check_out_at")
+    private LocalDateTime checkOutAt;
+
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -60,5 +66,23 @@ public class UserVolunteer {
         userVolunteer.status = VolunteerStatus.APPLIED;
         userVolunteer.volunteerHour = volunteer.getVolunteerHour();
         return userVolunteer;
+    }
+
+    public void markCheckIn(LocalDateTime checkedInAt, boolean late) {
+        this.checkInAt = checkedInAt;
+        this.status = late ? VolunteerStatus.INCOMPLETE : VolunteerStatus.ATTENDED;
+    }
+
+    public void markCheckOut(LocalDateTime checkedOutAt, boolean completed) {
+        this.checkOutAt = checkedOutAt;
+        this.status = completed ? VolunteerStatus.COMPLETED : VolunteerStatus.INCOMPLETE;
+    }
+
+    public void markNoShow() {
+        this.status = VolunteerStatus.NOSHOW;
+    }
+
+    public void markIncomplete() {
+        this.status = VolunteerStatus.INCOMPLETE;
     }
 }

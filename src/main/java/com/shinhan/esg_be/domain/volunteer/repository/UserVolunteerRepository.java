@@ -9,16 +9,23 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface UserVolunteerRepository extends JpaRepository<UserVolunteer, Long> {
 
-    // 특정 봉사 신청 여부 (하드 필터 - 중복 신청 방지)
-    boolean existsByUser_UserIdAndVolunteer_VolunteerIdAndStatusNot(
-            Long userId, Long volunteerId, VolunteerStatus status
-    );
     boolean existsByUser_UserIdAndVolunteer_VolunteerIdAndStatus(
             Long userId, Long volunteerId, VolunteerStatus status
     );
+
+    Optional<UserVolunteer> findByUser_UserIdAndVolunteer_VolunteerIdAndStatus(
+            Long userId, Long volunteerId, VolunteerStatus status
+    );
+
+    Optional<UserVolunteer> findByUser_UserIdAndVolunteer_VolunteerId(
+            Long userId, Long volunteerId
+    );
+
+    List<UserVolunteer> findAllByVolunteerApplicationsIdIn(List<Long> volunteerApplicationIds);
 
     @Query("""
             SELECT COUNT(uv)
