@@ -149,7 +149,7 @@ public class ActivityCandidateLoader {
         if (quizCorrectPolicy != null || quizWrongPolicy != null) {
             int scoreValue = resolveQuizScoreValue(quizCorrectPolicy, quizWrongPolicy);
             int pointValue = resolveQuizExpectedPointValue(quizCorrectPolicy, quizWrongPolicy);
-            quizRepository.findTodayActiveQuiz(now).ifPresent(q ->
+            quizRepository.findFirstByQuizDateAndIsActiveTrueOrderByQuizIdAsc(now.toLocalDate()).ifPresent(q ->
                     candidates.add(ActivityCandidateDto.builder()
                             // 추천 파이프라인에서는 단일 타입 "QUIZ"로 처리
                             .activityType("QUIZ")

@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8" />
+    <style>
+        @page {
+            size: A4;
+            margin: 10mm 12mm;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: "ReportKoreanFont", sans-serif;
+            color: #111827;
+            background: #ffffff;
+            font-size: 12px;
+            line-height: 1.45;
+        }
+
+        .certificate-layout {
+            width: 100%;
+            height: 272mm;
+            table-layout: fixed;
+            border-collapse: separate;
+            border-spacing: 0;
+            background-color: #ffffff;
+        }
+
+        .header-row {
+            height: 24mm;
+        }
+
+        .content-row {
+            height: 176mm;
+        }
+
+        .footer-row {
+            height: 30mm;
+        }
+
+        .header-cell {
+            padding: 16px 24px 10px;
+            border-bottom: 1px solid #eef2f7;
+        }
+
+        .title {
+            margin: 0;
+            text-align: center;
+            font-size: 26px;
+            font-weight: 700;
+            letter-spacing: -0.03em;
+        }
+
+        .issued-at {
+            margin-top: 8px;
+            text-align: right;
+            font-size: 11px;
+            color: #9ca3af;
+            font-weight: 500;
+        }
+
+        .content-cell {
+            padding: 10px 24px 6px;
+            vertical-align: top;
+        }
+
+        .content-layout {
+            width: 100%;
+            height: 176mm;
+            table-layout: fixed;
+            border-collapse: collapse;
+        }
+
+        .content-layout td {
+            vertical-align: top;
+        }
+
+        .recipient-row,
+        .summary-row,
+        .meta-row,
+        .category-row {
+            height: 44mm;
+        }
+
+        .content-section {
+            height: 100%;
+            padding: 4px 0;
+        }
+
+        .recipient-label {
+            margin: 0;
+            font-size: 11px;
+            color: #9ca3af;
+            font-weight: 500;
+        }
+
+        .recipient-name {
+            margin: 8px 0 0;
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: -0.03em;
+        }
+
+        .summary-table,
+        .meta-table,
+        .category-table,
+        .verification-table,
+        .verification-inner {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .summary-section,
+        .meta-section,
+        .category-section {
+            height: 100%;
+            border-top: 1px solid #eef2f7;
+            padding-top: 10px;
+        }
+
+        .summary-table {
+            border: 1px solid #e5e7eb;
+        }
+
+        .summary-table td {
+            width: 50%;
+            padding: 14px 16px;
+            border: 1px solid #eef2f7;
+            vertical-align: top;
+        }
+
+        .summary-label {
+            margin: 0;
+            font-size: 11px;
+            color: #9ca3af;
+            font-weight: 500;
+        }
+
+        .summary-value {
+            margin: 6px 0 0;
+            font-size: 16px;
+            font-weight: 700;
+            color: #111827;
+        }
+
+        .meta-table td,
+        .category-table td {
+            padding: 7px 0;
+            vertical-align: top;
+        }
+
+        .meta-label {
+            width: 96px;
+            color: #6b7280;
+            font-weight: 500;
+        }
+
+        .meta-value {
+            text-align: right;
+            color: #111827;
+            font-weight: 600;
+        }
+
+        .section-title {
+            margin: 0 0 6px;
+            font-size: 13px;
+            color: #9ca3af;
+            font-weight: 500;
+        }
+
+        .certify-note {
+            margin: 0 0 10px;
+            text-align: center;
+            font-size: 13px;
+            color: #6b7280;
+            font-weight: 500;
+        }
+
+        .category-label-cell {
+            color: #111827;
+            font-weight: 500;
+            padding-right: 12px;
+        }
+
+        .category-value-cell {
+            width: 96px;
+            text-align: right;
+            color: #111827;
+            font-weight: 700;
+        }
+
+        .footer-cell {
+            padding: 6px 24px 4px;
+            vertical-align: bottom;
+            border-top: 1px dashed #d1d5db;
+            background: #f7fbff;
+        }
+
+        .verification-left {
+            width: 80%;
+            padding-right: 14px;
+            vertical-align: top;
+        }
+
+        .verification-right {
+            width: 20%;
+            text-align: right;
+            vertical-align: middle;
+        }
+
+        .verification-inner td {
+            padding: 2px 0;
+            vertical-align: top;
+        }
+
+        .verification-label {
+            width: 78px;
+            color: #6b7280;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .verification-value {
+            text-align: right;
+            color: #111827;
+            font-size: 11px;
+            font-weight: 600;
+            word-break: break-all;
+        }
+
+        .verification-link {
+            color: #111827;
+            text-decoration: none;
+        }
+
+        .qr-box {
+            display: inline-block;
+            width: 72px;
+            padding: 5px;
+            border: 1px solid #d1d5db;
+            border-radius: 14px;
+            background: #ffffff;
+            text-align: center;
+        }
+
+        .qr-box img {
+            display: block;
+            width: 56px;
+            height: 56px;
+            margin: 0 auto;
+        }
+
+        .qr-caption {
+            margin-top: 6px;
+            font-size: 10px;
+            color: #6b7280;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+<table class="certificate-layout" style="{{WATERMARK_BACKGROUND_STYLE}}">
+    <tr class="header-row">
+        <td class="header-cell">
+            <h1 class="title">ESG 활동 인증서</h1>
+            <div class="issued-at">발급일 {{ISSUED_AT}}</div>
+        </td>
+    </tr>
+    <tr class="content-row">
+        <td class="content-cell">
+            <table class="content-layout">
+                <tr class="recipient-row">
+                    <td>
+                        <div class="content-section">
+                            <p class="recipient-label">발급 대상</p>
+                            <p class="recipient-name">{{RECIPIENT_NAME}}</p>
+                        </div>
+                    </td>
+                </tr>
+                <tr class="summary-row">
+                    <td>
+                        <div class="content-section summary-section">
+                            <table class="summary-table" aria-hidden="true">
+                                <tr>
+                                    <td>
+                                        <p class="summary-label">ESG 등급</p>
+                                        <p class="summary-value">{{GRADE_LABEL}}</p>
+                                    </td>
+                                    <td>
+                                        <p class="summary-label">ESG 점수</p>
+                                        <p class="summary-value">{{TOTAL_SCORE}}</p>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <p class="summary-label">인증 활동</p>
+                                        <p class="summary-value">{{VERIFIED_ACTIVITY_COUNT}}</p>
+                                    </td>
+                                    <td>
+                                        <p class="summary-label">연속 활동</p>
+                                        <p class="summary-value">{{CONSECUTIVE_ACTIVITY}}</p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    </td>
+                </tr>
+                <tr class="meta-row">
+                    <td>
+                        <div class="content-section meta-section">
+                            <table class="meta-table">
+                                <tr>
+                                    <td class="meta-label">대상 기간</td>
+                                    <td class="meta-value">{{TARGET_PERIOD}}</td>
+                                </tr>
+                                <tr>
+                                    <td class="meta-label">발급기관</td>
+                                    <td class="meta-value">{{ISSUER}}</td>
+                                </tr>
+                                <tr>
+                                    <td class="meta-label">인증서 번호</td>
+                                    <td class="meta-value">{{CERTIFICATE_NUMBER}}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </td>
+                </tr>
+                <tr class="category-row">
+                    <td>
+                        <div class="content-section category-section">
+                            <p class="section-title">카테고리 요약</p>
+                            <table class="category-table">
+                                <tr>
+                                    <td class="category-label-cell">환경 활동(E)</td>
+                                    <td class="category-value-cell">{{ENVIRONMENT_ACTIVITY}}</td>
+                                </tr>
+                                <tr>
+                                    <td class="category-label-cell">봉사활동(S)</td>
+                                    <td class="category-value-cell">{{VOLUNTEER_ACTIVITY}}</td>
+                                </tr>
+                                <tr>
+                                    <td class="category-label-cell">사회공헌 활동(S)</td>
+                                    <td class="category-value-cell">{{SOCIAL_CONTRIBUTION_ACTIVITY}}</td>
+                                </tr>
+                                <tr>
+                                    <td class="category-label-cell">신뢰 활동(G)</td>
+                                    <td class="category-value-cell">{{TRUST_ACTIVITY}}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+    <tr class="footer-row">
+        <td class="footer-cell">
+            <div class="certify-note">위 사람은 ESG 활동을 꾸준히 실천하였음을 인증합니다.</div>
+            <table class="verification-table">
+                <tr>
+                    <td class="verification-left">
+                        <table class="verification-inner">
+                            <tr>
+                                <td class="verification-label">인증 코드</td>
+                                <td class="verification-value">{{VERIFICATION_CODE}}</td>
+                            </tr>
+                            <tr>
+                                <td class="verification-label">인증 URL</td>
+                                <td class="verification-value">
+                                    <a class="verification-link" href="{{VERIFICATION_URL_HREF}}">{{VERIFICATION_URL}}</a>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="verification-label">유효 기간</td>
+                                <td class="verification-value">발급일로부터 1개월</td>
+                            </tr>
+                        </table>
+                    </td>
+                    <td class="verification-right">
+                        <div class="qr-box">
+                            <img src="{{QR_IMAGE_DATA_URL}}" alt="인증서 검증 QR 코드" />
+                            <div class="qr-caption">QR 코드</div>
+                        </div>
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>
+</body>
+</html>

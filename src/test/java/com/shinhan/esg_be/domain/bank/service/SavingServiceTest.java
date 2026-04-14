@@ -5,6 +5,7 @@ import com.shinhan.esg_be.domain.bank.dto.response.SavingApplyResponse;
 import com.shinhan.esg_be.domain.bank.entity.FinancialProduct;
 import com.shinhan.esg_be.domain.bank.entity.UserSaving;
 import com.shinhan.esg_be.domain.bank.entity.enums.ProductType;
+import com.shinhan.esg_be.domain.bank.entity.enums.SavingStatus;
 import com.shinhan.esg_be.domain.bank.repository.FinancialProductRepository;
 import com.shinhan.esg_be.domain.bank.repository.UserSavingRepository;
 import com.shinhan.esg_be.domain.user.entity.User;
@@ -78,6 +79,23 @@ class SavingServiceTest {
         assertThatThrownBy(() -> savingService.applySaving(user.getLoginId(), new SavingApplyRequest(99L)))
                 .isInstanceOf(BadRequestException.class)
                 .hasMessage("적금 상품을 찾을 수 없습니다.");
+    }
+
+    @Test
+    @DisplayName("이미 가입한 적금 상품이면 가입을 거절한다")
+    void rejectWhenSameSavingProductAlreadyActive() {
+        User user = createUser("saving-user-3", 100, 400, 200, 100);
+        FinancialProduct product = createSavingProduct(2L, "Green Saving", 300_000L, 12);
+
+        given(userRepository.findByLoginId(user.getLoginId())).willReturn(Optional.of(user));
+        given(financialProductRepository.findByFinProductIdAndTypeAndIsActiveTrue(2L, ProductType.SAVINGS))
+                .willReturn(Optional.of(product));
+        given(userSavingRepository.existsByUserAndFinancialProductAndStatus(user, product, SavingStatus.ACTIVE))
+                .willReturn(true);
+
+        assertThatThrownBy(() -> savingService.applySaving(user.getLoginId(), new SavingApplyRequest(2L)))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Already joined saving product.");
     }
 
     private User createUser(String loginId, int eScore, int sScore, int gActivityScore, int gRepaymentScore) {
