@@ -7,6 +7,7 @@ import com.shinhan.esg_be.domain.report.dto.response.ReportVerificationResponse;
 import com.shinhan.esg_be.domain.report.entity.ReportIssue;
 import com.shinhan.esg_be.domain.report.repository.ReportIssueRepository;
 import com.shinhan.esg_be.domain.user.entity.enums.Grade;
+import com.shinhan.esg_be.global.config.ReportProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,8 +19,8 @@ import java.util.List;
 @Transactional(readOnly = true)
 public class ReportVerificationService {
 
-    private static final String VERIFY_PATH_PREFIX = "/report/verify/";
     private final ReportIssueRepository reportIssueRepository;
+    private final ReportProperties reportProperties;
 
     public ReportVerificationResponse verify(String token) {
         return reportIssueRepository.findByVerificationToken(token)
@@ -38,7 +39,7 @@ public class ReportVerificationService {
                         reportIssue.getReportIssueId(),
                         reportIssue.getCertificateNumber(),
                         reportIssue.getVerificationCode(),
-                        VERIFY_PATH_PREFIX + reportIssue.getVerificationToken(),
+                        reportProperties.buildVerificationPath(reportIssue.getVerificationToken()),
                         reportIssue.getIssuedAt()
                 ),
                 new ReportCertificateSnapshotResponse(
