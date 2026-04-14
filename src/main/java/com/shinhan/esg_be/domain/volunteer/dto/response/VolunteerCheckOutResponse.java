@@ -8,16 +8,12 @@ import java.time.LocalDateTime;
 
 @Getter
 @AllArgsConstructor
-public class VolunteerAttendanceResponse {
+public class VolunteerCheckOutResponse {
 
-    private final String userName;
-    private final Long volunteerId;
     private final String name;
-    private final String location;
-    private final LocalDateTime activityDate;
-    private final Integer volunteerHour;
-    private final String organization;
-    private final VolunteerStatus status;
     private final LocalDateTime checkInAt;
     private final LocalDateTime checkOutAt;
+    private final VolunteerStatus status;
+    private final int awardedPoint;
+    private final int currentPoint;
 }

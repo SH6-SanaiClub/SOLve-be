@@ -2,9 +2,11 @@ package com.shinhan.esg_be.domain.volunteer.controller;
 
 import com.shinhan.esg_be.domain.volunteer.dto.request.VolunteerApplyRequest;
 import com.shinhan.esg_be.domain.volunteer.dto.request.VolunteerCheckInRequest;
+import com.shinhan.esg_be.domain.volunteer.dto.request.VolunteerCheckOutRequest;
 import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerApplyResponse;
 import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerAttendanceResponse;
 import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerCheckInResponse;
+import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerCheckOutResponse;
 import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerDetailResponse;
 import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerResponse;
 import com.shinhan.esg_be.domain.volunteer.service.VolunteerService;
@@ -52,5 +54,12 @@ public class VolunteerController {
             @RequestBody @Valid VolunteerCheckInRequest request
     ) {
         return ResponseEntity.ok(volunteerService.checkInVolunteer(request));
+    }
+
+    @PostMapping("/volunteers/check-out")
+    public ResponseEntity<VolunteerCheckOutResponse> checkOutVolunteer(
+            @RequestBody @Valid VolunteerCheckOutRequest request
+    ) {
+        return ResponseEntity.ok(volunteerService.checkOutVolunteer(request));
     }
 }

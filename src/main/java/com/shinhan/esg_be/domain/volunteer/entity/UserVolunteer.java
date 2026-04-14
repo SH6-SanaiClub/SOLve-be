@@ -68,8 +68,21 @@ public class UserVolunteer {
         return userVolunteer;
     }
 
-    public void markCheckIn(LocalDateTime checkedInAt) {
+    public void markCheckIn(LocalDateTime checkedInAt, boolean late) {
         this.checkInAt = checkedInAt;
-        this.status = VolunteerStatus.ATTENDED;
+        this.status = late ? VolunteerStatus.INCOMPLETE : VolunteerStatus.ATTENDED;
+    }
+
+    public void markCheckOut(LocalDateTime checkedOutAt, boolean completed) {
+        this.checkOutAt = checkedOutAt;
+        this.status = completed ? VolunteerStatus.COMPLETED : VolunteerStatus.INCOMPLETE;
+    }
+
+    public void markNoShow() {
+        this.status = VolunteerStatus.NOSHOW;
+    }
+
+    public void markIncomplete() {
+        this.status = VolunteerStatus.INCOMPLETE;
     }
 }
