@@ -69,6 +69,15 @@ public interface VolunteerRepository extends JpaRepository<Volunteer, Long> {
             """)
     int increaseCurrentEnrolled(@Param("volunteerId") Long volunteerId);
 
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            update Volunteer v
+            set v.currentEnrolled = v.currentEnrolled - 1
+            where v.volunteerId = :volunteerId
+              and v.currentEnrolled > 0
+            """)
+    int decreaseCurrentEnrolled(@Param("volunteerId") Long volunteerId);
+
     @Query("""
             SELECT v
             FROM Volunteer v

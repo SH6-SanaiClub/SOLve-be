@@ -25,8 +25,15 @@ public interface UserVolunteerRepository extends JpaRepository<UserVolunteer, Lo
             Long userId, Long volunteerId
     );
 
+    Optional<UserVolunteer> findByVolunteerApplicationsIdAndUser_UserIdAndStatus(
+            Long volunteerApplicationId,
+            Long userId,
+            VolunteerStatus status
+    );
+
     @Query("""
-            select new com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerItemResponse(
+            select new com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerApplicationItemResponse(
+                uv.volunteerApplicationsId,
                 v.volunteerId,
                 v.name,
                 v.description,
@@ -42,10 +49,12 @@ public interface UserVolunteerRepository extends JpaRepository<UserVolunteer, Lo
             where uv.user.userId = :userId
               and uv.status = com.shinhan.esg_be.domain.volunteer.entity.enums.VolunteerStatus.APPLIED
               and v.isActive = true
+              and v.activityDate > :now
             order by v.activityDate asc
             """)
-    List<com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerItemResponse> findApplicationVolunteersByUserId(
-            @Param("userId") Long userId
+    List<com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerApplicationItemResponse> findApplicationVolunteersByUserId(
+            @Param("userId") Long userId,
+            @Param("now") LocalDateTime now
     );
 
     List<UserVolunteer> findAllByVolunteerApplicationsIdIn(List<Long> volunteerApplicationIds);

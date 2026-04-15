@@ -10,6 +10,7 @@ import com.shinhan.esg_be.domain.volunteer.dto.request.VolunteerApplyRequest;
 import com.shinhan.esg_be.domain.volunteer.dto.request.VolunteerCheckInRequest;
 import com.shinhan.esg_be.domain.volunteer.dto.request.VolunteerCheckOutRequest;
 import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerApplyResponse;
+import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerApplicationResponse;
 import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerAttendanceResponse;
 import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerCheckInResponse;
 import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerCheckOutResponse;
@@ -55,9 +56,11 @@ public class VolunteerService {
     }
 
     @Transactional(readOnly = true)
-    public VolunteerResponse getMyVolunteerApplications() {
+    public VolunteerApplicationResponse getMyVolunteerApplications() {
         Long userId = authContext.currentUserId();
-        return new VolunteerResponse(userVolunteerRepository.findApplicationVolunteersByUserId(userId));
+        return new VolunteerApplicationResponse(
+                userVolunteerRepository.findApplicationVolunteersByUserId(userId, LocalDateTime.now())
+        );
     }
 
     public VolunteerDetailResponse getVolunteer(Long volunteerId) {
@@ -122,6 +125,33 @@ public class VolunteerService {
                 volunteer.getActivityDate(),
                 userVolunteer.getStatus()
         );
+    }
+
+    public void cancelVolunteerApplication(Long volunteerApplicationId) {
+        Long userId = authContext.currentUserId();
+        LocalDateTime now = LocalDateTime.now();
+
+        UserVolunteer userVolunteer = userVolunteerRepository
+                .findByVolunteerApplicationsIdAndUser_UserIdAndStatus(
+                        volunteerApplicationId,
+                        userId,
+                        VolunteerStatus.APPLIED
+                )
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "신청한 봉사활동을 찾을 수 없습니다."));
+
+        Volunteer volunteer = userVolunteer.getVolunteer();
+        LocalDateTime cancelDeadline = volunteer.getActivityDate().minusHours(24);
+        if (now.isAfter(cancelDeadline)) {
+            throw new BadRequestException("봉사 시작 24시간 전까지만 신청 취소가 가능합니다.");
+        }
+
+        int updatedRows = volunteerRepository.decreaseCurrentEnrolled(volunteer.getVolunteerId());
+        if (updatedRows == 0) {
+            throw new BadRequestException("봉사 신청 취소에 실패했습니다.");
+        }
+
+        userVolunteerRepository.delete(userVolunteer);
+        volunteerStatusTransitionService.clearTransition(userVolunteer.getVolunteerApplicationsId());
     }
 
     @Transactional(readOnly = true)
