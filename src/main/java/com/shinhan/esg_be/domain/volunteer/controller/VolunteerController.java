@@ -4,6 +4,7 @@ import com.shinhan.esg_be.domain.volunteer.dto.request.VolunteerApplyRequest;
 import com.shinhan.esg_be.domain.volunteer.dto.request.VolunteerCheckInRequest;
 import com.shinhan.esg_be.domain.volunteer.dto.request.VolunteerCheckOutRequest;
 import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerApplyResponse;
+import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerApplicationResponse;
 import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerAttendanceResponse;
 import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerCheckInResponse;
 import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerCheckOutResponse;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -34,6 +36,11 @@ public class VolunteerController {
         return ResponseEntity.ok(volunteerService.getVolunteers());
     }
 
+    @GetMapping("/volunteers/applications")
+    public ResponseEntity<VolunteerApplicationResponse> getVolunteerApplications() {
+        return ResponseEntity.ok(volunteerService.getMyVolunteerApplications());
+    }
+
     @GetMapping("/volunteers/{volunteerId}")
     public ResponseEntity<VolunteerDetailResponse> getVolunteer(@PathVariable Long volunteerId) {
         return ResponseEntity.ok(volunteerService.getVolunteer(volunteerId));
@@ -42,6 +49,12 @@ public class VolunteerController {
     @PostMapping("/volunteers/apply")
     public ResponseEntity<VolunteerApplyResponse> applyVolunteer(@RequestBody @Valid VolunteerApplyRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(volunteerService.applyVolunteer(request));
+    }
+
+    @DeleteMapping("/volunteers/applications/{volunteerApplicationId}")
+    public ResponseEntity<Void> cancelVolunteerApplication(@PathVariable Long volunteerApplicationId) {
+        volunteerService.cancelVolunteerApplication(volunteerApplicationId);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/volunteers/attendance")
