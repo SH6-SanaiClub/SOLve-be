@@ -219,7 +219,7 @@ public class ChatService {
         String normalizedSource = (userMessage + " " + response).toLowerCase();
         String intent = detectIntent(normalizedUserMessage, normalizedSource);
 
-        List<ChatAction> filteredParsedActions = filterActionsByIntent(parsedActions, intent);
+        List<ChatAction> filteredParsedActions = filterActionsByIntent(normalizeActions(parsedActions), intent);
         if (!filteredParsedActions.isEmpty()) {
             return deduplicateActions(filteredParsedActions);
         }
@@ -247,7 +247,7 @@ public class ChatService {
                     .build());
         }
 
-        return deduplicateActions(actions);
+        return deduplicateActions(normalizeActions(actions));
     }
 
     private String detectIntent(String userMessage, String normalizedSource) {
@@ -336,7 +336,7 @@ public class ChatService {
         if (actions.isEmpty() && containsAny(normalizedSource, "사회", "s 활동")) {
             actions.add(ChatAction.builder()
                     .label("사회 활동 보러가기")
-                    .path("/esg/social")
+                    .path("/esg/social/donation")
                     .build());
         }
 
@@ -490,6 +490,33 @@ public class ChatService {
             }
         }
         return deduplicated;
+    }
+
+    private List<ChatAction> normalizeActions(List<ChatAction> actions) {
+        return actions.stream()
+                .map(this::normalizeAction)
+                .toList();
+    }
+
+    private ChatAction normalizeAction(ChatAction action) {
+        String normalizedPath = normalizeActionPath(action.getPath());
+        if ((action.getPath() == null && normalizedPath == null)
+                || (action.getPath() != null && action.getPath().equals(normalizedPath))) {
+            return action;
+        }
+
+        return ChatAction.builder()
+                .label(action.getLabel())
+                .path(normalizedPath)
+                .build();
+    }
+
+    private String normalizeActionPath(String path) {
+        if ("/esg/social".equals(path) || "/activities/social".equals(path)) {
+            return "/esg/social/donation";
+        }
+
+        return path;
     }
 
     private List<ChatAction> filterActionsByIntent(List<ChatAction> actions, String intent) {
