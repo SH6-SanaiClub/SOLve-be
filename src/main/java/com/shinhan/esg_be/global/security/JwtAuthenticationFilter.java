@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -33,13 +34,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             try {
                 String loginId = jwtTokenProvider.getLoginId(token);
                 Long userId = jwtTokenProvider.getUserId(token);
+                String role = jwtTokenProvider.getRole(token);
                 CustomUserPrincipal principal = new CustomUserPrincipal(userId, loginId);
+                List<SimpleGrantedAuthority> authorities = "ADMIN".equals(role)
+                        ? List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))
+                        : List.of();
 
-                // 시큐리티 전용 인증 객체 생성 (권한은 일단 빈 리스트로 설정)
                 UsernamePasswordAuthenticationToken auth =
-                        new UsernamePasswordAuthenticationToken(principal, null, List.of());
+                        new UsernamePasswordAuthenticationToken(principal, null, authorities);
 
-                // 이 요청이 살아있는 동안 "인증된 사용자"라고 메모리에 저장
                 SecurityContextHolder.getContext().setAuthentication(auth);
             } catch (RuntimeException e) {
                 SecurityContextHolder.clearContext();
