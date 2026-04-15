@@ -13,6 +13,14 @@ import java.util.List;
 
 public interface UserPointRepository extends JpaRepository<UserPoint, Long> {
 
+    @Override
+    @Query("""
+            select up
+            from UserPoint up
+            order by up.exchangeId asc
+            """)
+    List<UserPoint> findAll();
+
     boolean existsByExchangeCode(String exchangeCode);
 
     @Query("""
@@ -48,6 +56,21 @@ public interface UserPointRepository extends JpaRepository<UserPoint, Long> {
             PointReason reason,
             LocalDateTime startDateTime,
             LocalDateTime endDateTime
+    );
+
+    long countByItem_ItemId(Long itemId);
+
+    @Query("""
+            select up
+            from UserPoint up
+            join fetch up.user u
+            where up.item.itemId = :itemId
+              and up.reason = :reason
+            order by up.createdAt desc
+            """)
+    List<UserPoint> findAllByItemIdAndReasonWithUser(
+            @Param("itemId") Long itemId,
+            @Param("reason") PointReason reason
     );
 
     boolean existsByUserAndReasonInAndCreatedAtBetween(
