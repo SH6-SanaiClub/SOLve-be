@@ -11,6 +11,19 @@ import java.util.List;
 
 public interface UserEcoProductRepository extends JpaRepository<UserEcoProduct, Long> {
 
+    @Query("""
+            SELECT COUNT(uep)
+            FROM UserEcoProduct uep
+            WHERE uep.createdAt >= :startDateTime
+              AND uep.createdAt < :endDateTime
+            """)
+    long countCreatedAtBetween(
+            @Param("startDateTime") LocalDateTime startDateTime,
+            @Param("endDateTime") LocalDateTime endDateTime
+    );
+
+    long countByEcoProduct_ProductId(Long productId);
+
     // 최근 N일 상품구매 횟수 (미활동 위험, 90일 횟수)
     @Query("""
             SELECT COUNT(uep) FROM UserEcoProduct uep

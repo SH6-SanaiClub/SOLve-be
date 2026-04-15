@@ -13,6 +13,28 @@ import java.util.Optional;
 
 public interface UserVolunteerRepository extends JpaRepository<UserVolunteer, Long> {
 
+    @Query("""
+            SELECT COUNT(uv)
+            FROM UserVolunteer uv
+            WHERE uv.createdAt >= :startDateTime
+              AND uv.createdAt < :endDateTime
+            """)
+    long countCreatedAtBetween(
+            @Param("startDateTime") LocalDateTime startDateTime,
+            @Param("endDateTime") LocalDateTime endDateTime
+    );
+
+    long countByVolunteer_VolunteerId(Long volunteerId);
+
+    @Query("""
+            SELECT uv
+            FROM UserVolunteer uv
+            JOIN FETCH uv.user u
+            WHERE uv.volunteer.volunteerId = :volunteerId
+            ORDER BY uv.createdAt DESC
+            """)
+    List<UserVolunteer> findAllByVolunteerIdWithUser(@Param("volunteerId") Long volunteerId);
+
     boolean existsByUser_UserIdAndVolunteer_VolunteerIdAndStatus(
             Long userId, Long volunteerId, VolunteerStatus status
     );

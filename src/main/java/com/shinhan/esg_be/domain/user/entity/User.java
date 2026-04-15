@@ -134,6 +134,10 @@ public class User extends BaseTimeEntity {
         this.isActive = false;
     }
 
+    public void updateIsActive(boolean isActive) {
+        this.isActive = isActive;
+    }
+
     public void applyScore(ScoreCategory scoreCategory, int scoreDelta) {
         if (scoreDelta == 0) {
             return;

@@ -42,6 +42,46 @@ public class Item extends BaseTimeEntity {
     @Column(name = "is_active", nullable = false)
     private Boolean isActive;
 
+    public static Item create(
+            String name,
+            String category,
+            Long requiredPoints,
+            String imageUrl,
+            String description,
+            Integer stock,
+            Boolean isActive
+    ) {
+        Item item = new Item();
+        item.name = name;
+        item.category = category;
+        item.requiredPoints = requiredPoints;
+        item.imageUrl = imageUrl;
+        item.description = description;
+        item.stock = stock;
+        item.isActive = isActive;
+        return item;
+    }
+
+    public void update(
+            String name,
+            String category,
+            Long requiredPoints,
+            String imageUrl,
+            String description,
+            Integer stock
+    ) {
+        this.name = name;
+        this.category = category;
+        this.requiredPoints = requiredPoints;
+        this.imageUrl = imageUrl;
+        this.description = description;
+        this.stock = stock;
+    }
+
+    public void updateStatus(boolean isActive) {
+        this.isActive = isActive;
+    }
+
     public void decreaseStock() {
         if (stock == null || stock <= 0) {
             throw new IllegalStateException("차감할 수 있는 재고가 없습니다.");

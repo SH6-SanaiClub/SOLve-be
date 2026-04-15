@@ -40,6 +40,10 @@ jwt:
 auth:
   verification-token-expiration: ${AUTH_VERIFICATION_TOKEN_EXPIRATION:1800000}
 
+admin:
+  initial-login-id: ${ADMIN_LOGIN_ID:admin}
+  initial-password: ${ADMIN_PASSWORD:admin1234!}
+
 portone:
   api-base-url: ${PORTONE_API_URL:https://api.iamport.kr}
   api-version: ${PORTONE_API_VERSION:v1}
@@ -93,8 +97,7 @@ app:
       font-family: ${REPORT_PDF_FONT_FAMILY:ReportKoreanFont}
       font-locations:
         - ${REPORT_PDF_FONT_PATH_1:classpath:fonts/NotoSansKR-Regular.ttf}
-        - ${REPORT_PDF_FONT_PATH_2:classpath:fonts/NotoSansKR-Medium.ttf}
-        - ${REPORT_PDF_FONT_PATH_3:classpath:fonts/NotoSansKR-Bold.ttf}
+        - ${REPORT_PDF_FONT_PATH_2:classpath:fonts/NotoSansKR-Bold.ttf}
 
   cors:
     allowed-origins:

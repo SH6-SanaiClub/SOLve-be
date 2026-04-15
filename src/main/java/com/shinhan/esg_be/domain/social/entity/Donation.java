@@ -50,4 +50,49 @@ public class Donation extends BaseTimeEntity {
 
     @Column(name = "is_active", nullable = false)
     private Boolean isActive;
+
+    public static Donation create(
+            String name,
+            String summary,
+            String description,
+            Long targetAmount,
+            String imageUrl,
+            LocalDateTime startDate,
+            LocalDateTime endDate,
+            Boolean isActive
+    ) {
+        Donation donation = new Donation();
+        donation.name = name;
+        donation.summary = summary;
+        donation.description = description;
+        donation.targetAmount = targetAmount;
+        donation.currentAmount = 0L;
+        donation.imageUrl = imageUrl;
+        donation.startDate = startDate;
+        donation.endDate = endDate;
+        donation.isActive = isActive;
+        return donation;
+    }
+
+    public void update(
+            String name,
+            String summary,
+            String description,
+            Long targetAmount,
+            String imageUrl,
+            LocalDateTime startDate,
+            LocalDateTime endDate
+    ) {
+        this.name = name;
+        this.summary = summary;
+        this.description = description;
+        this.targetAmount = targetAmount;
+        this.imageUrl = imageUrl;
+        this.startDate = startDate;
+        this.endDate = endDate;
+    }
+
+    public void updateStatus(boolean isActive) {
+        this.isActive = isActive;
+    }
 }

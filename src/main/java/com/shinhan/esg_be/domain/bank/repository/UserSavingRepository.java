@@ -14,6 +14,10 @@ import java.util.Optional;
 
 public interface UserSavingRepository extends JpaRepository<UserSaving, Long> {
 
+    long countByStatus(SavingStatus status);
+
+    long countByFinancialProduct_FinProductIdAndStatus(Long finProductId, SavingStatus status);
+
     @EntityGraph(attributePaths = "financialProduct")
     Optional<UserSaving> findByUser_UserIdAndStatus(Long userId, SavingStatus status);
 
@@ -26,6 +30,9 @@ public interface UserSavingRepository extends JpaRepository<UserSaving, Long> {
 
     @EntityGraph(attributePaths = "financialProduct")
     List<UserSaving> findAllByUser_UserId(Long userId);
+
+    @EntityGraph(attributePaths = {"user", "financialProduct"})
+    List<UserSaving> findAllByFinancialProduct_FinProductId(Long finProductId);
 
     List<UserSaving> findByStatus(SavingStatus status);
 

@@ -1,6 +1,10 @@
 package com.shinhan.esg_be.domain.bank.service;
 
 import com.shinhan.esg_be.domain.bank.dto.response.SavingsRecommendResponse;
+import com.shinhan.esg_be.domain.bank.entity.FinancialProduct;
+import com.shinhan.esg_be.domain.bank.entity.enums.ProductType;
+import com.shinhan.esg_be.domain.bank.entity.enums.SavingStatus;
+import com.shinhan.esg_be.domain.bank.repository.FinancialProductRepository;
 import com.shinhan.esg_be.domain.bank.repository.UserSavingRepository;
 import com.shinhan.esg_be.domain.score.repository.ValidScoreHistoryRepository;
 import com.shinhan.esg_be.domain.stat.entity.UserMonthlyStat;
@@ -17,8 +21,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional(readOnly = true)
@@ -26,6 +33,7 @@ import java.util.Map;
 public class FinanceRecommendService {
 
     private final UserMonthlyStatRepository monthlyStatRepository;
+    private final FinancialProductRepository financialProductRepository;
     private final UserSavingRepository userSavingRepository;
     private final ValidScoreHistoryRepository validScoreHistoryRepository;
     private final UserRepository userRepository;
@@ -37,48 +45,43 @@ public class FinanceRecommendService {
     private static final String SMART_FINANCE = "바른 금융 스마트 적금";
     private static final String ESG_MASTER = "ESG 마스터 적금";
 
-    // FE id 매핑
-    private static final Map<String, String> NAME_TO_FE_ID = Map.of(
-            GREEN_STEP_UP, "green-step-up-savings",
-            EARTH_GUARDIAN, "earth-guardian-savings",
-            WARM_COMPANION, "warm-companion-savings",
-            SMART_FINANCE, "smart-finance-savings",
-            ESG_MASTER, "esg-master-savings"
-    );
-
     public SavingsRecommendResponse recommend(String loginId) {
         User user = userRepository.findByLoginId(loginId)
                 .orElseThrow(() -> new BadRequestException("사용자를 찾을 수 없습니다."));
 
+        Map<String, FinancialProduct> availableSavingsByName = getAvailableSavingsByName(user.getUserId());
+        if (availableSavingsByName.isEmpty()) {
+            return buildNoAvailableResponse();
+        }
+
         long activityMonths = monthlyStatRepository.countByUser_UserId(user.getUserId());
         if (activityMonths == 0) {
-            return buildNewUserResponse();
+            return buildNewUserResponse(availableSavingsByName);
         }
 
         List<UserMonthlyStat> recentStats = monthlyStatRepository.findTop3ByUser_UserIdOrderByCreatedAtDesc(user.getUserId());
         if (recentStats.isEmpty()) {
-            return buildNewUserResponse();
+            return buildNewUserResponse(availableSavingsByName);
         }
 
-        List<String> activeProductNames = userSavingRepository.findActiveProductNamesByUserId(user.getUserId());
         boolean hasPenalty = validScoreHistoryRepository.existsByUserAndReason(user, ScoreReason.ABUSE);
         double multiplier = calcMultiplier(activityMonths);
         UserMonthlyStat current = recentStats.get(0);
 
         List<ScoredProduct> candidates = new ArrayList<>();
-        if (!activeProductNames.contains(EARTH_GUARDIAN)) {
+        if (availableSavingsByName.containsKey(EARTH_GUARDIAN)) {
             candidates.add(scoreEarthGuardian(current, multiplier));
         }
-        if (!activeProductNames.contains(WARM_COMPANION)) {
+        if (availableSavingsByName.containsKey(WARM_COMPANION)) {
             candidates.add(scoreWarmCompanion(current, multiplier));
         }
-        if (!activeProductNames.contains(SMART_FINANCE)) {
+        if (availableSavingsByName.containsKey(SMART_FINANCE)) {
             candidates.add(scoreSmartFinance(current, hasPenalty, multiplier));
         }
-        if (!activeProductNames.contains(GREEN_STEP_UP)) {
+        if (availableSavingsByName.containsKey(GREEN_STEP_UP)) {
             candidates.add(scoreGreenStepUp(recentStats, multiplier));
         }
-        if (!activeProductNames.contains(ESG_MASTER)) {
+        if (availableSavingsByName.containsKey(ESG_MASTER)) {
             candidates.add(scoreEsgMaster(user.getTotalScore(), current, hasPenalty, multiplier));
         }
 
@@ -87,13 +90,30 @@ public class FinanceRecommendService {
                 .thenComparing(Comparator.comparingInt(ScoredProduct::getMatchScore).reversed()));
 
         ScoredProduct best = candidates.isEmpty()
-                ? buildGreenStepUpDefault()
+                ? buildGenericFallback(availableSavingsByName.values().stream().findFirst().orElseThrow())
                 : candidates.get(0);
 
         return SavingsRecommendResponse.builder()
                 .isNewUser(false)
-                .recommendation(toResponse(best, activeProductNames))
+                .recommendation(toResponse(best, availableSavingsByName))
                 .build();
+    }
+
+    private Map<String, FinancialProduct> getAvailableSavingsByName(Long userId) {
+        var activeSavingProductIds = userSavingRepository.findAllByUser_UserIdAndStatus(userId, SavingStatus.ACTIVE)
+                .stream()
+                .map(userSaving -> userSaving.getFinancialProduct().getFinProductId())
+                .collect(Collectors.toSet());
+
+        return financialProductRepository.findByTypeAndIsActiveTrue(ProductType.SAVINGS)
+                .stream()
+                .filter(product -> !activeSavingProductIds.contains(product.getFinProductId()))
+                .collect(Collectors.toMap(
+                        FinancialProduct::getName,
+                        Function.identity(),
+                        (left, right) -> left,
+                        LinkedHashMap::new
+                ));
     }
 
     private ScoredProduct scoreEarthGuardian(UserMonthlyStat current, double multiplier) {
@@ -230,16 +250,21 @@ public class FinanceRecommendService {
         return stat.getMonthlyEScore() + stat.getMonthlySScore() + stat.getMonthlyGScore();
     }
 
-    private SavingsRecommendResponse buildNewUserResponse() {
+    private SavingsRecommendResponse buildNewUserResponse(Map<String, FinancialProduct> availableSavingsByName) {
+        FinancialProduct recommendedProduct = availableSavingsByName.getOrDefault(
+                GREEN_STEP_UP,
+                availableSavingsByName.values().stream().findFirst().orElseThrow()
+        );
+
         return SavingsRecommendResponse.builder()
                 .isNewUser(true)
                 .recommendation(SavingsRecommendResponse.RecommendItem.builder()
-                        .productId(NAME_TO_FE_ID.get(GREEN_STEP_UP))
-                        .productName(GREEN_STEP_UP)
+                        .productId(recommendedProduct.getFinProductId())
+                        .productName(recommendedProduct.getName())
                         .matchScore(0)
-                        .expectedMaxRate("연 5.0%")
+                        .expectedMaxRate(formatRateLabel(recommendedProduct))
                         .reason("아직 활동 데이터가 부족해요. 활동을 시작하면 맞춤 추천이 가능해요.")
-                        .actionable("그린 스텝업 적금으로 꾸준히 플랫폼 활동을 이어나가는 건 어떨까요?")
+                        .actionable("가입 가능한 적금으로 꾸준히 플랫폼 활동을 이어나가는 건 어떨까요?")
                         .isNewUserRecommend(true)
                         .isAlreadyJoined(false)
                         .isIneligible(false)
@@ -247,29 +272,48 @@ public class FinanceRecommendService {
                 .build();
     }
 
-    private ScoredProduct buildGreenStepUpDefault() {
+    private SavingsRecommendResponse buildNoAvailableResponse() {
+        return SavingsRecommendResponse.builder()
+                .isNewUser(false)
+                .recommendation(null)
+                .build();
+    }
+
+    private ScoredProduct buildGenericFallback(FinancialProduct product) {
         return ScoredProduct.of(
-                GREEN_STEP_UP,
+                product.getName(),
                 0,
-                "연 5.0%",
-                "현재 가입 가능한 신규 적금이 없어요.",
-                "보유 중인 적금을 유지하면서 ESG 활동 점수를 계속 쌓아보세요.",
+                formatRateLabel(product),
+                "현재 맞춤 규칙과 정확히 일치하는 추천 상품이 없어 가입 가능한 적금 중 하나를 안내해드려요.",
+                "현재 가입 가능한 적금 상품을 확인하고 원하는 혜택 구조를 선택해보세요.",
                 false
         );
     }
 
-    private SavingsRecommendResponse.RecommendItem toResponse(ScoredProduct product, List<String> activeProductNames) {
+    private SavingsRecommendResponse.RecommendItem toResponse(
+            ScoredProduct product,
+            Map<String, FinancialProduct> availableSavingsByName
+    ) {
+        FinancialProduct financialProduct = availableSavingsByName.get(product.getProductName());
+        if (financialProduct == null) {
+            throw new BadRequestException("추천 대상 적금 상품을 찾을 수 없습니다.");
+        }
+
         return SavingsRecommendResponse.RecommendItem.builder()
-                .productId(NAME_TO_FE_ID.getOrDefault(product.getProductName(), "green-step-up-savings"))
+                .productId(financialProduct.getFinProductId())
                 .productName(product.getProductName())
                 .matchScore(product.getMatchScore())
                 .expectedMaxRate(product.getExpectedMaxRate())
                 .reason(product.getReason())
                 .actionable(product.getActionable())
                 .isNewUserRecommend(false)
-                .isAlreadyJoined(activeProductNames.contains(product.getProductName()))
+                .isAlreadyJoined(false)
                 .isIneligible(product.isIneligible())
                 .build();
+    }
+
+    private String formatRateLabel(FinancialProduct product) {
+        return "연 " + product.getMaxRate().stripTrailingZeros().toPlainString() + "%";
     }
 
     private String buildEarthGuardianReason(int eScore, int consecutive) {

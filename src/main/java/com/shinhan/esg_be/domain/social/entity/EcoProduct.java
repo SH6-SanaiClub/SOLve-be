@@ -45,4 +45,48 @@ public class EcoProduct extends BaseTimeEntity {
 
     @Column(name = "is_active", nullable = false)
     private Boolean isActive;
+
+    public static EcoProduct create(
+            String name,
+            String storeName,
+            String category,
+            Long price,
+            String imageUrl,
+            String description,
+            Integer stock,
+            Boolean isActive
+    ) {
+        EcoProduct ecoProduct = new EcoProduct();
+        ecoProduct.name = name;
+        ecoProduct.storeName = storeName;
+        ecoProduct.category = category;
+        ecoProduct.price = price;
+        ecoProduct.imageUrl = imageUrl;
+        ecoProduct.description = description;
+        ecoProduct.stock = stock;
+        ecoProduct.isActive = isActive;
+        return ecoProduct;
+    }
+
+    public void update(
+            String name,
+            String storeName,
+            String category,
+            Long price,
+            String imageUrl,
+            String description,
+            Integer stock
+    ) {
+        this.name = name;
+        this.storeName = storeName;
+        this.category = category;
+        this.price = price;
+        this.imageUrl = imageUrl;
+        this.description = description;
+        this.stock = stock;
+    }
+
+    public void updateStatus(boolean isActive) {
+        this.isActive = isActive;
+    }
 }

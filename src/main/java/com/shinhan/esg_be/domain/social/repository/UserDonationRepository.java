@@ -11,6 +11,40 @@ import java.util.List;
 
 public interface UserDonationRepository extends JpaRepository<UserDonation, Long> {
 
+    @Query("""
+            SELECT COUNT(ud)
+            FROM UserDonation ud
+            WHERE ud.createdAt >= :startDateTime
+              AND ud.createdAt < :endDateTime
+            """)
+    long countCreatedAtBetween(
+            @Param("startDateTime") LocalDateTime startDateTime,
+            @Param("endDateTime") LocalDateTime endDateTime
+    );
+
+    @Query("""
+            SELECT COALESCE(SUM(ud.payment.amount), 0)
+            FROM UserDonation ud
+            WHERE ud.createdAt >= :startDateTime
+              AND ud.createdAt < :endDateTime
+            """)
+    long sumPaymentAmountCreatedAtBetween(
+            @Param("startDateTime") LocalDateTime startDateTime,
+            @Param("endDateTime") LocalDateTime endDateTime
+    );
+
+    long countByDonation_DonationId(Long donationId);
+
+    @Query("""
+            SELECT ud
+            FROM UserDonation ud
+            JOIN FETCH ud.user u
+            JOIN FETCH ud.payment p
+            WHERE ud.donation.donationId = :donationId
+            ORDER BY ud.createdAt DESC
+            """)
+    List<UserDonation> findAllByDonationIdWithUserAndPayment(@Param("donationId") Long donationId);
+
     // 오늘 특정 캠페인 기부 여부 (하드 필터)
     @Query("""
             SELECT COUNT(ud) FROM UserDonation ud

@@ -30,4 +30,8 @@ public class EnvironmentActivity extends BaseTimeEntity {
         activity.name = name;
         return activity;
     }
+
+    public void updateName(String name) {
+        this.name = name;
+    }
 }

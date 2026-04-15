@@ -59,4 +59,61 @@ public class Volunteer extends BaseTimeEntity {
 
     @Column(name = "longitude")
     private Double longitude;
+
+    public static Volunteer create(
+            String name,
+            String description,
+            LocalDateTime activityDate,
+            String location,
+            Boolean isActive,
+            Integer capacity,
+            Integer volunteerHour,
+            String organization,
+            String qrToken,
+            Double latitude,
+            Double longitude
+    ) {
+        Volunteer volunteer = new Volunteer();
+        volunteer.name = name;
+        volunteer.description = description;
+        volunteer.activityDate = activityDate;
+        volunteer.location = location;
+        volunteer.isActive = isActive;
+        volunteer.capacity = capacity;
+        volunteer.currentEnrolled = 0;
+        volunteer.volunteerHour = volunteerHour;
+        volunteer.organization = organization;
+        volunteer.qrToken = qrToken;
+        volunteer.latitude = latitude;
+        volunteer.longitude = longitude;
+        return volunteer;
+    }
+
+    public void update(
+            String name,
+            String description,
+            LocalDateTime activityDate,
+            String location,
+            Integer capacity,
+            Integer volunteerHour,
+            String organization,
+            String qrToken,
+            Double latitude,
+            Double longitude
+    ) {
+        this.name = name;
+        this.description = description;
+        this.activityDate = activityDate;
+        this.location = location;
+        this.capacity = capacity;
+        this.volunteerHour = volunteerHour;
+        this.organization = organization;
+        this.qrToken = qrToken;
+        this.latitude = latitude;
+        this.longitude = longitude;
+    }
+
+    public void updateStatus(boolean isActive) {
+        this.isActive = isActive;
+    }
 }

@@ -15,7 +15,7 @@ public class SavingsRecommendResponse {
     @Getter
     @Builder
     public static class RecommendItem {
-        private String productId;
+        private Long productId;
         private String productName;
         private int matchScore;
         private String expectedMaxRate;

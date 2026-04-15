@@ -18,8 +18,10 @@ public class JwtTokenProvider {
 
     private static final String TOKEN_TYPE_CLAIM = "type";
     private static final String USER_ID_CLAIM = "userId";
+    private static final String ROLE_CLAIM = "role";
     private static final String ACCESS_TOKEN_TYPE = "access";
     private static final String REFRESH_TOKEN_TYPE = "refresh";
+    private static final String ADMIN_ROLE = "ADMIN";
 
     @Value("${jwt.secret}")
     private String secretKey;
@@ -45,6 +47,23 @@ public class JwtTokenProvider {
         return createToken(userId, loginId, REFRESH_TOKEN_TYPE, refreshTokenValidityInMilliseconds);
     }
 
+    public String createAdminAccessToken(Long adminId, String loginId) {
+        Claims claims = Jwts.claims().setSubject(loginId);
+        claims.put(USER_ID_CLAIM, adminId);
+        claims.put(TOKEN_TYPE_CLAIM, ACCESS_TOKEN_TYPE);
+        claims.put(ROLE_CLAIM, ADMIN_ROLE);
+
+        Date now = new Date();
+        Date validity = new Date(now.getTime() + accessTokenValidityInMilliseconds);
+
+        return Jwts.builder()
+                .setClaims(claims)
+                .setIssuedAt(now)
+                .setExpiration(validity)
+                .signWith(key, SignatureAlgorithm.HS256)
+                .compact();
+    }
+
     public String getLoginId(String token) {
         return getClaims(token).getSubject();
     }
@@ -66,6 +85,10 @@ public class JwtTokenProvider {
 
     public boolean isRefreshToken(String token) {
         return REFRESH_TOKEN_TYPE.equals(getTokenType(token));
+    }
+
+    public String getRole(String token) {
+        return getClaims(token).get(ROLE_CLAIM, String.class);
     }
 
     public long getRefreshTokenValidityInMilliseconds() {
