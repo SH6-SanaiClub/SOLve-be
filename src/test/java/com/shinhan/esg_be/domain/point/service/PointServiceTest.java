@@ -72,6 +72,7 @@ class PointServiceTest {
 
     @BeforeEach
     void setUp() {
+        userPointRepository.deleteAllInBatch();
         activityRewardPolicyRepository.deleteAllInBatch();
         pointPolicyRepository.deleteAllInBatch();
     }

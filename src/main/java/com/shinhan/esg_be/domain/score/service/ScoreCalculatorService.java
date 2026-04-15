@@ -14,6 +14,7 @@ public class ScoreCalculatorService {
         }
 
         int appliedScore = Math.max(0, command.scoreValue());
+        int monthlyAppliedScore = appliedScore;
         boolean isCapped = false;
 
         if (command.applyMonthlyCap() && appliedScore > 0) {
@@ -22,6 +23,7 @@ public class ScoreCalculatorService {
                 appliedScore = remainingMonthlyScore;
                 isCapped = true;
             }
+            monthlyAppliedScore = appliedScore;
         }
 
         int remainingTotalScore = Math.max(0, command.maxScore() - command.currentScore());
@@ -34,8 +36,9 @@ public class ScoreCalculatorService {
                 command.scoreCategory(),
                 appliedScore,
                 command.currentScore() + appliedScore,
-                command.monthlyCurrentScore() + appliedScore,
-                isCapped
+                command.monthlyCurrentScore() + monthlyAppliedScore,
+                isCapped,
+                monthlyAppliedScore
         );
     }
 }
