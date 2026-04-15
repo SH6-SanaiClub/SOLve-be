@@ -37,6 +37,7 @@ public class AuthService {
     private final PortOneIdentityVerificationService portOneIdentityVerificationService;
     private final ObjectMapper objectMapper;
     private final ScoreService scoreService;
+    private final UserSessionCleanupService userSessionCleanupService;
 
     @Value("${auth.verification-token-expiration}")
     private long verificationTokenValidityInMilliseconds;
@@ -143,6 +144,7 @@ public class AuthService {
     public void logout(String refreshToken) {
         TokenSubject tokenSubject = validateRefreshToken(refreshToken);
         redisTemplate.delete(getRefreshTokenKey(tokenSubject.loginId()));
+        userSessionCleanupService.clearUserCaches(tokenSubject.userId());
     }
 
     public boolean checkLoginIdDuplicate(String loginId) {

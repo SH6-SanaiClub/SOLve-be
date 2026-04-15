@@ -55,8 +55,6 @@ public class ScoreService {
         userMonthlyStatRepository.findByUser(user)
                 .orElseGet(() -> userMonthlyStatRepository.save(UserMonthlyStat.create(user)));
 
-        LocalDateTime initializedAt = LocalDateTime.now();
-
         for (ScoreCategory scoreCategory : INITIAL_SCORE_CATEGORIES) {
             EsgScorePolicy esgScorePolicy = esgScorePolicyRepository.findByCategoryAndIsActiveTrue(scoreCategory)
                     .orElseThrow(() -> new IllegalArgumentException("ESG score policy not found."));
@@ -70,7 +68,7 @@ public class ScoreService {
                             scoreCategory,
                             baseScore,
                             ScoreReason.INITIAL_SCORE,
-                            initializedAt.plusYears(100),
+                            null,
                             user.getScore(scoreCategory)
                     )
             );
@@ -115,28 +113,31 @@ public class ScoreService {
                         isMonthlyCapTarget(scoreCategory)
                 )
         );
+        int earnedScore = defaultIfNull(activityRewardPolicy.getScoreValue());
+        int appliedScore = calculationResult.appliedScore();
 
-        if (calculationResult.appliedScore() > 0) {
-            user.applyScore(scoreCategory, calculationResult.appliedScore());
+        if (earnedScore > 0) {
             user.updateLastActivityDate(activityDateTime);
-            userMonthlyStat.addScore(scoreCategory, calculationResult.appliedScore());
+            userMonthlyStat.addScore(scoreCategory, calculationResult.monthlyAppliedScore());
+            user.applyScore(scoreCategory, appliedScore);
 
-            validScoreHistoryRepository.save(
+            validScoreHistoryRepository.saveAndFlush(
                     ValidScoreHistory.create(
                             user,
                             scoreCategory,
-                            calculationResult.appliedScore(),
+                            earnedScore,
                             scoreReason,
                             activityDateTime.plusYears(1),
-                            calculationResult.newScore()
+                            user.getScore(scoreCategory)
                     )
             );
         }
 
+        int scoreAfter = user.getScore(scoreCategory);
         return new ApplyActivityScoreResult(
                 scoreCategory,
-                calculationResult.appliedScore(),
-                calculationResult.newScore(),
+                appliedScore,
+                scoreAfter,
                 calculationResult.monthlyScoreAfter(),
                 calculationResult.cappedByMonthlyLimit()
         );

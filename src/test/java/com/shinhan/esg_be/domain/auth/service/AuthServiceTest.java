@@ -18,7 +18,6 @@ import java.time.LocalDate;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -34,6 +33,7 @@ class AuthServiceTest {
         StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
         PortOneIdentityVerificationService portOneIdentityVerificationService = mock(PortOneIdentityVerificationService.class);
         ScoreService scoreService = mock(ScoreService.class);
+        UserSessionCleanupService userSessionCleanupService = mock(UserSessionCleanupService.class);
         ObjectMapper objectMapper = new ObjectMapper();
         ValueOperations<String, String> valueOperations = mock(ValueOperations.class);
 
@@ -44,7 +44,8 @@ class AuthServiceTest {
                 redisTemplate,
                 portOneIdentityVerificationService,
                 objectMapper,
-                scoreService
+                scoreService,
+                userSessionCleanupService
         );
 
         AuthJoinRequest request = createJoinRequest();

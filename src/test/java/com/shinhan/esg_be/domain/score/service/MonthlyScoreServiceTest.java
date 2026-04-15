@@ -7,6 +7,7 @@ import com.shinhan.esg_be.domain.score.repository.ValidScoreHistoryRepository;
 import com.shinhan.esg_be.domain.score.service.result.MonthlyScoreSettlementResult;
 import com.shinhan.esg_be.domain.stat.entity.UserMonthlyStat;
 import com.shinhan.esg_be.domain.stat.repository.UserMonthlyStatRepository;
+import com.shinhan.esg_be.domain.stat.repository.UserScoreSnapshotRepository;
 import com.shinhan.esg_be.domain.user.entity.User;
 import com.shinhan.esg_be.domain.user.entity.enums.Grade;
 import com.shinhan.esg_be.domain.user.entity.enums.UserType;
@@ -47,8 +48,13 @@ class MonthlyScoreServiceTest {
     @Autowired
     private ValidScoreHistoryRepository validScoreHistoryRepository;
 
+    @Autowired
+    private UserScoreSnapshotRepository userScoreSnapshotRepository;
+
     @BeforeEach
     void setUp() {
+        validScoreHistoryRepository.deleteAllInBatch();
+        userScoreSnapshotRepository.deleteAllInBatch();
         esgScorePolicyRepository.deleteAllInBatch();
     }
 
@@ -60,6 +66,8 @@ class MonthlyScoreServiceTest {
         esgScorePolicyRepository.save(createEsgScorePolicy(ScoreCategory.E, 100, 5, 3, 10, 50));
         esgScorePolicyRepository.save(createEsgScorePolicy(ScoreCategory.S, 500, 25, 3, 50, 250));
         esgScorePolicyRepository.save(createEsgScorePolicy(ScoreCategory.G_ACTIVITY, 200, 10, 3, 10, 100));
+        esgScorePolicyRepository.save(createEsgScorePolicy(ScoreCategory.G_REPAYMENT, 200, 0, 0, 0, 100));
+        seedInitialScores(user);
 
         MonthlyScoreSettlementResult result = monthlyScoreService.settleMonthlyScore(
                 user.getUserId(),
@@ -79,8 +87,7 @@ class MonthlyScoreServiceTest {
         assertThat(savedStat.getMonthlyEScore()).isZero();
         assertThat(savedStat.getMonthlySScore()).isZero();
         assertThat(savedStat.getMonthlyGScore()).isZero();
-        assertThat(scoreHistories).hasSize(2);
-        assertThat(scoreHistories).allMatch(history -> history.getReason() == ScoreReason.CONSECUTIVE_BONUS);
+        assertThat(scoreHistories.stream().filter(history -> history.getReason() == ScoreReason.CONSECUTIVE_BONUS)).hasSize(2);
     }
 
     @Test
@@ -91,6 +98,8 @@ class MonthlyScoreServiceTest {
         esgScorePolicyRepository.save(createEsgScorePolicy(ScoreCategory.E, 100, 5, 3, 10, 50));
         esgScorePolicyRepository.save(createEsgScorePolicy(ScoreCategory.S, 500, 25, 3, 50, 250));
         esgScorePolicyRepository.save(createEsgScorePolicy(ScoreCategory.G_ACTIVITY, 200, 10, 3, 20, 100));
+        esgScorePolicyRepository.save(createEsgScorePolicy(ScoreCategory.G_REPAYMENT, 200, 0, 0, 0, 100));
+        seedInitialScores(user);
 
         MonthlyScoreSettlementResult result = monthlyScoreService.settleMonthlyScore(
                 user.getUserId(),
@@ -110,7 +119,16 @@ class MonthlyScoreServiceTest {
         assertThat(savedStat.getMonthlyEScore()).isZero();
         assertThat(savedStat.getMonthlySScore()).isZero();
         assertThat(savedStat.getMonthlyGScore()).isZero();
-        assertThat(validScoreHistoryRepository.findAll()).isEmpty();
+        assertThat(validScoreHistoryRepository.findAll()).allMatch(history -> history.getReason() == ScoreReason.INITIAL_SCORE);
+    }
+
+    private void seedInitialScores(User user) {
+        validScoreHistoryRepository.saveAll(List.of(
+                ValidScoreHistory.create(user, ScoreCategory.E, 50, ScoreReason.INITIAL_SCORE, null, 50),
+                ValidScoreHistory.create(user, ScoreCategory.S, 250, ScoreReason.INITIAL_SCORE, null, 250),
+                ValidScoreHistory.create(user, ScoreCategory.G_ACTIVITY, 100, ScoreReason.INITIAL_SCORE, null, 100),
+                ValidScoreHistory.create(user, ScoreCategory.G_REPAYMENT, 100, ScoreReason.INITIAL_SCORE, null, 100)
+        ));
     }
 
     private User createUser(String loginId, int eScore, int sScore, int gActivityScore, int gRepaymentScore) {

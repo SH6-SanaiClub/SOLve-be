@@ -52,8 +52,10 @@ public class FeatureExtractor {
 
         // 2. 이번 달 카테고리별 획득 점수 (월 한도 필터용)
         YearMonth now = YearMonth.now();
+        LocalDateTime monthStart = now.atDay(1).atStartOfDay();
+        LocalDateTime monthEnd = now.plusMonths(1).atDay(1).atStartOfDay();
         var monthlyStat = userMonthlyStatRepository
-                .findByUserAndMonth(userId, now.getYear(), now.getMonthValue());
+                .findByUserAndMonth(userId, monthStart, monthEnd);
 
         int monthlyEScore = monthlyStat.map(s -> s.getMonthlyEScore()).orElse(0);
         int monthlySScore = monthlyStat.map(s -> s.getMonthlySScore()).orElse(0);
@@ -93,17 +95,21 @@ public class FeatureExtractor {
                 .existsByUser_UserIdAndValidUntilBetween(userId, nowDateTime, expiryThreshold);
 
         // 7. 금융 상품 상태 (B3 금융연계도용)
-        var activeSaving = userSavingRepository
-                .findByUser_UserIdAndStatus(userId, SavingStatus.ACTIVE);
-        var activeLoan = userLoanRepository
-                .findByUser_UserIdAndStatus(userId, LoanStatus.ACTIVE);
+        var activeSavings = userSavingRepository
+                .findAllByUser_UserIdAndStatus(userId, SavingStatus.ACTIVE);
+        boolean hasSaving = !activeSavings.isEmpty();
+        boolean hasLoan = userLoanRepository.existsByUser_UserIdAndStatus(userId, LoanStatus.ACTIVE);
 
-        boolean hasSaving        = activeSaving.isPresent();
-        boolean hasLoan          = activeLoan.isPresent();
-        LocalDate savingMaturityDate = activeSaving
-                .map(UserSaving::getMaturityDate).orElse(null);
-        Long savingFinProductId  = activeSaving
-                .map(s -> s.getFinancialProduct().getFinProductId()).orElse(null);
+        UserSaving primarySaving = activeSavings.stream()
+                .min(java.util.Comparator.comparing(UserSaving::getMaturityDate))
+                .orElse(null);
+
+        LocalDate savingMaturityDate = primarySaving != null
+                ? primarySaving.getMaturityDate()
+                : null;
+        Long savingFinProductId = primarySaving != null
+                ? primarySaving.getFinancialProduct().getFinProductId()
+                : null;
 
         // 8. 추가 계산 필드 (추천 엔진 전용)
         int totalScore = user.getEScore() + user.getSScore() + user.getGActivityScore();

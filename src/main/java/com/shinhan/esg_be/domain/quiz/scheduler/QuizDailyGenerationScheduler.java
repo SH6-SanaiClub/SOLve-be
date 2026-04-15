@@ -2,6 +2,7 @@ package com.shinhan.esg_be.domain.quiz.scheduler;
 
 import com.shinhan.esg_be.domain.quiz.service.QuizGenerationService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.context.event.EventListener;
@@ -9,6 +10,7 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 
 @Component
 @RequiredArgsConstructor
+@ConditionalOnProperty(name = "app.scheduler.enabled", havingValue = "true")
 public class QuizDailyGenerationScheduler {
 
     private final QuizGenerationService quizGenerationService;

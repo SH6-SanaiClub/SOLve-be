@@ -6,12 +6,13 @@ import com.google.zxing.MultiFormatWriter;
 import com.google.zxing.WriterException;
 import com.google.zxing.client.j2se.MatrixToImageWriter;
 import com.google.zxing.common.BitMatrix;
+import com.openhtmltopdf.outputdevice.helper.BaseRendererBuilder;
 import com.openhtmltopdf.pdfboxout.PdfRendererBuilder;
 import com.shinhan.esg_be.domain.report.dto.response.ReportPdfFile;
 import com.shinhan.esg_be.domain.report.entity.ReportIssue;
 import com.shinhan.esg_be.domain.report.repository.ReportIssueRepository;
+import com.shinhan.esg_be.global.config.ReportProperties;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -23,6 +24,7 @@ import javax.imageio.ImageIO;
 import java.awt.AlphaComposite;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -31,31 +33,19 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.format.DateTimeFormatter;
-import java.util.Base64;
-import java.util.List;
 import java.util.Map;
+import java.util.Base64;
+import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class ReportPdfService {
 
-    private static final String TEMPLATE_PATH = "templates/report/certificate-template.html";
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy.MM.dd");
-    private static final List<Path> FONT_CANDIDATES = List.of(
-            Path.of("C:/Windows/Fonts/NanumGothic.ttf"),
-            Path.of("C:/Windows/Fonts/malgun.ttf"),
-            Path.of("/usr/share/fonts/truetype/nanum/NanumGothic.ttf"),
-            Path.of("/usr/share/fonts/truetype/malgun/malgun.ttf")
-    );
 
     private final ReportIssueRepository reportIssueRepository;
-
-    @Value("${app.report-verification-base-url:http://localhost:5173}")
-    private String reportVerificationBaseUrl;
-
-    @Value("${app.report-watermark-image-url:https://solve-s3-storage.s3.ap-northeast-2.amazonaws.com/verified.webp}")
-    private String reportWatermarkImageUrl;
+    private final ReportProperties reportProperties;
 
     public ReportPdfFile download(Long userId, Long issueId) {
         ReportIssue reportIssue = reportIssueRepository.findByReportIssueIdAndUser_UserId(issueId, userId)
@@ -75,19 +65,17 @@ public class ReportPdfService {
     }
 
     private void renderPdf(String html, ByteArrayOutputStream outputStream) throws IOException {
-        Path fontPath = resolveFontPath();
-
         PdfRendererBuilder builder = new PdfRendererBuilder();
         builder.useFastMode();
         builder.withHtmlContent(html, null);
         builder.toStream(outputStream);
-        builder.useFont(fontPath.toFile(), "ReportKoreanFont");
+        registerFonts(builder);
         builder.run();
     }
 
     private String buildHtml(ReportIssue reportIssue) throws IOException, WriterException {
         String template = loadTemplate();
-        String verificationUrl = buildVerificationUrl(reportIssue);
+        String verificationUrl = reportProperties.buildVerificationUrl(reportIssue.getVerificationToken());
         String watermarkImageDataUrl = buildWatermarkImageDataUrl();
 
         return replacePlaceholders(
@@ -120,7 +108,7 @@ public class ReportPdfService {
     }
 
     private String loadTemplate() throws IOException {
-        ClassPathResource templateResource = new ClassPathResource(TEMPLATE_PATH);
+        ClassPathResource templateResource = new ClassPathResource(reportProperties.getPdf().getTemplatePath());
         try (InputStream inputStream = templateResource.getInputStream()) {
             return StreamUtils.copyToString(inputStream, StandardCharsets.UTF_8);
         }
@@ -134,13 +122,70 @@ public class ReportPdfService {
         return rendered;
     }
 
-    private Path resolveFontPath() throws IOException {
-        for (Path candidate : FONT_CANDIDATES) {
-            if (Files.exists(candidate)) {
-                return candidate;
+    private void registerFonts(PdfRendererBuilder builder) throws IOException {
+        boolean registered = false;
+
+        for (String location : reportProperties.getPdf().getFontLocations()) {
+            if (location == null || location.isBlank()) {
+                continue;
+            }
+
+            if (registerFont(builder, location.trim())) {
+                registered = true;
             }
         }
-        throw new IOException("No Korean font file found for report pdf generation.");
+
+        if (!registered) {
+            throw new IOException("No Korean font file found for report pdf generation.");
+        }
+    }
+
+    private boolean registerFont(PdfRendererBuilder builder, String location) throws IOException {
+        Integer weight = resolveFontWeight(location);
+
+        if (location.startsWith("classpath:")) {
+            ClassPathResource resource = new ClassPathResource(location.substring("classpath:".length()));
+            if (!resource.exists()) {
+                return false;
+            }
+            byte[] fontBytes;
+            try (InputStream inputStream = resource.getInputStream()) {
+                fontBytes = StreamUtils.copyToByteArray(inputStream);
+            }
+            builder.useFont(
+                    () -> new ByteArrayInputStream(fontBytes),
+                    reportProperties.getPdf().getFontFamily(),
+                    weight,
+                    BaseRendererBuilder.FontStyle.NORMAL,
+                    true
+            );
+            return true;
+        }
+
+        Path candidate = Path.of(location);
+        if (!Files.exists(candidate)) {
+            return false;
+        }
+
+        builder.useFont(
+                candidate.toFile(),
+                reportProperties.getPdf().getFontFamily(),
+                weight,
+                BaseRendererBuilder.FontStyle.NORMAL,
+                true
+        );
+        return true;
+    }
+
+    private Integer resolveFontWeight(String location) {
+        String normalized = location.toLowerCase(Locale.ROOT);
+        if (normalized.contains("bold")) {
+            return 700;
+        }
+        if (normalized.contains("medium")) {
+            return 500;
+        }
+        return 400;
     }
 
     private String buildQrImageDataUrl(String verificationUrl) throws WriterException, IOException {
@@ -153,7 +198,7 @@ public class ReportPdfService {
     }
 
     private String buildWatermarkImageDataUrl() {
-        try (InputStream inputStream = new URL(reportWatermarkImageUrl).openStream();
+        try (InputStream inputStream = new URL(reportProperties.getWatermarkImageUrl()).openStream();
              ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
             BufferedImage watermarkImage = ImageIO.read(inputStream);
             if (watermarkImage == null) {
@@ -199,13 +244,6 @@ public class ReportPdfService {
                 hints
         );
         return MatrixToImageWriter.toBufferedImage(matrix);
-    }
-
-    private String buildVerificationUrl(ReportIssue reportIssue) {
-        String normalizedBaseUrl = reportVerificationBaseUrl.endsWith("/")
-                ? reportVerificationBaseUrl.substring(0, reportVerificationBaseUrl.length() - 1)
-                : reportVerificationBaseUrl;
-        return normalizedBaseUrl + "/report/verify/" + reportIssue.getVerificationToken();
     }
 
     private String resolveConsecutiveLabel(ReportIssue reportIssue) {

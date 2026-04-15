@@ -125,11 +125,11 @@ public class MyProfileService {
     public WithdrawMyAccountResponse withdrawMyAccount(Long userId) {
         User user = findUser(userId);
 
-        if (userSavingRepository.findByUser_UserIdAndStatus(userId, SavingStatus.ACTIVE).isPresent()) {
+        if (userSavingRepository.existsByUser_UserIdAndStatus(userId, SavingStatus.ACTIVE)) {
             throw new BadRequestException("적금 상품을 보유하고 있어 회원탈퇴가 불가능합니다.");
         }
 
-        if (userLoanRepository.findByUser_UserIdAndStatus(userId, LoanStatus.ACTIVE).isPresent()) {
+        if (userLoanRepository.existsByUser_UserIdAndStatus(userId, LoanStatus.ACTIVE)) {
             throw new BadRequestException("대출 상품을 보유하고 있어 회원탈퇴가 불가능합니다.");
         }
 

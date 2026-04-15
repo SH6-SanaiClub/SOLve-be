@@ -1,6 +1,7 @@
 package com.shinhan.esg_be.global.exception;
 
 import jakarta.validation.ConstraintViolationException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -10,6 +11,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.time.LocalDateTime;
 
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -32,11 +34,18 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ApiErrorResponse> handleRuntime(RuntimeException e) {
+        log.error("Unhandled runtime exception", e);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(error("INTERNAL_SERVER_ERROR", e.getMessage()));
+                .body(error("INTERNAL_SERVER_ERROR", defaultMessage(e.getMessage())));
     }
 
     private ApiErrorResponse error(String code, String message) {
         return new ApiErrorResponse(code, message, LocalDateTime.now());
+    }
+
+    private String defaultMessage(String message) {
+        return message == null || message.isBlank()
+                ? "서버 내부 오류가 발생했습니다."
+                : message;
     }
 }

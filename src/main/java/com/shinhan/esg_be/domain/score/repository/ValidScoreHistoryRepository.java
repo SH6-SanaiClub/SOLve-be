@@ -15,6 +15,8 @@ public interface ValidScoreHistoryRepository extends JpaRepository<ValidScoreHis
 
     List<ValidScoreHistory> findByUserAndValidUntilBefore(User user, LocalDateTime validUntil);
 
+    List<ValidScoreHistory> findByUser(User user);
+
     boolean existsByUserAndReason(User user, ScoreReason reason);
 
     boolean existsByUserAndReasonAndCreatedAtBetween(

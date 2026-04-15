@@ -38,19 +38,35 @@ public class ActivityFilterService {
             List<ActivityCandidateDto> candidates,
             UserFeatureDto feature
     ) {
+        return filterInternal(candidates, feature, true);
+    }
+
+    public List<ActivityCandidateDto> filterIgnoringMonthlyLimit(
+            List<ActivityCandidateDto> candidates,
+            UserFeatureDto feature
+    ) {
+        return filterInternal(candidates, feature, false);
+    }
+
+    private List<ActivityCandidateDto> filterInternal(
+            List<ActivityCandidateDto> candidates,
+            UserFeatureDto feature,
+            boolean enforceMonthlyLimit
+    ) {
         LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
         return candidates.stream()
-                .filter(c -> passesAllFilters(c, feature, startOfDay))
+                .filter(c -> passesAllFilters(c, feature, startOfDay, enforceMonthlyLimit))
                 .collect(Collectors.toList());
     }
 
     private boolean passesAllFilters(
             ActivityCandidateDto c,
             UserFeatureDto feature,
-            LocalDateTime startOfDay
+            LocalDateTime startOfDay,
+            boolean enforceMonthlyLimit
     ) {
         // 필터 1: 월 카테고리 한도 도달 여부
-        if (isMonthlyLimitReached(c, feature)) {
+        if (enforceMonthlyLimit && isMonthlyLimitReached(c, feature)) {
             log.debug("월 한도 필터 탈락 - activityType={} referenceId={}", c.getActivityType(), c.getReferenceId());
             return false;
         }

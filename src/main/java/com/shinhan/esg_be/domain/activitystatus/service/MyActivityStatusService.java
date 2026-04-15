@@ -9,10 +9,11 @@ import com.shinhan.esg_be.domain.activitystatus.dto.response.ActivityStatusSumma
 import com.shinhan.esg_be.domain.policy.entity.EsgScorePolicy;
 import com.shinhan.esg_be.domain.policy.repository.EsgScorePolicyRepository;
 import com.shinhan.esg_be.domain.activitystatus.repository.ActivityStatusQueryRepository;
-import com.shinhan.esg_be.domain.score.entity.ExpiredScoreHistory;
 import com.shinhan.esg_be.domain.score.entity.ValidScoreHistory;
 import com.shinhan.esg_be.domain.stat.entity.UserMonthlyStat;
+import com.shinhan.esg_be.domain.stat.entity.UserScoreSnapshot;
 import com.shinhan.esg_be.domain.stat.repository.UserMonthlyStatRepository;
+import com.shinhan.esg_be.domain.stat.repository.UserScoreSnapshotRepository;
 import com.shinhan.esg_be.domain.user.entity.User;
 import com.shinhan.esg_be.domain.user.entity.enums.Grade;
 import com.shinhan.esg_be.domain.user.repository.UserRepository;
@@ -76,6 +77,7 @@ public class MyActivityStatusService {
     private final UserRepository userRepository;
     private final ActivityStatusQueryRepository activityStatusQueryRepository;
     private final UserMonthlyStatRepository userMonthlyStatRepository;
+    private final UserScoreSnapshotRepository userScoreSnapshotRepository;
     private final EsgScorePolicyRepository esgScorePolicyRepository;
     private final Clock clock;
 
@@ -182,46 +184,37 @@ public class MyActivityStatusService {
             months.add(currentMonth.minusMonths(index));
         }
 
-        LocalDateTime from = months.get(0).atDay(1).atStartOfDay();
-        LocalDateTime to = currentMonth.plusMonths(1).atDay(1).atStartOfDay();
-
-        List<ValidScoreHistory> histories = activityStatusQueryRepository.findHistoriesInPeriod(
-                user.getUserId(),
-                from,
-                to
-        );
-        List<ExpiredScoreHistory> expiredHistories = activityStatusQueryRepository.findExpiredHistoriesByValidUntilPeriod(
-                user.getUserId(),
-                from,
-                to
-        );
-
-        Map<YearMonth, Integer> monthlyNetDeltaByMonth = new HashMap<>();
-        for (ValidScoreHistory history : histories) {
-            YearMonth yearMonth = YearMonth.from(history.getCreatedAt());
-            monthlyNetDeltaByMonth.merge(yearMonth, history.getChangeAmount(), Integer::sum);
-        }
-        for (ExpiredScoreHistory history : expiredHistories) {
-            YearMonth yearMonth = YearMonth.from(history.getValidUntil());
-            monthlyNetDeltaByMonth.merge(yearMonth, -history.getChangeAmount(), Integer::sum);
-        }
-
-        Map<YearMonth, Integer> monthEndScoreByMonth = new HashMap<>();
-        int rollingScore = user.getTotalScore();
-        for (int index = months.size() - 1; index >= 0; index--) {
-            YearMonth yearMonth = months.get(index);
-            monthEndScoreByMonth.put(yearMonth, rollingScore);
-            rollingScore -= monthlyNetDeltaByMonth.getOrDefault(yearMonth, 0);
+        Map<YearMonth, UserScoreSnapshot> snapshotsByMonth = new HashMap<>();
+        for (UserScoreSnapshot snapshot : userScoreSnapshotRepository.findByUser_UserIdOrderBySnapshotDateDesc(user.getUserId())) {
+            YearMonth yearMonth = YearMonth.from(snapshot.getSnapshotDate());
+            snapshotsByMonth.put(yearMonth, snapshot);
         }
 
         return months.stream()
                 .map(yearMonth -> new MonthScoreSnapshot(
                         yearMonth.getYear(),
                         yearMonth.getMonthValue(),
-                        monthEndScoreByMonth.getOrDefault(yearMonth, user.getTotalScore()),
+                        resolveMonthScore(user, snapshotsByMonth, yearMonth, currentMonth),
                         yearMonth.equals(currentMonth)
                 ))
                 .toList();
+    }
+
+    private int resolveMonthScore(
+            User user,
+            Map<YearMonth, UserScoreSnapshot> snapshotsByMonth,
+            YearMonth yearMonth,
+            YearMonth currentMonth
+    ) {
+        if (yearMonth.equals(currentMonth)) {
+            return user.getTotalScore();
+        }
+
+        UserScoreSnapshot snapshot = snapshotsByMonth.get(yearMonth);
+        if (snapshot == null) {
+            return user.getTotalScore();
+        }
+        return snapshot.getTotalScore();
     }
 
     private ConsecutiveAchievementBadgeSummary buildConsecutiveAchievementBadgeSummary(User user) {
@@ -310,8 +303,6 @@ public class MyActivityStatusService {
                 resolveLogTitle(history.getReason()),
                 toResponseCategory(history.getCategory()),
                 history.getReason(),
-                history.getChangeAmount(),
-                history.getScoreAfter(),
                 history.getCreatedAt()
         );
     }

@@ -4,6 +4,8 @@ import com.shinhan.esg_be.domain.score.entity.ExpiredScoreHistory;
 import com.shinhan.esg_be.domain.score.entity.ValidScoreHistory;
 import com.shinhan.esg_be.domain.score.repository.ExpiredScoreHistoryRepository;
 import com.shinhan.esg_be.domain.score.repository.ValidScoreHistoryRepository;
+import com.shinhan.esg_be.domain.policy.entity.EsgScorePolicy;
+import com.shinhan.esg_be.domain.policy.repository.EsgScorePolicyRepository;
 import com.shinhan.esg_be.domain.user.entity.User;
 import com.shinhan.esg_be.domain.user.entity.enums.Grade;
 import com.shinhan.esg_be.domain.user.entity.enums.UserType;
@@ -11,6 +13,7 @@ import com.shinhan.esg_be.domain.user.repository.UserRepository;
 import com.shinhan.esg_be.global.common.enums.ScoreCategory;
 import com.shinhan.esg_be.global.common.enums.ScoreReason;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -40,10 +43,41 @@ class ScoreExpirationServiceTest {
     @Autowired
     private ExpiredScoreHistoryRepository expiredScoreHistoryRepository;
 
+    @Autowired
+    private EsgScorePolicyRepository esgScorePolicyRepository;
+
+    @BeforeEach
+    void setUp() {
+        validScoreHistoryRepository.deleteAllInBatch();
+        expiredScoreHistoryRepository.deleteAllInBatch();
+        esgScorePolicyRepository.deleteAllInBatch();
+    }
+
     @Test
-    @DisplayName("만료된 점수는 사용자 점수에서 차감하고 만료 이력으로 이동한다")
+    @DisplayName("만료된 점수는 만료 이력으로 이동하고 남은 유효 이력으로 점수를 재계산한다")
     void expireUserScores() {
         User user = userRepository.save(createUser("expire-user-1", 70, 250, 100, 100));
+        esgScorePolicyRepository.save(createEsgScorePolicy(ScoreCategory.E, 100, 25, 3, 10, 50));
+        validScoreHistoryRepository.save(
+                ValidScoreHistory.create(
+                        user,
+                        ScoreCategory.E,
+                        50,
+                        ScoreReason.INITIAL_SCORE,
+                        null,
+                        50
+                )
+        );
+        validScoreHistoryRepository.save(
+                ValidScoreHistory.create(
+                        user,
+                        ScoreCategory.E,
+                        10,
+                        ScoreReason.PHOTO,
+                        LocalDateTime.of(2026, 5, 1, 0, 0),
+                        60
+                )
+        );
         validScoreHistoryRepository.save(
                 ValidScoreHistory.create(
                         user,
@@ -66,21 +100,31 @@ class ScoreExpirationServiceTest {
 
         assertThat(expiredCount).isEqualTo(1);
         assertThat(savedUser.getEScore()).isEqualTo(60);
-        assertThat(validScoreHistories).isEmpty();
+        assertThat(validScoreHistories).hasSize(2);
         assertThat(expiredScoreHistories).hasSize(1);
         assertThat(expiredScoreHistories.get(0).getReason()).isEqualTo(ScoreReason.PHOTO);
-        assertThat(expiredScoreHistories.get(0).getScoreAfter()).isEqualTo(60);
     }
 
     @Test
     @DisplayName("만료 대상 점수가 없으면 아무 것도 처리하지 않는다")
     void expireUserScoresWithoutExpiredTarget() {
         User user = userRepository.save(createUser("expire-user-2", 70, 250, 100, 100));
+        esgScorePolicyRepository.save(createEsgScorePolicy(ScoreCategory.E, 100, 25, 3, 10, 50));
         validScoreHistoryRepository.save(
                 ValidScoreHistory.create(
                         user,
                         ScoreCategory.E,
-                        10,
+                        50,
+                        ScoreReason.INITIAL_SCORE,
+                        null,
+                        50
+                )
+        );
+        validScoreHistoryRepository.save(
+                ValidScoreHistory.create(
+                        user,
+                        ScoreCategory.E,
+                        20,
                         ScoreReason.PHOTO,
                         LocalDateTime.of(2026, 5, 1, 0, 0),
                         70
@@ -98,7 +142,7 @@ class ScoreExpirationServiceTest {
 
         assertThat(expiredCount).isZero();
         assertThat(savedUser.getEScore()).isEqualTo(70);
-        assertThat(validScoreHistories).hasSize(1);
+        assertThat(validScoreHistories).hasSize(2);
         assertThat(expiredScoreHistories).isEmpty();
     }
 
@@ -106,13 +150,14 @@ class ScoreExpirationServiceTest {
     @DisplayName("초기 점수와 어뷰징 감점은 만료 대상에서 제외한다")
     void excludeInitialScoreAndAbuseFromExpiration() {
         User user = userRepository.save(createUser("expire-user-3", 45, 250, 100, 100));
+        esgScorePolicyRepository.save(createEsgScorePolicy(ScoreCategory.E, 100, 25, 3, 10, 50));
         validScoreHistoryRepository.save(
                 ValidScoreHistory.create(
                         user,
                         ScoreCategory.E,
-                        5,
+                        -5,
                         ScoreReason.ABUSE,
-                        LocalDateTime.of(2026, 4, 1, 0, 0),
+                        null,
                         45
                 )
         );
@@ -122,7 +167,7 @@ class ScoreExpirationServiceTest {
                         ScoreCategory.E,
                         50,
                         ScoreReason.INITIAL_SCORE,
-                        LocalDateTime.of(2026, 4, 1, 0, 0),
+                        null,
                         50
                 )
         );
@@ -162,6 +207,25 @@ class ScoreExpirationServiceTest {
         ReflectionTestUtils.setField(user, "isActive", true);
         ReflectionTestUtils.setField(user, "isLinked", false);
         return user;
+    }
+
+    private EsgScorePolicy createEsgScorePolicy(
+            ScoreCategory scoreCategory,
+            int maxScore,
+            int monthlyMaxScore,
+            int consecutiveTargetMonths,
+            int consecutiveBonusScore,
+            int baseScore
+    ) {
+        EsgScorePolicy esgScorePolicy = newInstance(EsgScorePolicy.class);
+        ReflectionTestUtils.setField(esgScorePolicy, "category", scoreCategory);
+        ReflectionTestUtils.setField(esgScorePolicy, "monthlyMaxScore", monthlyMaxScore);
+        ReflectionTestUtils.setField(esgScorePolicy, "maxScore", maxScore);
+        ReflectionTestUtils.setField(esgScorePolicy, "consecutiveTargetMonths", consecutiveTargetMonths);
+        ReflectionTestUtils.setField(esgScorePolicy, "consecutiveBonusScore", consecutiveBonusScore);
+        ReflectionTestUtils.setField(esgScorePolicy, "isActive", true);
+        ReflectionTestUtils.setField(esgScorePolicy, "baseScore", baseScore);
+        return esgScorePolicy;
     }
 
     private <T> T newInstance(Class<T> type) {
