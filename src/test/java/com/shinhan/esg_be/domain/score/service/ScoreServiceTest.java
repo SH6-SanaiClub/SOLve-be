@@ -17,6 +17,7 @@ import com.shinhan.esg_be.domain.user.repository.UserRepository;
 import com.shinhan.esg_be.global.common.enums.ActivityType;
 import com.shinhan.esg_be.global.common.enums.ScoreCategory;
 import com.shinhan.esg_be.global.common.enums.ScoreReason;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -55,6 +56,9 @@ class ScoreServiceTest {
 
     @Autowired
     private ValidScoreHistoryRepository validScoreHistoryRepository;
+
+    @Autowired
+    private EntityManager entityManager;
 
     @BeforeEach
     void setUp() {
@@ -95,10 +99,20 @@ class ScoreServiceTest {
     @Test
     @DisplayName("월 최대 점수를 넘기면 남은 점수만 반영한다")
     void applyRemainingScoreWithinMonthlyLimit() {
-        User user = userRepository.save(createUser("score-user-2", 50, 250, 100, 100));
+        User user = userRepository.save(createUser("score-user-2", 54, 250, 100, 100));
         userMonthlyStatRepository.save(createUserMonthlyStat(user, 4, 0, 0));
         activityRewardPolicyRepository.save(createActivityRewardPolicy(ActivityType.PHOTO, ScoreCategory.E, 3));
         esgScorePolicyRepository.save(createEsgScorePolicy(ScoreCategory.E, 100, 5, 3, 10, 50));
+        for (int day = 1; day <= 4; day++) {
+            saveScoreHistory(
+                    user,
+                    ScoreCategory.E,
+                    1,
+                    ScoreReason.PHOTO,
+                    LocalDateTime.of(2027, 4, day, 0, 0),
+                    LocalDateTime.of(2026, 4, day, 10, 0)
+            );
+        }
 
         ApplyActivityScoreResult result = scoreService.applyActivityScore(
                 new ApplyActivityScoreCommand(
@@ -114,7 +128,7 @@ class ScoreServiceTest {
 
         assertThat(result.appliedScore()).isEqualTo(1);
         assertThat(result.cappedByMonthlyLimit()).isTrue();
-        assertThat(savedUser.getEScore()).isEqualTo(51);
+        assertThat(savedUser.getEScore()).isEqualTo(55);
         assertThat(savedStat.getMonthlyEScore()).isEqualTo(5);
     }
 
@@ -124,7 +138,7 @@ class ScoreServiceTest {
         User user = userRepository.save(createUser("score-user-3", 95, 250, 100, 100));
         userMonthlyStatRepository.save(createUserMonthlyStat(user, 0, 0, 0));
         activityRewardPolicyRepository.save(createActivityRewardPolicy(ActivityType.PHOTO, ScoreCategory.E, 10));
-        esgScorePolicyRepository.save(createEsgScorePolicy(ScoreCategory.E, 100, 5, 3, 10, 50));
+        esgScorePolicyRepository.save(createEsgScorePolicy(ScoreCategory.E, 100, 5, 3, 10, 95));
 
         ApplyActivityScoreResult result = scoreService.applyActivityScore(
                 new ApplyActivityScoreCommand(
@@ -172,6 +186,7 @@ class ScoreServiceTest {
         assertThat(savedStat.getMonthlyGScore()).isZero();
         assertThat(scoreHistories).hasSize(4);
         assertThat(scoreHistories).allMatch(history -> history.getReason() == ScoreReason.INITIAL_SCORE);
+        assertThat(scoreHistories).allMatch(history -> history.getValidUntil() == null);
         assertThat(scoreHistories).extracting(ValidScoreHistory::getChangeAmount)
                 .containsExactly(50, 250, 100, 100);
     }
@@ -312,6 +327,26 @@ class ScoreServiceTest {
         ReflectionTestUtils.setField(esgScorePolicy, "isActive", true);
         ReflectionTestUtils.setField(esgScorePolicy, "baseScore", baseScore);
         return esgScorePolicy;
+    }
+
+    private void saveScoreHistory(
+            User user,
+            ScoreCategory scoreCategory,
+            int changeAmount,
+            ScoreReason scoreReason,
+            LocalDateTime validUntil,
+            LocalDateTime createdAt
+    ) {
+        ValidScoreHistory savedHistory = validScoreHistoryRepository.saveAndFlush(
+                ValidScoreHistory.create(user, scoreCategory, changeAmount, scoreReason, validUntil, user.getScore(scoreCategory))
+        );
+
+        entityManager.createNativeQuery("update valid_score_history set created_at = :createdAt where score_id = :scoreId")
+                .setParameter("createdAt", createdAt)
+                .setParameter("scoreId", savedHistory.getScoreId())
+                .executeUpdate();
+        entityManager.flush();
+        entityManager.clear();
     }
 
     private <T> T newInstance(Class<T> type) {

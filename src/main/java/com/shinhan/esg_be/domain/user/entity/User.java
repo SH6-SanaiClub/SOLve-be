@@ -160,6 +160,14 @@ public class User extends BaseTimeEntity {
         recalculateGrade();
     }
 
+    public void replaceScores(int eScore, int sScore, int gActivityScore, int gRepaymentScore) {
+        this.eScore = eScore;
+        this.sScore = sScore;
+        this.gActivityScore = gActivityScore;
+        this.gRepaymentScore = gRepaymentScore;
+        recalculateGrade();
+    }
+
     public void applyPoint(int pointDelta) {
         if (pointDelta == 0) {
             return;

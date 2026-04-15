@@ -49,7 +49,6 @@ public class ScorePenaltyService {
         applyPenaltyHistory(user, ScoreCategory.E, eReduction, ScoreReason.ABUSE, baseDateTime);
         applyPenaltyHistory(user, ScoreCategory.S, sReduction, ScoreReason.ABUSE, baseDateTime);
         applyPenaltyHistory(user, ScoreCategory.G_ACTIVITY, gReduction, ScoreReason.ABUSE, baseDateTime);
-
         user.increaseAbuseCount();
         if (Boolean.TRUE.equals(penaltyPolicy.getIsBlockLoan())) {
             user.blockLoan();
@@ -156,14 +155,15 @@ public class ScorePenaltyService {
             return;
         }
 
+        LocalDateTime validUntil = scoreReason == ScoreReason.ABUSE ? null : baseDateTime.plusYears(1);
         user.applyScore(scoreCategory, -reduction);
-        validScoreHistoryRepository.save(
+        validScoreHistoryRepository.saveAndFlush(
                 ValidScoreHistory.create(
                         user,
                         scoreCategory,
                         -reduction,
                         scoreReason,
-                        baseDateTime.plusYears(100),
+                        validUntil,
                         user.getScore(scoreCategory)
                 )
         );

@@ -50,10 +50,11 @@ public class ExpiredScoreHistory {
     @Column(nullable = false, length = 30)
     private ScoreReason reason;
 
-    @Column(name = "valid_until", nullable = false)
+    @Column(name = "valid_until")
     private LocalDateTime validUntil;
 
     @Column(name = "score_after", nullable = false)
+    @Deprecated
     private Integer scoreAfter;
 
     @CreatedDate

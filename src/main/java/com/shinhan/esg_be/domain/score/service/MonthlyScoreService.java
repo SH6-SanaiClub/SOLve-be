@@ -6,7 +6,9 @@ import com.shinhan.esg_be.domain.score.entity.ValidScoreHistory;
 import com.shinhan.esg_be.domain.score.repository.ValidScoreHistoryRepository;
 import com.shinhan.esg_be.domain.score.service.result.MonthlyScoreSettlementResult;
 import com.shinhan.esg_be.domain.stat.entity.UserMonthlyStat;
+import com.shinhan.esg_be.domain.stat.entity.UserScoreSnapshot;
 import com.shinhan.esg_be.domain.stat.repository.UserMonthlyStatRepository;
+import com.shinhan.esg_be.domain.stat.repository.UserScoreSnapshotRepository;
 import com.shinhan.esg_be.domain.user.entity.User;
 import com.shinhan.esg_be.domain.user.repository.UserRepository;
 import com.shinhan.esg_be.global.common.enums.ScoreCategory;
@@ -15,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -33,6 +36,7 @@ public class MonthlyScoreService {
     private final UserMonthlyStatRepository userMonthlyStatRepository;
     private final EsgScorePolicyRepository esgScorePolicyRepository;
     private final ValidScoreHistoryRepository validScoreHistoryRepository;
+    private final UserScoreSnapshotRepository userScoreSnapshotRepository;
 
     @Transactional
     public MonthlyScoreSettlementResult settleMonthlyScore(Long userId, LocalDateTime settledAt) {
@@ -68,7 +72,7 @@ public class MonthlyScoreService {
             }
 
             user.applyScore(scoreCategory, bonusScore);
-            validScoreHistoryRepository.save(
+            validScoreHistoryRepository.saveAndFlush(
                     ValidScoreHistory.create(
                             user,
                             scoreCategory,
@@ -84,8 +88,19 @@ public class MonthlyScoreService {
         }
 
         // 월 마감이 끝나면 다음 달 집계를 위해 월 누적 점수를 초기화한다.
+        saveMonthlySnapshot(user, baseDateTime);
         userMonthlyStat.resetMonthlyScores();
         return new MonthlyScoreSettlementResult(bonusCount);
+    }
+
+    private void saveMonthlySnapshot(User user, LocalDateTime baseDateTime) {
+        LocalDate snapshotDate = baseDateTime.toLocalDate().withDayOfMonth(1).minusDays(1);
+        UserScoreSnapshot snapshot = userScoreSnapshotRepository
+                .findByUserAndSnapshotDate(user, snapshotDate)
+                .orElseGet(() -> UserScoreSnapshot.create(user, snapshotDate));
+
+        snapshot.updateScores(user);
+        userScoreSnapshotRepository.save(snapshot);
     }
 
     private int calculateNextConsecutiveCount(

@@ -9,8 +9,6 @@ public record ActivityStatusLogItemResponse(
         String title,
         String category,
         ScoreReason reason,
-        Integer changeAmount,
-        Integer scoreAfter,
         LocalDateTime occurredAt
 ) {
 }
