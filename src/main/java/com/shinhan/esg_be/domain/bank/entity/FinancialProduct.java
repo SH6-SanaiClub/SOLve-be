@@ -54,4 +54,52 @@ public class FinancialProduct extends BaseTimeEntity {
 
     @Column(name = "monthly_payment_amount")
     private Long monthlyPaymentAmount;
+
+    public static FinancialProduct create(
+            String name,
+            String subtitle,
+            ProductType type,
+            BigDecimal baseRate,
+            BigDecimal maxRate,
+            String description,
+            Integer durationMonths,
+            Long monthlyPaymentAmount,
+            Boolean isActive
+    ) {
+        FinancialProduct financialProduct = new FinancialProduct();
+        financialProduct.name = name;
+        financialProduct.subtitle = subtitle;
+        financialProduct.type = type;
+        financialProduct.baseRate = baseRate;
+        financialProduct.maxRate = maxRate;
+        financialProduct.description = description;
+        financialProduct.durationMonths = durationMonths;
+        financialProduct.monthlyPaymentAmount = monthlyPaymentAmount;
+        financialProduct.isActive = isActive;
+        return financialProduct;
+    }
+
+    public void update(
+            String name,
+            String subtitle,
+            ProductType type,
+            BigDecimal baseRate,
+            BigDecimal maxRate,
+            String description,
+            Integer durationMonths,
+            Long monthlyPaymentAmount
+    ) {
+        this.name = name;
+        this.subtitle = subtitle;
+        this.type = type;
+        this.baseRate = baseRate;
+        this.maxRate = maxRate;
+        this.description = description;
+        this.durationMonths = durationMonths;
+        this.monthlyPaymentAmount = monthlyPaymentAmount;
+    }
+
+    public void updateStatus(boolean isActive) {
+        this.isActive = isActive;
+    }
 }

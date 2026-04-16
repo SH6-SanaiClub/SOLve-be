@@ -60,6 +60,10 @@ public interface VolunteerRepository extends JpaRepository<Volunteer, Long> {
 
     Optional<Volunteer> findByQrTokenAndIsActiveTrue(String qrToken);
 
+    boolean existsByQrToken(String qrToken);
+
+    boolean existsByQrTokenAndVolunteerIdNot(String qrToken, Long volunteerId);
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
             update Volunteer v

@@ -72,4 +72,6 @@ public interface UserEnvironmentActivityRepository extends JpaRepository<UserEnv
     List<ActivityCountProjection> countApprovedGroupByActivitySince(
             @Param("since") LocalDateTime since
     );
+
+    long countByActivity_ActivityId(Long activityId);
 }
