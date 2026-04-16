@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -26,12 +27,29 @@ public class ChatService {
 
     private static final String ACTIONS_START_MARKER = "[ACTIONS]";
     private static final String ACTIONS_END_MARKER = "[/ACTIONS]";
-    private static final int STREAM_HOLD_BACK_LENGTH = 16;
     private static final String INTENT_FINANCE = "finance";
     private static final String INTENT_ACTIVITY = "activity";
     private static final String INTENT_STATUS = "status";
     private static final String INTENT_GRADE = "grade";
     private static final String INTENT_DEFAULT = "default";
+    private static final Set<String> ALLOWED_ACTION_PATHS = Set.of(
+            "/finance",
+            "/finance/green-step-up-savings",
+            "/finance/earth-guardian-savings",
+            "/finance/warm-companion-savings",
+            "/finance/smart-finance-savings",
+            "/finance/esg-master-savings",
+            "/finance/esg-micro-loan",
+            "/activities/environment",
+            "/esg/social",
+            "/esg/social/donation",
+            "/esg/social/store",
+            "/esg/social/volunteer",
+            "/esg/quiz",
+            "/activities/governance",
+            "/my",
+            "/my/grade"
+    );
 
     private final LLMClient llmClient;
     private final ChatContextService contextService;
@@ -75,15 +93,14 @@ public class ChatService {
                             if (actionStartIndex >= 0) {
                                 flushVisibleText(
                                         emitter,
-                                        visibleBuffer.substring(0, actionStartIndex),
-                                        true
+                                        visibleBuffer.substring(0, actionStartIndex)
                                 );
                                 visibleBuffer.setLength(0);
                                 actionBlockStarted[0] = true;
                                 return;
                             }
 
-                            flushVisibleBuffer(emitter, visibleBuffer, false);
+                            flushVisibleBuffer(emitter, visibleBuffer);
                         },
                         () -> {
                             String response = fullResponse.toString();
@@ -95,7 +112,7 @@ public class ChatService {
                             String cleanResponse = normalizeAssistantText(removeActionsBlock(response));
 
                             if (!actionBlockStarted[0]) {
-                                flushVisibleBuffer(emitter, visibleBuffer, true);
+                                flushAllVisibleBuffer(emitter, visibleBuffer);
                             }
 
                             if (!actions.isEmpty()) {
@@ -240,14 +257,13 @@ public class ChatService {
             if (containsAny(normalizedSource, "활동", "추천", "올리")) {
                 actions.addAll(buildActivityActions(normalizedSource));
             }
-        } else {
-            actions.add(ChatAction.builder()
-                    .label("챗봇에서 다시 물어보기")
-                    .path("/chatbot")
-                    .build());
         }
 
-        return deduplicateActions(normalizeActions(actions));
+        return deduplicateActions(
+                normalizeActions(actions).stream()
+                        .filter(action -> isAllowedActionPath(action.getPath()))
+                        .toList()
+        );
     }
 
     private String detectIntent(String userMessage, String normalizedSource) {
@@ -427,34 +443,50 @@ public class ChatService {
         return normalized.trim();
     }
 
-    private void flushVisibleBuffer(SseEmitter emitter, StringBuilder buffer, boolean force) {
+    private void flushVisibleBuffer(SseEmitter emitter, StringBuilder buffer) {
         if (buffer.length() == 0) {
             return;
         }
 
-        if (!force && buffer.length() <= STREAM_HOLD_BACK_LENGTH) {
-            return;
-        }
-
-        int flushLength = force
-                ? buffer.length()
-                : buffer.length() - STREAM_HOLD_BACK_LENGTH;
-
+        int flushLength = buffer.length() - getTrailingActionMarkerPrefixLength(buffer);
         if (flushLength <= 0) {
             return;
         }
 
         String chunk = buffer.substring(0, flushLength);
-        flushVisibleText(emitter, chunk, force);
+        flushVisibleText(emitter, chunk);
         buffer.delete(0, flushLength);
     }
 
-    private void flushVisibleText(SseEmitter emitter, String text, boolean finalChunk) {
+    private void flushAllVisibleBuffer(SseEmitter emitter, StringBuilder buffer) {
+        if (buffer.length() == 0) {
+            return;
+        }
+
+        flushVisibleText(emitter, buffer.toString());
+        buffer.setLength(0);
+    }
+
+    private int getTrailingActionMarkerPrefixLength(CharSequence text) {
+        int maxPrefixLength = Math.min(text.length(), ACTIONS_START_MARKER.length() - 1);
+
+        for (int prefixLength = maxPrefixLength; prefixLength > 0; prefixLength--) {
+            int suffixStart = text.length() - prefixLength;
+            String suffix = text.subSequence(suffixStart, text.length()).toString();
+            if (ACTIONS_START_MARKER.startsWith(suffix)) {
+                return prefixLength;
+            }
+        }
+
+        return 0;
+    }
+
+    private void flushVisibleText(SseEmitter emitter, String text) {
         if (text == null || text.isBlank()) {
             return;
         }
 
-        String visibleText = finalChunk ? normalizeAssistantText(text) : stripMarkdownTokens(text);
+        String visibleText = stripMarkdownTokens(text);
         if (visibleText.isBlank()) {
             return;
         }
@@ -524,47 +556,13 @@ public class ChatService {
             return List.of();
         }
 
-        List<ChatAction> filtered = new ArrayList<>();
-        for (ChatAction action : actions) {
-            String path = action.getPath();
-            if (path == null || path.isBlank()) {
-                continue;
-            }
+        return actions.stream()
+                .filter(action -> isAllowedActionPath(action.getPath()))
+                .toList();
+    }
 
-            if (INTENT_FINANCE.equals(intent) && path.startsWith("/finance")) {
-                filtered.add(action);
-                continue;
-            }
-
-            if (INTENT_ACTIVITY.equals(intent)
-                    && (path.startsWith("/activities")
-                    || path.startsWith("/esg/social")
-                    || "/esg/quiz".equals(path))) {
-                filtered.add(action);
-                continue;
-            }
-
-            if (INTENT_STATUS.equals(intent)
-                    && (path.startsWith("/activities")
-                    || path.startsWith("/esg/social")
-                    || "/esg/quiz".equals(path)
-                    || "/my/grade".equals(path))) {
-                filtered.add(action);
-                continue;
-            }
-
-            if (INTENT_GRADE.equals(intent)
-                    && ("/my".equals(path) || "/my/grade".equals(path))) {
-                filtered.add(action);
-                continue;
-            }
-
-            if (INTENT_DEFAULT.equals(intent) && "/chatbot".equals(path)) {
-                filtered.add(action);
-            }
-        }
-
-        return filtered;
+    private boolean isAllowedActionPath(String path) {
+        return path != null && ALLOWED_ACTION_PATHS.contains(path);
     }
 
     private String removeInternalPaths(String text) {
