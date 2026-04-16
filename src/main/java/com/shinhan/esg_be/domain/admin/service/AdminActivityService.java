@@ -225,6 +225,7 @@ public class AdminActivityService {
                         request.getCapacity(),
                         request.getVolunteerHour(),
                         request.getOrganization(),
+                        request.getImageUrl(),
                         request.getQrToken(),
                         request.getLatitude(),
                         request.getLongitude()
@@ -247,6 +248,7 @@ public class AdminActivityService {
                 request.getCapacity(),
                 request.getVolunteerHour(),
                 request.getOrganization(),
+                request.getImageUrl(),
                 request.getQrToken(),
                 request.getLatitude(),
                 request.getLongitude()

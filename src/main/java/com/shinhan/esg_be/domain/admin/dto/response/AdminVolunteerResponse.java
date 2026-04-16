@@ -20,6 +20,7 @@ public class AdminVolunteerResponse {
     private Integer currentEnrolled;
     private Integer volunteerHour;
     private String organization;
+    private String imageUrl;
     private String qrToken;
     private Double latitude;
     private Double longitude;
@@ -44,6 +45,7 @@ public class AdminVolunteerResponse {
                 volunteer.getCurrentEnrolled(),
                 volunteer.getVolunteerHour(),
                 volunteer.getOrganization(),
+                volunteer.getImageUrl(),
                 volunteer.getQrToken(),
                 volunteer.getLatitude(),
                 volunteer.getLongitude(),
