@@ -197,6 +197,7 @@ class FinanceServiceTest {
         assertThat(response.products()).hasSize(1);
         assertThat(response.products().get(0).subtitle()).isEqualTo("ESG Loan subtitle");
         assertThat(response.products().get(0).available()).isTrue();
+        assertThat(response.products().get(0).unavailableReason()).isEqualTo("AVAILABLE");
         assertThat(response.products().get(0).loanLimit()).isEqualTo(2_000_000L);
         assertThat(response.products().get(0).appliedRate()).isEqualByComparingTo("7.00");
         assertThat(response.products().get(0).monthlyPaymentAmount()).isNull();
@@ -219,6 +220,7 @@ class FinanceServiceTest {
         assertThat(response.products()).hasSize(1);
         assertThat(response.products().get(0).subtitle()).isEqualTo("ESG Loan subtitle");
         assertThat(response.products().get(0).available()).isFalse();
+        assertThat(response.products().get(0).unavailableReason()).isEqualTo("HAS_ACTIVE_LOAN");
         assertThat(response.products().get(0).loanLimit()).isNull();
         assertThat(response.products().get(0).appliedRate()).isNull();
         assertThat(response.products().get(0).monthlyPaymentAmount()).isNull();
@@ -239,6 +241,7 @@ class FinanceServiceTest {
         assertThat(response.products()).hasSize(1);
         assertThat(response.products().get(0).subtitle()).isEqualTo("Green Saving subtitle");
         assertThat(response.products().get(0).available()).isTrue();
+        assertThat(response.products().get(0).unavailableReason()).isEqualTo("AVAILABLE");
         assertThat(response.products().get(0).baseRate()).isEqualByComparingTo("2.00");
         assertThat(response.products().get(0).maxRate()).isEqualByComparingTo("4.40");
         assertThat(response.products().get(0).appliedRate()).isEqualByComparingTo("2.00");
@@ -246,7 +249,7 @@ class FinanceServiceTest {
     }
 
     @Test
-    void getSavingProductsExcludesActiveSavingProduct() {
+    void getSavingProductsIncludesActiveSavingProductAsUnavailable() {
         User user = createUser("finance-user-4", 50, 250, 100, 100);
         ReflectionTestUtils.setField(user, "userId", 1L);
 
@@ -264,9 +267,35 @@ class FinanceServiceTest {
 
         FinanceProductListResponse response = financeService.getFinanceProducts(user.getLoginId(), "savings");
 
+        assertThat(response.products()).hasSize(2);
+        assertThat(response.products().get(0).id()).isEqualTo(10L);
+        assertThat(response.products().get(0).name()).isEqualTo("Joined Saving");
+        assertThat(response.products().get(0).available()).isFalse();
+        assertThat(response.products().get(0).unavailableReason()).isEqualTo("ALREADY_JOINED");
+        assertThat(response.products().get(1).id()).isEqualTo(20L);
+        assertThat(response.products().get(1).name()).isEqualTo("Available Saving");
+        assertThat(response.products().get(1).available()).isTrue();
+        assertThat(response.products().get(1).unavailableReason()).isEqualTo("AVAILABLE");
+    }
+
+    @Test
+    void getSavingProductsMarksEsgMasterUnavailableWhenScoreIsTooLow() {
+        User user = createUser("finance-user-master-low", 50, 250, 100, 100);
+        ReflectionTestUtils.setField(user, "userId", 1L);
+
+        FinancialProduct product = createFinancialProduct("ESG 마스터 적금", ProductType.SAVINGS, "4.00", "10.00", 12);
+        ReflectionTestUtils.setField(product, "finProductId", 30L);
+
+        given(userRepository.findByLoginId(user.getLoginId())).willReturn(Optional.of(user));
+        given(financialProductRepository.findByTypeAndIsActiveTrue(ProductType.SAVINGS)).willReturn(List.of(product));
+        given(userSavingRepository.findAllByUser_UserIdAndStatus(1L, SavingStatus.ACTIVE)).willReturn(List.of());
+
+        FinanceProductListResponse response = financeService.getFinanceProducts(user.getLoginId(), "savings");
+
         assertThat(response.products()).hasSize(1);
-        assertThat(response.products().get(0).id()).isEqualTo(20L);
-        assertThat(response.products().get(0).name()).isEqualTo("Available Saving");
+        assertThat(response.products().get(0).id()).isEqualTo(30L);
+        assertThat(response.products().get(0).available()).isFalse();
+        assertThat(response.products().get(0).unavailableReason()).isEqualTo("LOW_SCORE_FOR_ESG_MASTER");
     }
 
     @Test
@@ -290,6 +319,8 @@ class FinanceServiceTest {
         assertThat(response.products()).hasSize(1);
         assertThat(response.products().get(0).id()).isEqualTo(10L);
         assertThat(response.products().get(0).name()).isEqualTo("Completed Saving");
+        assertThat(response.products().get(0).available()).isTrue();
+        assertThat(response.products().get(0).unavailableReason()).isEqualTo("AVAILABLE");
     }
 
     @Test

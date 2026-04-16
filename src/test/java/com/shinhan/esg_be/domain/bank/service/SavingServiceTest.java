@@ -98,6 +98,21 @@ class SavingServiceTest {
                 .hasMessage("Already joined saving product.");
     }
 
+    @Test
+    @DisplayName("ESG 마스터 적금은 900점 미만이면 가입을 거절한다")
+    void rejectEsgMasterWhenScoreIsTooLow() {
+        User user = createUser("saving-user-master-low", 50, 250, 100, 100);
+        FinancialProduct product = createSavingProduct(5L, "ESG 마스터 적금", 300_000L, 12);
+
+        given(userRepository.findByLoginId(user.getLoginId())).willReturn(Optional.of(user));
+        given(financialProductRepository.findByFinProductIdAndTypeAndIsActiveTrue(5L, ProductType.SAVINGS))
+                .willReturn(Optional.of(product));
+
+        assertThatThrownBy(() -> savingService.applySaving(user.getLoginId(), new SavingApplyRequest(5L)))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("ESG 마스터 적금은 900점 이상부터 가입할 수 있습니다.");
+    }
+
     private User createUser(String loginId, int eScore, int sScore, int gActivityScore, int gRepaymentScore) {
         User user = newInstance(User.class);
         ReflectionTestUtils.setField(user, "loginId", loginId);

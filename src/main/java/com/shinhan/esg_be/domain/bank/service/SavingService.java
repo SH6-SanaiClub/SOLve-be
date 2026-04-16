@@ -23,6 +23,8 @@ import java.time.LocalDate;
 public class SavingService {
 
     private static final long DEFAULT_MONTHLY_AMOUNT = 300_000L;
+    private static final String ESG_MASTER_KEYWORD = "ESG 마스터";
+    private static final int ESG_MASTER_MIN_TOTAL_SCORE = 900;
 
     private final UserRepository userRepository;
     private final FinancialProductRepository financialProductRepository;
@@ -42,6 +44,10 @@ public class SavingService {
             throw new BadRequestException("Already joined saving product.");
         }
 
+        if (isEsgMasterSaving(product) && user.getTotalScore() < ESG_MASTER_MIN_TOTAL_SCORE) {
+            throw new BadRequestException("ESG 마스터 적금은 900점 이상부터 가입할 수 있습니다.");
+        }
+
         Long monthlyAmount = product.getMonthlyPaymentAmount() != null
                 ? product.getMonthlyPaymentAmount()
                 : DEFAULT_MONTHLY_AMOUNT;
@@ -56,5 +62,10 @@ public class SavingService {
 
         userSavingRepository.save(userSaving);
         return new SavingApplyResponse(userSaving.getStatus().name());
+    }
+
+    private boolean isEsgMasterSaving(FinancialProduct product) {
+        String productName = product.getName();
+        return productName != null && productName.contains(ESG_MASTER_KEYWORD);
     }
 }

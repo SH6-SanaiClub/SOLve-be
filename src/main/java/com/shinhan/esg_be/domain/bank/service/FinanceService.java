@@ -53,6 +53,15 @@ public class FinanceService {
     private static final BigDecimal LOAN_RATE_700 = new BigDecimal("8.50");
     private static final BigDecimal LOAN_RATE_800 = new BigDecimal("7.00");
     private static final BigDecimal LOAN_RATE_900 = new BigDecimal("6.00");
+    private static final String ESG_MASTER_KEYWORD = "ESG 마스터";
+    private static final int ESG_MASTER_MIN_TOTAL_SCORE = 900;
+
+    private static final String REASON_AVAILABLE = "AVAILABLE";
+    private static final String REASON_ALREADY_JOINED = "ALREADY_JOINED";
+    private static final String REASON_LOW_SCORE_FOR_ESG_MASTER = "LOW_SCORE_FOR_ESG_MASTER";
+    private static final String REASON_HAS_ACTIVE_LOAN = "HAS_ACTIVE_LOAN";
+    private static final String REASON_LOAN_BLOCKED = "LOAN_BLOCKED";
+    private static final String REASON_LOW_SCORE = "LOW_SCORE";
 
     private final FinancialProductRepository financialProductRepository;
     private final LoanHistoryRepository loanHistoryRepository;
@@ -122,8 +131,7 @@ public class FinanceService {
         Set<Long> activeSavingProductIds = getActiveSavingProductIds(user, productType);
         var products = financialProductRepository.findByTypeAndIsActiveTrue(productType)
                 .stream()
-                .filter(product -> productType == ProductType.LOAN || !activeSavingProductIds.contains(product.getFinProductId()))
-                .map(product -> toResponse(user, product, productType))
+                .map(product -> toResponse(user, product, productType, activeSavingProductIds))
                 .toList();
 
         return new FinanceProductListResponse(products);
@@ -140,11 +148,17 @@ public class FinanceService {
                 .collect(Collectors.toSet());
     }
 
-    private FinanceProductResponse toResponse(User user, FinancialProduct product, ProductType productType) {
+    private FinanceProductResponse toResponse(
+            User user,
+            FinancialProduct product,
+            ProductType productType,
+            Set<Long> activeSavingProductIds
+    ) {
         if (productType == ProductType.LOAN) {
             LoanOffer loanOffer = calculateLoanOffer(user);
             boolean hasActiveLoan = !userLoanRepository.findByUserAndStatus(user, LoanStatus.ACTIVE).isEmpty();
             boolean available = loanOffer.available() && !hasActiveLoan && !user.getIsLoanBlocked();
+            String unavailableReason = determineLoanUnavailableReason(loanOffer.available(), hasActiveLoan, user.getIsLoanBlocked());
 
             return new FinanceProductResponse(
                     product.getFinProductId(),
@@ -156,11 +170,16 @@ public class FinanceService {
                     available ? loanOffer.appliedRate() : null,
                     available ? loanOffer.loanLimit() : null,
                     available,
+                    unavailableReason,
                     product.getDurationMonths(),
                     product.getMonthlyPaymentAmount(),
                     product.getDescription()
             );
         }
+
+        boolean alreadyJoined = activeSavingProductIds.contains(product.getFinProductId());
+        boolean lowScoreForEsgMaster = isEsgMasterSaving(product) && user.getTotalScore() < ESG_MASTER_MIN_TOTAL_SCORE;
+        boolean available = !alreadyJoined && !lowScoreForEsgMaster;
 
         return new FinanceProductResponse(
                 product.getFinProductId(),
@@ -171,7 +190,8 @@ public class FinanceService {
                 product.getMaxRate(),
                 product.getBaseRate(),
                 null,
-                true,
+                available,
+                determineSavingUnavailableReason(alreadyJoined, lowScoreForEsgMaster),
                 product.getDurationMonths(),
                 product.getMonthlyPaymentAmount(),
                 product.getDescription()
@@ -293,6 +313,34 @@ public class FinanceService {
             return ProductType.SAVINGS;
         }
         throw new BadRequestException("Invalid product type.");
+    }
+
+    private String determineLoanUnavailableReason(boolean scoreAvailable, boolean hasActiveLoan, boolean loanBlocked) {
+        if (loanBlocked) {
+            return REASON_LOAN_BLOCKED;
+        }
+        if (hasActiveLoan) {
+            return REASON_HAS_ACTIVE_LOAN;
+        }
+        if (!scoreAvailable) {
+            return REASON_LOW_SCORE;
+        }
+        return REASON_AVAILABLE;
+    }
+
+    private String determineSavingUnavailableReason(boolean alreadyJoined, boolean lowScoreForEsgMaster) {
+        if (alreadyJoined) {
+            return REASON_ALREADY_JOINED;
+        }
+        if (lowScoreForEsgMaster) {
+            return REASON_LOW_SCORE_FOR_ESG_MASTER;
+        }
+        return REASON_AVAILABLE;
+    }
+
+    private boolean isEsgMasterSaving(FinancialProduct product) {
+        String productName = product.getName();
+        return productName != null && productName.contains(ESG_MASTER_KEYWORD);
     }
 
     private User getUser(String loginId) {

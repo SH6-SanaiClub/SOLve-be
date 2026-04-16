@@ -185,6 +185,7 @@ class FinanceControllerTest {
                 new BigDecimal("7.00"),
                 2_000_000L,
                 true,
+                "AVAILABLE",
                 12,
                 null,
                 "description"
@@ -199,6 +200,7 @@ class FinanceControllerTest {
                 .andExpect(jsonPath("$.products[0].name").value("ESG Loan"))
                 .andExpect(jsonPath("$.products[0].subtitle").value("ESG based loan product"))
                 .andExpect(jsonPath("$.products[0].loanLimit").value(2000000))
-                .andExpect(jsonPath("$.products[0].appliedRate").value(7.00));
+                .andExpect(jsonPath("$.products[0].appliedRate").value(7.00))
+                .andExpect(jsonPath("$.products[0].unavailableReason").value("AVAILABLE"));
     }
 }
