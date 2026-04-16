@@ -8,7 +8,6 @@ import com.shinhan.esg_be.domain.auth.dto.internal.VerifiedIdentityDetails;
 import com.shinhan.esg_be.global.config.PortOneProperties;
 import com.shinhan.esg_be.global.exception.BadRequestException;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -25,7 +24,6 @@ import java.time.Duration;
 
 @Service
 @RequiredArgsConstructor
-@Slf4j
 public class PortOneIdentityVerificationService {
 
     private static final int SUCCESS_CODE = 0;
@@ -58,7 +56,7 @@ public class PortOneIdentityVerificationService {
                 .build();
 
         try {
-            HttpResponse<String> response = sendWithRetry(httpClient, request);
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             validateSuccessStatus(response.statusCode(), "PortOne 본인인증 조회에 실패했습니다.");
 
             CertificationResponse apiResponse =
@@ -72,8 +70,6 @@ public class PortOneIdentityVerificationService {
             if (!Boolean.TRUE.equals(data.certified)) {
                 throw new BadRequestException("본인인증이 완료되지 않았습니다.");
             }
-
-            log.info("PortOne verification succeeded impUid={} derivedCiDi=true", impUid);
 
             return buildVerifiedIdentityDetails(data);
         } catch (IOException e) {
@@ -100,7 +96,7 @@ public class PortOneIdentityVerificationService {
                 .build();
 
         try {
-            HttpResponse<String> response = sendWithRetry(httpClient, request);
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             validateSuccessStatus(response.statusCode(), "PortOne 액세스 토큰 발급에 실패했습니다.");
 
             TokenResponse tokenResponse = objectMapper.readValue(response.body(), TokenResponse.class);
@@ -134,37 +130,6 @@ public class PortOneIdentityVerificationService {
         return HttpClient.newBuilder()
                 .connectTimeout(Duration.ofMillis(portOneProperties.getApiConnectTimeout()))
                 .build();
-    }
-
-    private HttpResponse<String> sendWithRetry(HttpClient httpClient, HttpRequest request)
-            throws IOException, InterruptedException {
-        int attempts = Math.max(1, portOneProperties.getApiRetryCount());
-        int delay = Math.max(0, portOneProperties.getApiRetryDelay());
-
-        IOException lastIOException = null;
-        InterruptedException lastInterruptedException = null;
-
-        for (int attempt = 1; attempt <= attempts; attempt++) {
-            try {
-                return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            } catch (IOException e) {
-                lastIOException = e;
-            } catch (InterruptedException e) {
-                lastInterruptedException = e;
-                Thread.currentThread().interrupt();
-                break;
-            }
-
-            if (attempt < attempts && delay > 0) {
-                Thread.sleep(delay);
-            }
-        }
-
-        if (lastInterruptedException != null) {
-            throw lastInterruptedException;
-        }
-
-        throw lastIOException != null ? lastIOException : new IOException("PortOne API 호출에 실패했습니다.");
     }
 
     private void validateSuccessStatus(int statusCode, String message) {
