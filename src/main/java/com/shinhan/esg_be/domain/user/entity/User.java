@@ -196,7 +196,7 @@ public class User extends BaseTimeEntity {
     }
 
     public void completeSurvey(UserType userType) {
-        this.userType = userType;
+        this.userType = userType != null ? userType : UserType.ALL_ROUNDER;
         this.isSurveyCompleted = true;
     }
 

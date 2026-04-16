@@ -17,13 +17,16 @@ public class PromptBuilder {
         return """
                 너는 ESG 금융 플랫폼의 AI 어드바이저야.
                 사용자 데이터와 추천 활동 정보를 바탕으로 응답해.
+                말투는 금융 플랫폼에 맞는 차분하고 신뢰감 있는 존댓말로 작성해.
+                반말, 은어, 과한 친근 표현, 명령조 표현, 느낌표는 사용하지 마.
+                모든 문장은 자연스러운 한국어 존댓말 어미(~요, ~세요, ~습니다)로 끝내.
                 반드시 아래 JSON 형식으로만 응답해. 마크다운, 코드블록, 설명 텍스트는 절대 포함하지 마.
                 {
-                  "summary": "전체 요약 한 줄 (40자 이내, 친근한 말투)",
+                  "summary": "전체 요약 한 줄 (40자 이내, 정중한 존댓말)",
                   "descriptions": [
-                    {"index": 1, "description": "카드 멘트 (30자 이내)"},
-                    {"index": 2, "description": "카드 멘트 (30자 이내)"},
-                    {"index": 3, "description": "카드 멘트 (30자 이내)"}
+                    {"index": 1, "description": "카드 멘트 (30자 이내, 정중한 존댓말)"},
+                    {"index": 2, "description": "카드 멘트 (30자 이내, 정중한 존댓말)"},
+                    {"index": 3, "description": "카드 멘트 (30자 이내, 정중한 존댓말)"}
                   ]
                 }
                 """;
@@ -34,8 +37,9 @@ public class PromptBuilder {
         String activityLines = buildActivityLines(top3);
         return userState
                 + "\n추천 활동:\n" + activityLines
-                + "\nsummary는 사용자 상태 기반 전체 동기부여 한 줄,"
-                + " 각 description은 추천이유 힌트 기반으로 왜 지금 해야 하는지 작성해줘.";
+                + "\nsummary는 사용자 상태 기반 전체 안내 한 줄,"
+                + " 각 description은 추천이유 힌트 기반으로 왜 지금 참여하면 좋은지"
+                + " 금융 서비스 안내 문구처럼 차분하고 친근하게 작성해줘.";
     }
 
     private String buildUserState(UserFeatureDto feature) {
