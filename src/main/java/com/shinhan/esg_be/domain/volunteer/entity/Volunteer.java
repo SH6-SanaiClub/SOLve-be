@@ -51,6 +51,9 @@ public class Volunteer extends BaseTimeEntity {
     @Column(nullable = false)
     private String organization;
 
+    @Column(name = "image_url")
+    private String imageUrl;
+
     @Column(name = "qr_token", unique = true)
     private String qrToken;
 
@@ -69,6 +72,7 @@ public class Volunteer extends BaseTimeEntity {
             Integer capacity,
             Integer volunteerHour,
             String organization,
+            String imageUrl,
             String qrToken,
             Double latitude,
             Double longitude
@@ -83,6 +87,7 @@ public class Volunteer extends BaseTimeEntity {
         volunteer.currentEnrolled = 0;
         volunteer.volunteerHour = volunteerHour;
         volunteer.organization = organization;
+        volunteer.imageUrl = imageUrl;
         volunteer.qrToken = qrToken;
         volunteer.latitude = latitude;
         volunteer.longitude = longitude;
@@ -97,6 +102,7 @@ public class Volunteer extends BaseTimeEntity {
             Integer capacity,
             Integer volunteerHour,
             String organization,
+            String imageUrl,
             String qrToken,
             Double latitude,
             Double longitude
@@ -108,6 +114,7 @@ public class Volunteer extends BaseTimeEntity {
         this.capacity = capacity;
         this.volunteerHour = volunteerHour;
         this.organization = organization;
+        this.imageUrl = imageUrl;
         this.qrToken = qrToken;
         this.latitude = latitude;
         this.longitude = longitude;

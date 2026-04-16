@@ -81,6 +81,7 @@ public class VolunteerService {
                 volunteer.getVolunteerId(),
                 volunteer.getName(),
                 volunteer.getDescription(),
+                volunteer.getImageUrl(),
                 volunteer.getActivityDate(),
                 volunteer.getLocation(),
                 volunteer.getCapacity(),

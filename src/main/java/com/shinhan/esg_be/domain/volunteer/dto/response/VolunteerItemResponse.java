@@ -12,6 +12,7 @@ public class VolunteerItemResponse {
     private final Long volunteerId;
     private final String name;
     private final String description;
+    private final String imageUrl;
     private final LocalDateTime activityDate;
     private final String location;
     private final Integer capacity;
