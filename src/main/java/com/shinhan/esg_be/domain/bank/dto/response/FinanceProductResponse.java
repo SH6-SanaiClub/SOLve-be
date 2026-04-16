@@ -12,6 +12,7 @@ public record FinanceProductResponse(
         BigDecimal appliedRate,
         Long loanLimit,
         boolean available,
+        String unavailableReason,
         Integer durationMonths,
         Long monthlyPaymentAmount,
         String description
