@@ -43,15 +43,19 @@ public class UserEcoProduct {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
+    @Column(name = "delivery_address", nullable = false)
+    private String deliveryAddress;
+
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    public static UserEcoProduct create(Payment payment, EcoProduct ecoProduct, User user) {
+    public static UserEcoProduct create(Payment payment, EcoProduct ecoProduct, User user, String deliveryAddress) {
         UserEcoProduct userEcoProduct = new UserEcoProduct();
         userEcoProduct.payment = payment;
         userEcoProduct.ecoProduct = ecoProduct;
         userEcoProduct.user = user;
+        userEcoProduct.deliveryAddress = deliveryAddress;
         return userEcoProduct;
     }
 }
