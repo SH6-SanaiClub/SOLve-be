@@ -43,7 +43,7 @@ public class LLMClient {
                             Map.of("role", "user", "content", userPrompt)
                     ),
                     "max_tokens", 400,
-                    "temperature", 0.7
+                    "temperature", 0.4
             );
 
             Map<?, ?> response = restClient.post()
