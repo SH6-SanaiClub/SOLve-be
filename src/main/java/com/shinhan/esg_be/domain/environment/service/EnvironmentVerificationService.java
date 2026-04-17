@@ -10,6 +10,8 @@ import com.shinhan.esg_be.domain.environment.repository.EnvironmentActivityRepos
 import com.shinhan.esg_be.domain.environment.repository.UserEnvironmentActivityRepository;
 import com.shinhan.esg_be.domain.environment.service.client.AzureDocumentIntelligenceClient;
 import com.shinhan.esg_be.domain.environment.service.parser.ParsedEnvironmentData;
+import com.shinhan.esg_be.domain.environment.service.precheck.ImagePrecheckResult;
+import com.shinhan.esg_be.domain.environment.service.precheck.OpenAiImagePrecheckService;
 import com.shinhan.esg_be.domain.environment.service.parser.ReadAnalysisParser;
 import com.shinhan.esg_be.domain.environment.service.parser.ReceiptAnalysisParser;
 import com.shinhan.esg_be.domain.environment.service.validator.EvRentalVerificationValidator;
@@ -56,6 +58,7 @@ public class EnvironmentVerificationService {
     private static final long MAX_IMAGE_FILE_SIZE_BYTES = 10L * 1024L * 1024L;
 
     private final AzureDocumentIntelligenceClient azureDocumentIntelligenceClient;
+    private final OpenAiImagePrecheckService openAiImagePrecheckService;
     private final RewardService rewardService;
     private final UserRepository userRepository;
     private final EnvironmentActivityRepository environmentActivityRepository;
@@ -109,6 +112,22 @@ public class EnvironmentVerificationService {
         EnvironmentActivityType activityType = resolveActivityType(request.getActivityType());
         EnvironmentActivity environmentActivity = resolveEnvironmentActivity(activityType);
         validateNotAttemptedToday(user, environmentActivity);
+
+        ImagePrecheckResult precheckResult = openAiImagePrecheckService.precheck(image, activityType);
+        if (!precheckResult.allowed()) {
+            log.info(
+                    "Environment verification blocked by OpenAI precheck: activityType={}, reason={}",
+                    activityType,
+                    precheckResult.reason()
+            );
+
+            UserEnvironmentActivity savedActivity = saveRejectedPrecheck(
+                    user,
+                    environmentActivity,
+                    precheckResult.reason()
+            );
+            return buildResponse(savedActivity.getActId(), activityType, false, 0);
+        }
 
         String modelId = resolveModelId(activityType);
         JsonNode rawResult = analyze(image, modelId);
@@ -197,6 +216,22 @@ public class EnvironmentVerificationService {
         );
 
         return userEnvironmentActivityRepository.save(userEnvironmentActivity);
+    }
+
+    private UserEnvironmentActivity saveRejectedPrecheck(
+            User user,
+            EnvironmentActivity environmentActivity,
+            String reason
+    ) {
+        return userEnvironmentActivityRepository.save(
+                UserEnvironmentActivity.create(
+                        user,
+                        environmentActivity,
+                        false,
+                        null,
+                        "OpenAI 사전검사 반려: " + reason
+                )
+        );
     }
 
     private int applyReward(
