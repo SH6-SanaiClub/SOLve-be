@@ -14,7 +14,6 @@ import com.shinhan.esg_be.domain.bank.entity.SavingHistory;
 import com.shinhan.esg_be.domain.bank.entity.SavingPrimeHistory;
 import com.shinhan.esg_be.domain.bank.entity.UserLoan;
 import com.shinhan.esg_be.domain.bank.entity.UserSaving;
-import com.shinhan.esg_be.domain.bank.entity.enums.LoanStatus;
 import com.shinhan.esg_be.domain.bank.entity.enums.ProductType;
 import com.shinhan.esg_be.domain.bank.entity.enums.SavingHistoryType;
 import com.shinhan.esg_be.domain.bank.entity.enums.SavingStatus;
@@ -155,11 +154,6 @@ public class FinanceService {
             Set<Long> activeSavingProductIds
     ) {
         if (productType == ProductType.LOAN) {
-            LoanOffer loanOffer = calculateLoanOffer(user);
-            boolean hasActiveLoan = !userLoanRepository.findByUserAndStatus(user, LoanStatus.ACTIVE).isEmpty();
-            boolean available = loanOffer.available() && !hasActiveLoan && !user.getIsLoanBlocked();
-            String unavailableReason = determineLoanUnavailableReason(loanOffer.available(), hasActiveLoan, user.getIsLoanBlocked());
-
             return new FinanceProductResponse(
                     product.getFinProductId(),
                     product.getName(),
@@ -167,10 +161,10 @@ public class FinanceService {
                     product.getType().name(),
                     product.getBaseRate(),
                     product.getMaxRate(),
-                    available ? loanOffer.appliedRate() : null,
-                    available ? loanOffer.loanLimit() : null,
-                    available,
-                    unavailableReason,
+                    product.getBaseRate(),
+                    LOAN_LIMIT_900,
+                    true,
+                    REASON_AVAILABLE,
                     product.getDurationMonths(),
                     product.getMonthlyPaymentAmount(),
                     product.getDescription()
