@@ -11,6 +11,9 @@ import com.shinhan.esg_be.domain.bank.entity.enums.ProductType;
 import com.shinhan.esg_be.domain.bank.repository.FinancialProductRepository;
 import com.shinhan.esg_be.domain.bank.repository.LoanHistoryRepository;
 import com.shinhan.esg_be.domain.bank.repository.UserLoanRepository;
+import com.shinhan.esg_be.domain.bank.service.screening.LoanScreeningPolicy;
+import com.shinhan.esg_be.domain.bank.service.screening.LoanScreeningResult;
+import com.shinhan.esg_be.domain.bank.service.screening.LoanScreeningService;
 import com.shinhan.esg_be.domain.user.entity.User;
 import com.shinhan.esg_be.domain.user.repository.UserRepository;
 import com.shinhan.esg_be.global.exception.BadRequestException;
@@ -41,6 +44,7 @@ public class LoanService {
     private final FinancialProductRepository financialProductRepository;
     private final UserLoanRepository userLoanRepository;
     private final LoanHistoryRepository loanHistoryRepository;
+    private final LoanScreeningService loanScreeningService;
     private final Clock clock;
 
     @Transactional(readOnly = true)
@@ -54,10 +58,15 @@ public class LoanService {
                 )
                 .orElseThrow(() -> new BadRequestException("대출 상품을 찾을 수 없습니다."));
 
-        LoanOffer loanOffer = calculateLoanOffer(user.getTotalScore());
         boolean hasActiveLoan = !userLoanRepository.findByUserAndStatus(user, LoanStatus.ACTIVE).isEmpty();
         boolean loanBlocked = user.getIsLoanBlocked();
-        boolean available = loanOffer.available() && !hasActiveLoan && !loanBlocked;
+        LoanScreeningResult screeningResult = loanScreeningService.screen(
+                user.getUserId(),
+                user.getTotalScore(),
+                hasActiveLoan,
+                loanBlocked
+        );
+        boolean available = screeningResult.approved();
 
         return new LoanPreviewResponse(
                 product.getFinProductId(),
@@ -65,9 +74,9 @@ public class LoanService {
                 product.getSubtitle(),
                 product.getDescription(),
                 available,
-                determineUnavailableReason(loanOffer.available(), hasActiveLoan, loanBlocked),
-                available ? loanOffer.loanLimit() : null,
-                available ? loanOffer.appliedRate() : null,
+                toPreviewReason(screeningResult),
+                available ? screeningResult.loanLimit() : null,
+                available ? screeningResult.appliedRate() : null,
                 product.getDurationMonths(),
                 user.getTotalScore(),
                 hasActiveLoan,
@@ -97,12 +106,17 @@ public class LoanService {
             throw new BadRequestException("기존 대출 상환 전까지 추가 대출이 불가능합니다.");
         }
 
-        LoanOffer loanOffer = calculateLoanOffer(user.getTotalScore());
-        if (!loanOffer.available()) {
+        LoanScreeningResult screeningResult = loanScreeningService.screen(
+                user.getUserId(),
+                user.getTotalScore(),
+                false,
+                false
+        );
+        if (!screeningResult.approved()) {
             throw new BadRequestException("대출 신청 가능 점수를 충족하지 않습니다.");
         }
 
-        if (request.amount() > loanOffer.loanLimit()) {
+        if (request.amount() > screeningResult.loanLimit()) {
             throw new BadRequestException("대출 한도를 초과한 금액입니다.");
         }
 
@@ -110,8 +124,8 @@ public class LoanService {
                 user,
                 product,
                 request.amount(),
-                loanOffer.appliedRate(),
-                calculateTotalAmount(request.amount(), loanOffer.appliedRate()),
+                screeningResult.appliedRate(),
+                calculateTotalAmount(request.amount(), screeningResult.appliedRate()),
                 LocalDate.now(clock).plusMonths(1),
                 user.getTotalScore()
         );
@@ -139,6 +153,22 @@ public class LoanService {
                 .multiply(rate)
                 .divide(BigDecimal.valueOf(100), 0, RoundingMode.HALF_UP);
         return principalAmount + interest.longValue();
+    }
+
+    private String toPreviewReason(LoanScreeningResult screeningResult) {
+        if (screeningResult.approved()) {
+            return "AVAILABLE";
+        }
+
+        if (LoanScreeningPolicy.REASON_LOAN_BLOCKED.equals(screeningResult.reason())) {
+            return "LOAN_BLOCKED";
+        }
+
+        if (LoanScreeningPolicy.REASON_HAS_ACTIVE_LOAN.equals(screeningResult.reason())) {
+            return "HAS_ACTIVE_LOAN";
+        }
+
+        return "LOW_SCORE";
     }
 
     private String determineUnavailableReason(boolean scoreAvailable, boolean hasActiveLoan, boolean loanBlocked) {
