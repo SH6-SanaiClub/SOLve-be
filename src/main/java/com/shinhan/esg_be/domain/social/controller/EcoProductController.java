@@ -1,6 +1,7 @@
 package com.shinhan.esg_be.domain.social.controller;
 
 import com.shinhan.esg_be.domain.social.dto.response.EcoProductDetailResponse;
+import com.shinhan.esg_be.domain.social.dto.response.EcoProductPurchaseResponse;
 import com.shinhan.esg_be.domain.social.dto.response.EcoProductResponse;
 import com.shinhan.esg_be.domain.social.service.EcoProductService;
 import lombok.RequiredArgsConstructor;
@@ -25,5 +26,10 @@ public class EcoProductController {
     @GetMapping("/products/{productId}")
     public ResponseEntity<EcoProductDetailResponse> getProduct(@PathVariable Long productId) {
         return ResponseEntity.ok(ecoProductService.getProduct(productId));
+    }
+
+    @GetMapping("/products/purchases")
+    public ResponseEntity<EcoProductPurchaseResponse> getPurchases() {
+        return ResponseEntity.ok(ecoProductService.getPurchases());
     }
 }

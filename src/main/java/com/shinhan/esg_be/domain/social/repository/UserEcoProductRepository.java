@@ -1,6 +1,7 @@
 package com.shinhan.esg_be.domain.social.repository;
 
 import com.shinhan.esg_be.domain.recommendation.dto.ProductCountProjection;
+import com.shinhan.esg_be.domain.social.dto.response.EcoProductPurchaseItemResponse;
 import com.shinhan.esg_be.domain.social.entity.UserEcoProduct;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -50,4 +51,24 @@ public interface UserEcoProductRepository extends JpaRepository<UserEcoProduct, 
     List<ProductCountProjection> countGroupByProductSince(
             @Param("since") LocalDateTime since
     );
+
+    @Query("""
+            select new com.shinhan.esg_be.domain.social.dto.response.EcoProductPurchaseItemResponse(
+                uep.purchaseId,
+                p.productId,
+                p.name,
+                p.storeName,
+                p.category,
+                p.imageUrl,
+                pay.amount,
+                uep.deliveryAddress,
+                pay.paidAt
+            )
+            from UserEcoProduct uep
+            join uep.ecoProduct p
+            join uep.payment pay
+            where uep.user.userId = :userId
+            order by pay.paidAt desc
+            """)
+    List<EcoProductPurchaseItemResponse> findPurchasesByUserId(@Param("userId") Long userId);
 }
