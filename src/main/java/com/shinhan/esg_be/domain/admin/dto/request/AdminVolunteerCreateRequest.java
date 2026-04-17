@@ -37,6 +37,9 @@ public class AdminVolunteerCreateRequest {
     @NotBlank(message = "기관명은 필수입니다.")
     private String organization;
 
+    @NotBlank(message = "이미지 URL은 필수입니다.")
+    private String imageUrl;
+
     @NotBlank(message = "QR 토큰은 필수입니다.")
     private String qrToken;
 

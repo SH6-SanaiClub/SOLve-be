@@ -95,7 +95,12 @@ public class ProductPaymentVerifyService {
             throw new ResponseStatusException(BAD_REQUEST, "재고가 부족하여 결제를 완료할 수 없습니다.");
         }
 
-        userEcoProductRepository.save(UserEcoProduct.create(payment, product, user));
+        userEcoProductRepository.save(UserEcoProduct.create(
+                payment,
+                product,
+                user,
+                request.getDeliveryAddress()
+        ));
 
         ApplyActivityRewardResult rewardResult = rewardService.applyActivityReward(
                 new ApplyActivityRewardCommand(

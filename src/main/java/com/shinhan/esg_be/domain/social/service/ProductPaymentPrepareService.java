@@ -34,6 +34,7 @@ public class ProductPaymentPrepareService {
                 product.getProductId(),
                 product.getName(),
                 product.getStoreName(),
+                product.getCategory(),
                 product.getPrice()
         );
     }

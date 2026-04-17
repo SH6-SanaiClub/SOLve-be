@@ -16,6 +16,9 @@ public class ProductPaymentVerifyRequest {
     @NotBlank
     private String merchantUid;
 
+    @NotBlank
+    private String deliveryAddress;
+
     public Long getProductId() {
         return productId;
     }
@@ -26,5 +29,9 @@ public class ProductPaymentVerifyRequest {
 
     public String getMerchantUid() {
         return merchantUid;
+    }
+
+    public String getDeliveryAddress() {
+        return deliveryAddress;
     }
 }

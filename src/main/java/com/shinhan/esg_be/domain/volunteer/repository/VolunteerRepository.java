@@ -19,6 +19,7 @@ public interface VolunteerRepository extends JpaRepository<Volunteer, Long> {
                 v.volunteerId,
                 v.name,
                 v.description,
+                v.imageUrl,
                 v.activityDate,
                 v.location,
                 v.capacity,
