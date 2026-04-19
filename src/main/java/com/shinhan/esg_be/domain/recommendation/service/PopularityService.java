@@ -75,8 +75,8 @@ public class PopularityService {
         userDonationRepository.countGroupByDonationSince(since7)
                 .forEach(row -> popularityMap.put("DONATION:" + row.getDonationId(), row.getCount()));
 
-        // S 봉사 (volunteer_id별 집계)
-        userVolunteerRepository.countGroupByVolunteerSince(since7)
+        // S 봉사 (신청 기준 volunteer_id별 집계)
+        userVolunteerRepository.countApplicationsGroupByVolunteerSince(since7)
                 .forEach(row -> popularityMap.put("VOLUNTEER:" + row.getVolunteerId(), row.getCount()));
 
         // S 상품구매 (product_id별 집계)

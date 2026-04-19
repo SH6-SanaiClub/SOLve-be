@@ -1,6 +1,7 @@
 package com.shinhan.esg_be.domain.volunteer.service;
 
 import com.shinhan.esg_be.domain.point.service.result.ApplyActivityPointResult;
+import com.shinhan.esg_be.domain.recommendation.service.PopularityService;
 import com.shinhan.esg_be.domain.reward.service.RewardService;
 import com.shinhan.esg_be.domain.reward.service.command.ApplyActivityRewardCommand;
 import com.shinhan.esg_be.domain.reward.service.result.ApplyActivityRewardResult;
@@ -45,6 +46,7 @@ public class VolunteerService {
     private final UserVolunteerRepository userVolunteerRepository;
     private final UserRepository userRepository;
     private final RewardService rewardService;
+    private final PopularityService popularityService;
     private final VolunteerStatusTransitionService volunteerStatusTransitionService;
 
     private static final double CHECK_IN_RADIUS_METERS = 100.0;
@@ -117,6 +119,7 @@ public class VolunteerService {
 
         UserVolunteer userVolunteer = userVolunteerRepository.save(UserVolunteer.create(user, volunteer));
         volunteerStatusTransitionService.scheduleTransition(userVolunteer, getCheckOutDeadline(volunteer));
+        popularityService.evictPopularityCache();
 
         return new VolunteerApplyResponse(
                 userVolunteer.getVolunteerApplicationsId(),
@@ -153,6 +156,7 @@ public class VolunteerService {
 
         userVolunteerRepository.delete(userVolunteer);
         volunteerStatusTransitionService.clearTransition(userVolunteer.getVolunteerApplicationsId());
+        popularityService.evictPopularityCache();
     }
 
     @Transactional(readOnly = true)

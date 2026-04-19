@@ -41,6 +41,18 @@ public interface UserEnvironmentActivityRepository extends JpaRepository<UserEnv
     @Query("""
             SELECT COUNT(ua) FROM UserEnvironmentActivity ua
             WHERE ua.user.userId = :userId
+              AND ua.activity.activityId = :activityId
+              AND ua.createdAt >= :startOfDay
+            """)
+    long countTodayAttempts(
+            @Param("userId") Long userId,
+            @Param("activityId") Long activityId,
+            @Param("startOfDay") LocalDateTime startOfDay
+    );
+
+    @Query("""
+            SELECT COUNT(ua) FROM UserEnvironmentActivity ua
+            WHERE ua.user.userId = :userId
               AND ua.isApproved = true
               AND ua.createdAt >= :since
             """)

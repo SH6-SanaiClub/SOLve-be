@@ -1,8 +1,6 @@
 package com.shinhan.esg_be.domain.recommendation.service;
 
 import com.shinhan.esg_be.domain.ai.service.AIService;
-import com.shinhan.esg_be.domain.environment.repository.UserEnvironmentActivityRepository;
-import com.shinhan.esg_be.domain.quiz.repository.UserQuizRepository;
 import com.shinhan.esg_be.domain.recommendation.dto.ActivityCandidateDto;
 import com.shinhan.esg_be.domain.recommendation.dto.ActivityRecommendResponse;
 import com.shinhan.esg_be.domain.recommendation.dto.ActivityRecommendResponse.RecommendedActivity;
@@ -11,7 +9,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -30,9 +27,8 @@ public class RecommendationService {
     private final ActivityScorer            scorer;
     private final ActivityBoostService      boostService;
     private final PopularityService         popularityService;
+    private final ActivityAvailabilityService activityAvailabilityService;
     private final RecommendCacheService     cacheService;
-    private final UserEnvironmentActivityRepository userActivityRepository;
-    private final UserQuizRepository userQuizRepository;
     private final AIService                 aiService;
 
     private static final int TOP_N = 3;
@@ -87,7 +83,7 @@ public class RecommendationService {
             List<ActivityCandidateDto> fallbackCandidates = filterService
                     .filterIgnoringMonthlyLimit(candidates, feature)
                     .stream()
-                    .filter(c -> checkMonthlyLimitReached(c, feature))
+                    .filter(c -> activityAvailabilityService.evaluate(c, feature).monthlyLimitReached())
                     .filter(c -> top3.stream().noneMatch(selected -> isSameActivity(selected, c)))
                     .collect(Collectors.toList());
 
@@ -113,7 +109,7 @@ public class RecommendationService {
                 .map(c -> toRecommendedActivity(c, feature))
                 .collect(Collectors.toList());
         RecommendedActivity popularActivity =
-                popular.map(c -> toPopularRecommendedActivity(c, feature)).orElse(null);
+                popular.map(c -> toRecommendedActivity(c, feature)).orElse(null);
 
         // Step 9: LLM 호출 → description + llmSummary 채우기
         AIService.LLMResult llmResult =
@@ -161,8 +157,7 @@ public class RecommendationService {
             ActivityCandidateDto c,
             UserFeatureDto feature
     ) {
-        boolean alreadyToday = checkAlreadyParticipatedToday(c, feature.getUserId());
-        boolean monthlyLimit = checkMonthlyLimitReached(c, feature);
+        ActivityAvailabilityStatus status = activityAvailabilityService.evaluate(c, feature);
 
         return RecommendedActivity.builder()
                 .activityType(c.getActivityType())
@@ -180,56 +175,11 @@ public class RecommendationService {
                 .currentEnrolled(c.getCurrentEnrolled())
                 .capacity(c.getCapacity())
                 .description(null)
-                .alreadyParticipatedToday(alreadyToday)
-                .monthlyLimitReached(monthlyLimit)
+                .alreadyParticipatedToday(status.alreadyParticipatedToday())
+                .monthlyLimitReached(status.monthlyLimitReached())
+                .canParticipate(status.canParticipate())
+                .blockedReasonCode(status.blockedReasonCode())
                 .build();
-    }
-
-    // ── 인기 활동 전용 변환 (상태 필드 추가 계산) ────────────────────────────────
-    private RecommendedActivity toPopularRecommendedActivity(
-            ActivityCandidateDto c, UserFeatureDto feature
-    ) {
-        boolean alreadyToday = checkAlreadyParticipatedToday(c, feature.getUserId());
-        boolean monthlyLimit = checkMonthlyLimitReached(c, feature);
-
-        return RecommendedActivity.builder()
-                .activityType(c.getActivityType())
-                .referenceId(c.getReferenceId())
-                .name(c.getName())
-                .scoreCategory(c.getScoreCategory())
-                .scoreValue(c.getScoreValue())
-                .pointValue(c.getPointValue())
-                .pointRate(c.getPointRate())
-                .deadlineDate(c.getDeadlineDate())
-                .finalScore(c.getFinalScore())
-                .mainReason(c.getMainReason())
-                .currentAmount(c.getCurrentAmount())
-                .targetAmount(c.getTargetAmount())
-                .currentEnrolled(c.getCurrentEnrolled())
-                .capacity(c.getCapacity())
-                .description(null)
-                .alreadyParticipatedToday(alreadyToday)
-                .monthlyLimitReached(monthlyLimit)
-                .build();
-    }
-
-    private boolean checkAlreadyParticipatedToday(ActivityCandidateDto c, Long userId) {
-        LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
-        return switch (c.getActivityType()) {
-            case "PHOTO" -> userActivityRepository
-                    .countTodayApproved(userId, c.getReferenceId(), startOfDay) > 0;
-            case "QUIZ" -> userQuizRepository.countToday(userId, startOfDay) > 0;
-            default -> false; // S 활동은 일일 참여 제한 없음
-        };
-    }
-
-    private boolean checkMonthlyLimitReached(ActivityCandidateDto c, UserFeatureDto feature) {
-        return switch (c.getScoreCategory()) {
-            case "E" -> feature.getMonthlyEScore() >= 5;
-            case "S" -> feature.getMonthlySScore() >= 25;
-            case "G" -> feature.getMonthlyGScore() >= 10;
-            default -> false;
-        };
     }
 
     // B2 raw 효율 계산 (ActivityScorer와 동일 로직 — maxB2 계산용)

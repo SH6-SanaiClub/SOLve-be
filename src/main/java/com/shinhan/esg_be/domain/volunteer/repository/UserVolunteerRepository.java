@@ -39,6 +39,8 @@ public interface UserVolunteerRepository extends JpaRepository<UserVolunteer, Lo
             Long userId, Long volunteerId, VolunteerStatus status
     );
 
+    boolean existsByUser_UserIdAndVolunteer_VolunteerId(Long userId, Long volunteerId);
+
     Optional<UserVolunteer> findByUser_UserIdAndVolunteer_VolunteerIdAndStatus(
             Long userId, Long volunteerId, VolunteerStatus status
     );
@@ -97,6 +99,16 @@ public interface UserVolunteerRepository extends JpaRepository<UserVolunteer, Lo
             Long userId,
             Long volunteerId,
             LocalDateTime since
+    );
+
+    @Query("""
+            SELECT uv.volunteer.volunteerId AS volunteerId, COUNT(uv) AS count
+            FROM UserVolunteer uv
+            WHERE uv.createdAt >= :since
+            GROUP BY uv.volunteer.volunteerId
+            """)
+    List<VolunteerCountProjection> countApplicationsGroupByVolunteerSince(
+            @Param("since") LocalDateTime since
     );
 
     @Query("""

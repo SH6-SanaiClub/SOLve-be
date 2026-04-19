@@ -80,6 +80,8 @@ public class AIService {
                         .description(safeDescription)
                         .alreadyParticipatedToday(original.getAlreadyParticipatedToday())
                         .monthlyLimitReached(original.getMonthlyLimitReached())
+                        .canParticipate(original.getCanParticipate())
+                        .blockedReasonCode(original.getBlockedReasonCode())
                         .build());
             }
 
@@ -113,6 +115,8 @@ public class AIService {
                     .description(fallbackDescription(activity))
                     .alreadyParticipatedToday(activity.getAlreadyParticipatedToday())
                     .monthlyLimitReached(activity.getMonthlyLimitReached())
+                    .canParticipate(activity.getCanParticipate())
+                    .blockedReasonCode(activity.getBlockedReasonCode())
                     .build());
         }
 

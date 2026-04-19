@@ -43,8 +43,10 @@ public class ActivityRecommendResponse {
         // LLM 생성 카드 멘트
         private String description;
 
-        // 인기 활동 전용 상태 필드
-        private Boolean alreadyParticipatedToday; // 오늘 이미 참여했는지 (E/G)
+        // 사용자 참여 상태 필드
+        private Boolean alreadyParticipatedToday; // 오늘 이미 참여/시도했는지
         private Boolean monthlyLimitReached;      // 월 점수 한도 도달 여부
+        private Boolean canParticipate;           // 현재 사용자가 실제로 참여 가능한지
+        private String blockedReasonCode;         // 참여 불가 사유 코드
     }
 }
