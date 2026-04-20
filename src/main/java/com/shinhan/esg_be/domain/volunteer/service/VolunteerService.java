@@ -15,8 +15,8 @@ import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerApplicationResp
 import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerAttendanceResponse;
 import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerCheckInResponse;
 import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerCheckOutResponse;
-import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerItemResponse;
 import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerDetailResponse;
+import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerHistoryResponse;
 import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerResponse;
 import com.shinhan.esg_be.domain.volunteer.entity.UserVolunteer;
 import com.shinhan.esg_be.domain.volunteer.entity.Volunteer;
@@ -31,6 +31,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -62,6 +63,14 @@ public class VolunteerService {
         Long userId = authContext.currentUserId();
         return new VolunteerApplicationResponse(
                 userVolunteerRepository.findApplicationVolunteersByUserId(userId, LocalDateTime.now())
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public VolunteerHistoryResponse getVolunteerHistory() {
+        Long userId = authContext.currentUserId();
+        return new VolunteerHistoryResponse(
+                userVolunteerRepository.findVolunteerHistoryByUserId(userId, LocalDateTime.now())
         );
     }
 
@@ -239,7 +248,8 @@ public class VolunteerService {
 
         boolean completed = isCompletedCheckOut(volunteer, now)
                 && userVolunteer.getStatus() == VolunteerStatus.ATTENDED;
-        userVolunteer.markCheckOut(now, completed);
+        int recognizedVolunteerHour = calculateRecognizedVolunteerHour(volunteer, userVolunteer, now);
+        userVolunteer.markCheckOut(now, completed, recognizedVolunteerHour);
         volunteerStatusTransitionService.clearTransition(userVolunteer.getVolunteerApplicationsId());
 
         int awardedPoint = 0;
@@ -300,6 +310,54 @@ public class VolunteerService {
         return volunteer.getActivityDate()
                 .plusHours(volunteer.getVolunteerHour())
                 .plusHours(1);
+    }
+
+    private int calculateRecognizedVolunteerHour(
+            Volunteer volunteer,
+            UserVolunteer userVolunteer,
+            LocalDateTime checkedOutAt
+    ) {
+        if (userVolunteer.getCheckInAt() == null) {
+            return 0;
+        }
+
+        LocalDateTime scheduledStart = volunteer.getActivityDate();
+        LocalDateTime scheduledEnd = scheduledStart.plusHours(volunteer.getVolunteerHour());
+
+        LocalDateTime recognizedStart = userVolunteer.getCheckInAt().isAfter(getCheckInDeadline(volunteer))
+                ? ceilToVolunteerHourBoundary(scheduledStart, userVolunteer.getCheckInAt())
+                : scheduledStart;
+
+        LocalDateTime recognizedEnd = checkedOutAt.isBefore(scheduledEnd.minusMinutes(1))
+                ? floorToVolunteerHourBoundary(scheduledStart, checkedOutAt)
+                : scheduledEnd;
+
+        if (!recognizedEnd.isAfter(recognizedStart)) {
+            return 0;
+        }
+
+        long recognizedHours = Duration.between(recognizedStart, recognizedEnd).toHours();
+        return (int) Math.max(0, Math.min(volunteer.getVolunteerHour(), recognizedHours));
+    }
+
+    private LocalDateTime ceilToVolunteerHourBoundary(LocalDateTime scheduledStart, LocalDateTime dateTime) {
+        if (!dateTime.isAfter(scheduledStart)) {
+            return scheduledStart;
+        }
+
+        long minutes = Duration.between(scheduledStart, dateTime).toMinutes();
+        long hoursToAdd = (minutes + 59) / 60;
+        return scheduledStart.plusHours(hoursToAdd);
+    }
+
+    private LocalDateTime floorToVolunteerHourBoundary(LocalDateTime scheduledStart, LocalDateTime dateTime) {
+        if (!dateTime.isAfter(scheduledStart)) {
+            return scheduledStart;
+        }
+
+        long minutes = Duration.between(scheduledStart, dateTime).toMinutes();
+        long hoursToAdd = minutes / 60;
+        return scheduledStart.plusHours(hoursToAdd);
     }
 
     private void validateLocation(Volunteer volunteer, Double latitude, Double longitude) {

@@ -136,6 +136,7 @@ public class AdminActivityService {
                 Donation.create(
                         request.getName(),
                         request.getSummary(),
+                        request.getOrganization(),
                         request.getDescription(),
                         request.getTargetAmount(),
                         request.getImageUrl(),
@@ -155,6 +156,7 @@ public class AdminActivityService {
         donation.update(
                 request.getName(),
                 request.getSummary(),
+                request.getOrganization(),
                 request.getDescription(),
                 request.getTargetAmount(),
                 request.getImageUrl(),

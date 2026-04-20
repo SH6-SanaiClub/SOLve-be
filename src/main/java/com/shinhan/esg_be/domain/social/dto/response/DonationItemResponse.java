@@ -10,6 +10,7 @@ public class DonationItemResponse {
     private final Long donationId;
     private final String name;
     private final String summary;
+    private final String organization;
     private final Long targetAmount;
     private final Long currentAmount;
     private final String imageUrl;
@@ -22,6 +23,7 @@ public class DonationItemResponse {
             Long donationId,
             String name,
             String summary,
+            String organization,
             Long targetAmount,
             Long currentAmount,
             String imageUrl,
@@ -38,6 +40,7 @@ public class DonationItemResponse {
         this.donationId = donationId;
         this.name = name;
         this.summary = summary;
+        this.organization = organization;
         this.targetAmount = targetAmount;
         this.currentAmount = currentAmount;
         this.imageUrl = imageUrl;

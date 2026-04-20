@@ -9,6 +9,7 @@ import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerAttendanceRespo
 import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerCheckInResponse;
 import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerCheckOutResponse;
 import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerDetailResponse;
+import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerHistoryResponse;
 import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerResponse;
 import com.shinhan.esg_be.domain.volunteer.service.VolunteerService;
 import jakarta.validation.Valid;
@@ -39,6 +40,11 @@ public class VolunteerController {
     @GetMapping("/volunteers/applications")
     public ResponseEntity<VolunteerApplicationResponse> getVolunteerApplications() {
         return ResponseEntity.ok(volunteerService.getMyVolunteerApplications());
+    }
+
+    @GetMapping("/volunteers/history")
+    public ResponseEntity<VolunteerHistoryResponse> getVolunteerHistory() {
+        return ResponseEntity.ok(volunteerService.getVolunteerHistory());
     }
 
     @GetMapping("/volunteers/{volunteerId}")

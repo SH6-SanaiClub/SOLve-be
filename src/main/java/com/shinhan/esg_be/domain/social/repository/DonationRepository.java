@@ -29,6 +29,7 @@ public interface DonationRepository extends JpaRepository<Donation, Long> {
                 d.donationId,
                 d.name,
                 d.summary,
+                d.organization,
                 d.targetAmount,
                 d.currentAmount,
                 d.imageUrl,
@@ -40,7 +41,7 @@ public interface DonationRepository extends JpaRepository<Donation, Long> {
             left join UserDonation ud on ud.donation = d
             where d.isActive = true
               and d.endDate >= :baseDateTime
-            group by d.donationId, d.name, d.summary, d.targetAmount, d.currentAmount,
+            group by d.donationId, d.name, d.summary, d.organization, d.targetAmount, d.currentAmount,
                      d.imageUrl, d.startDate, d.endDate, d.isActive
             order by d.endDate asc
             """)
@@ -51,6 +52,7 @@ public interface DonationRepository extends JpaRepository<Donation, Long> {
                 d.donationId,
                 d.name,
                 d.summary,
+                d.organization,
                 d.description,
                 d.targetAmount,
                 d.currentAmount,
@@ -64,7 +66,7 @@ public interface DonationRepository extends JpaRepository<Donation, Long> {
             where d.donationId = :donationId
               and d.isActive = true
               and d.endDate >= :baseDateTime
-            group by d.donationId, d.name, d.summary, d.description, d.targetAmount,
+            group by d.donationId, d.name, d.summary, d.organization, d.description, d.targetAmount,
                      d.currentAmount, d.imageUrl, d.startDate, d.endDate, d.isActive
             """)
     Optional<DonationDetailResponse> findActiveDonationDetail(

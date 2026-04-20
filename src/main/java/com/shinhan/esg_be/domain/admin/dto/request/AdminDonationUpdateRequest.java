@@ -20,6 +20,9 @@ public class AdminDonationUpdateRequest {
     @NotBlank(message = "요약은 필수입니다.")
     private String summary;
 
+    @NotBlank(message = "단체명은 필수입니다.")
+    private String organization;
+
     @NotBlank(message = "설명은 필수입니다.")
     private String description;
 

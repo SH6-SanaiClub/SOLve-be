@@ -1,6 +1,7 @@
 package com.shinhan.esg_be.domain.volunteer.repository;
 
 import com.shinhan.esg_be.domain.recommendation.dto.VolunteerCountProjection;
+import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerHistoryItemResponse;
 import com.shinhan.esg_be.domain.volunteer.entity.UserVolunteer;
 import com.shinhan.esg_be.domain.volunteer.entity.enums.VolunteerStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -77,6 +78,30 @@ public interface UserVolunteerRepository extends JpaRepository<UserVolunteer, Lo
             order by v.activityDate asc
             """)
     List<com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerApplicationItemResponse> findApplicationVolunteersByUserId(
+            @Param("userId") Long userId,
+            @Param("now") LocalDateTime now
+    );
+
+    @Query("""
+            select new com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerHistoryItemResponse(
+                uv.volunteerApplicationsId,
+                v.volunteerId,
+                v.organization,
+                v.name,
+                v.activityDate,
+                uv.status,
+                uv.checkInAt,
+                uv.checkOutAt,
+                uv.volunteerHour,
+                v.volunteerHour
+            )
+            from UserVolunteer uv
+            join uv.volunteer v
+            where uv.user.userId = :userId
+              and v.activityDate < :now
+            order by v.activityDate desc
+            """)
+    List<VolunteerHistoryItemResponse> findVolunteerHistoryByUserId(
             @Param("userId") Long userId,
             @Param("now") LocalDateTime now
     );

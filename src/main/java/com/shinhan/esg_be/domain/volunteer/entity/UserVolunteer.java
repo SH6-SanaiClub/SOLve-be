@@ -64,7 +64,7 @@ public class UserVolunteer {
         userVolunteer.user = user;
         userVolunteer.volunteer = volunteer;
         userVolunteer.status = VolunteerStatus.APPLIED;
-        userVolunteer.volunteerHour = volunteer.getVolunteerHour();
+        userVolunteer.volunteerHour = 0;
         return userVolunteer;
     }
 
@@ -73,16 +73,19 @@ public class UserVolunteer {
         this.status = late ? VolunteerStatus.INCOMPLETE : VolunteerStatus.ATTENDED;
     }
 
-    public void markCheckOut(LocalDateTime checkedOutAt, boolean completed) {
+    public void markCheckOut(LocalDateTime checkedOutAt, boolean completed, int volunteerHour) {
         this.checkOutAt = checkedOutAt;
+        this.volunteerHour = volunteerHour;
         this.status = completed ? VolunteerStatus.COMPLETED : VolunteerStatus.INCOMPLETE;
     }
 
     public void markNoShow() {
+        this.volunteerHour = 0;
         this.status = VolunteerStatus.NOSHOW;
     }
 
     public void markIncomplete() {
+        this.volunteerHour = 0;
         this.status = VolunteerStatus.INCOMPLETE;
     }
 }
