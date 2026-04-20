@@ -4,6 +4,7 @@ import com.shinhan.esg_be.domain.environment.entity.EnvironmentActivity;
 import com.shinhan.esg_be.domain.environment.entity.UserEnvironmentActivity;
 import com.shinhan.esg_be.domain.recommendation.dto.ActivityCountProjection;
 import com.shinhan.esg_be.domain.user.entity.User;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -19,6 +20,7 @@ public interface UserEnvironmentActivityRepository extends JpaRepository<UserEnv
             LocalDateTime end
     );
 
+    @EntityGraph(attributePaths = "activity")
     List<UserEnvironmentActivity> findAllByUserAndCreatedAtBetween(
             User user,
             LocalDateTime start,
@@ -33,6 +35,18 @@ public interface UserEnvironmentActivityRepository extends JpaRepository<UserEnv
               AND ua.createdAt >= :startOfDay
             """)
     long countTodayApproved(
+            @Param("userId") Long userId,
+            @Param("activityId") Long activityId,
+            @Param("startOfDay") LocalDateTime startOfDay
+    );
+
+    @Query("""
+            SELECT COUNT(ua) FROM UserEnvironmentActivity ua
+            WHERE ua.user.userId = :userId
+              AND ua.activity.activityId = :activityId
+              AND ua.createdAt >= :startOfDay
+            """)
+    long countTodayAttempts(
             @Param("userId") Long userId,
             @Param("activityId") Long activityId,
             @Param("startOfDay") LocalDateTime startOfDay

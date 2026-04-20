@@ -33,10 +33,7 @@ public class ActivityScorer {
     private final UserDonationRepository userDonationRepository;
     private final UserVolunteerRepository userVolunteerRepository;
     private final UserEcoProductRepository userEcoProductRepository;
-
-    // 월 한도 (정규화 분모)
-    private static final Map<String, Integer> MONTHLY_MAX =
-            Map.of("E", 5, "S", 25, "G", 10);
+    private final RecommendationPolicyService recommendationPolicyService;
 
     public List<ActivityCandidateDto> score(
             List<ActivityCandidateDto> candidates,
@@ -72,10 +69,11 @@ public class ActivityScorer {
             range = 1.0;
         }
 
+        Map<String, Integer> monthlyMaxMap = recommendationPolicyService.getMonthlyMaxScoreMap();
         LocalDateTime since14 = LocalDateTime.now().minusDays(14);
         for (ActivityCandidateDto c : candidates) {
             // 카테고리 월한도 기준 점수 정규화
-            int monthlyMax = MONTHLY_MAX.getOrDefault(c.getScoreCategory(), 1);
+            int monthlyMax = Math.max(1, monthlyMaxMap.getOrDefault(c.getScoreCategory(), 1));
             double normalizedScore = clamp01((double) c.getScoreValue() / monthlyMax);
             c.setNormalizedScore(normalizedScore);
 

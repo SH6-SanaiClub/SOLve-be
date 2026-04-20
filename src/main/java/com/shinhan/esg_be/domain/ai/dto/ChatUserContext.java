@@ -13,10 +13,13 @@ import java.util.List;
 @AllArgsConstructor
 public class ChatUserContext {
     private String name;
+    private String userType;
     private int totalScore;
     private String grade;
     private int eScore;
     private int sScore;
+    private int gActivityScore;
+    private int gRepaymentScore;
     private int gScore;
     private long point;
     private int monthlyEScore;
@@ -25,4 +28,5 @@ public class ChatUserContext {
     private int nextGradeScore;
     private List<String> activeSavings;
     private boolean hasActiveLoan;
+    private boolean loanBlocked;
 }

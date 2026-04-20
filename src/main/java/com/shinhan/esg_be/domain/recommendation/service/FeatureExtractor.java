@@ -23,7 +23,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.YearMonth;
 
 @Slf4j
 @Service
@@ -50,12 +49,8 @@ public class FeatureExtractor {
                 .orElseThrow(() -> new IllegalArgumentException(
                         "존재하지 않는 사용자입니다. userId=" + userId));
 
-        // 2. 이번 달 카테고리별 획득 점수 (월 한도 필터용)
-        YearMonth now = YearMonth.now();
-        LocalDateTime monthStart = now.atDay(1).atStartOfDay();
-        LocalDateTime monthEnd = now.plusMonths(1).atDay(1).atStartOfDay();
-        var monthlyStat = userMonthlyStatRepository
-                .findByUserAndMonth(userId, monthStart, monthEnd);
+        // 2. 현재 월 누적 점수 (월초 초기화되는 사용자 단일 통계 row 기준)
+        var monthlyStat = userMonthlyStatRepository.findByUser(user);
 
         int monthlyEScore = monthlyStat.map(s -> s.getMonthlyEScore()).orElse(0);
         int monthlySScore = monthlyStat.map(s -> s.getMonthlySScore()).orElse(0);
