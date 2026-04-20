@@ -129,7 +129,8 @@ public class ChatService {
             try {
                 String normalizedUserMessage = normalizeKeywordSource(userMessage);
                 String intent = detectIntent(normalizedUserMessage, normalizedUserMessage);
-                if (handleSmallTalkFastPath(emitter, userId, userMessage, normalizedUserMessage, intent)) {
+                long historyVersion = historyService.getHistoryVersion(userId);
+                if (handleSmallTalkFastPath(emitter, userId, userMessage, normalizedUserMessage, intent, historyVersion)) {
                     return;
                 }
                 String staticPolicy = getStaticPolicy();
@@ -199,7 +200,14 @@ public class ChatService {
                                 sendEvent(emitter, "suggestions", serialize(suggestions));
                             }
 
-                            historyService.appendAndSave(userId, userMessage, cleanResponse, actions, suggestions);
+                            historyService.appendAndSave(
+                                    userId,
+                                    userMessage,
+                                    cleanResponse,
+                                    actions,
+                                    suggestions,
+                                    historyVersion
+                            );
 
                             sendEvent(emitter, "done", "");
                             emitter.complete();
@@ -220,7 +228,8 @@ public class ChatService {
             Long userId,
             String userMessage,
             String normalizedUserMessage,
-            String intent
+            String intent,
+            long historyVersion
     ) {
         if (!INTENT_DEFAULT.equals(intent)) {
             return false;
@@ -241,7 +250,7 @@ public class ChatService {
         emitSmallTalkStream(emitter, response);
         sendEvent(emitter, "replace", response);
         sendEvent(emitter, "suggestions", serialize(suggestions));
-        historyService.appendAndSave(userId, userMessage, response, List.of(), suggestions);
+        historyService.appendAndSave(userId, userMessage, response, List.of(), suggestions, historyVersion);
         sendEvent(emitter, "done", "");
         emitter.complete();
         return true;
@@ -470,6 +479,9 @@ public class ChatService {
                 - 아래 정보가 제공되면 이를 최우선 사실로 사용하고, 임의로 다른 추천 결과를 만들어내지 말 것
                 - 추천 엔진 결과는 설명과 해석만 하고, 추천 자체를 바꾸지 말 것
                 - 오늘 이미 완료했거나 오늘 재시도가 막힌 활동은 '지금 바로 가능한 활동'으로 추천하지 말 것
+                - 이번 달 부족한 활동/카테고리를 묻는 질문이면 '부족한 카테고리'와 '오늘 실제로 가능한 활동'을 반드시 구분해서 답할 것
+                - 특정 카테고리가 이번 달 기준으로 부족하더라도 오늘 가능한 활동이 없으면, 부족하다고 설명하되 오늘은 불가능하다고 명확히 말할 것
+                - 예: G 점수가 부족해도 오늘 퀴즈를 이미 완료했다면 'G가 부족하지만 오늘은 추가 G 활동이 불가능하다'고 답하고 퀴즈 참여를 권하지 말 것
                 - 액션 버튼이 필요하면 본문에서 직접 경로를 쓰지 말고, 추천/설명과 일치하는 페이지 기준으로만 제안할 것
                 - 답변은 2~4개의 짧은 문단 또는 짧은 번호 목록으로 정리할 것
                 - 문단마다 한 가지 주제만 설명하고, 줄바꿈을 명확히 사용할 것
@@ -488,6 +500,7 @@ public class ChatService {
         }
 
         sections.add(buildUserStateFacts(context, userFeature, activitySnapshot));
+        sections.add(buildMonthlyGapFacts(context, userFeature, activitySnapshot));
         sections.add(buildQuestionSignalFacts(intent, normalizedUserMessage, requestedCategory, popularRequested));
 
         if (activityRecommend != null
@@ -563,9 +576,45 @@ public class ChatService {
         lines.add("- 의도: " + intent);
         lines.add("- 인기 활동만 물은 질문: " + (popularRequested ? "예" : "아니오"));
         lines.add("- 특정 카테고리 지정 여부: " + (requestedCategory != null ? requestedCategory : "없음"));
+        lines.add("- 부족한 활동/남은 카테고리 분석 질문: "
+                + (containsAny(normalizedUserMessage, "부족", "모자라", "남은", "잔여", "채우", "어디가 약") ? "예" : "아니오"));
         lines.add("- 오늘 가능 여부/현황을 함께 고려해야 하는 질문: "
                 + (containsAny(normalizedUserMessage, "오늘", "지금", "바로", "현황", "이번 달", "이번달") ? "예" : "아니오"));
         return String.join("\n", lines);
+    }
+
+    private String buildMonthlyGapFacts(
+            ChatUserContext context,
+            UserFeatureDto userFeature,
+            UserActivitySnapshot activitySnapshot
+    ) {
+        int remainingE = Math.max(0, 5 - userFeature.getMonthlyEScore());
+        int remainingS = Math.max(0, 25 - userFeature.getMonthlySScore());
+        int remainingG = Math.max(0, 10 - userFeature.getMonthlyGScore());
+
+        String eAvailability = hasAvailableEAction(userFeature, activitySnapshot)
+                ? "오늘 가능한 E 활동 있음"
+                : "오늘 가능한 E 활동 없음";
+        String sAvailability = hasAvailableSAction(userFeature)
+                ? "월 한도 기준 S 활동 여유 있음"
+                : "이번 달 S 활동 한도 도달";
+        String gAvailability = activitySnapshot.quizDone()
+                ? "오늘 퀴즈 이미 완료로 오늘 추가 G 활동 불가"
+                : hasAvailableGAction(userFeature, activitySnapshot)
+                ? "오늘 퀴즈 참여 가능"
+                : "오늘 가능한 G 활동 없음";
+
+        return String.format("""
+                === 이번 달 부족분 분석 사실 ===
+                - E 남은 점수: %d점 | 상태: %s
+                - S 남은 점수: %d점 | 상태: %s
+                - G 남은 점수: %d점 | 상태: %s
+                - 답변 시 '이번 달 기준 부족한 카테고리'와 '오늘 당장 할 수 있는 활동'을 혼동하지 말 것
+                """,
+                remainingE, eAvailability,
+                remainingS, sAvailability,
+                remainingG, gAvailability
+        ).trim();
     }
 
     private String buildActivityRecommendationFacts(ActivityRecommendResponse activityRecommend, String requestedCategory) {
@@ -800,7 +849,9 @@ public class ChatService {
         }
         if (containsAny(userMessage,
                 "이번 달 활동", "이번달 활동", "활동 현황",
-                "현재 현황", "월 활동", "점수 현황")) {
+                "현재 현황", "월 활동", "점수 현황",
+                "부족한 활동", "부족한 카테고리", "뭐가 부족", "어디가 부족",
+                "남은 활동", "남은 점수", "잔여 점수")) {
             return INTENT_STATUS;
         }
         if (containsAny(userMessage,

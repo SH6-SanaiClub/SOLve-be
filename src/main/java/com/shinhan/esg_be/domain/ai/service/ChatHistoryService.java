@@ -20,6 +20,7 @@ import java.util.Map;
 public class ChatHistoryService {
 
     private static final String KEY_PREFIX = "chat:history:";
+    private static final String VERSION_KEY_PREFIX = "chat:history:version:";
     private static final Duration TTL = Duration.ofHours(2);
     private static final int MAX_UI_MESSAGES = 30;
     private static final int MAX_PROMPT_MESSAGES = 10;
@@ -91,13 +92,34 @@ public class ChatHistoryService {
         }
     }
 
+    public long getHistoryVersion(Long userId) {
+        try {
+            String rawVersion = stringRedisTemplate.opsForValue().get(VERSION_KEY_PREFIX + userId);
+            if (rawVersion == null || rawVersion.isBlank()) {
+                return 0L;
+            }
+            return Long.parseLong(rawVersion);
+        } catch (Exception e) {
+            log.warn("대화 이력 버전 조회 실패 userId={}", userId, e);
+            return 0L;
+        }
+    }
+
     public void appendAndSave(
             Long userId,
             String userMsg,
             String assistantMsg,
             List<ChatAction> actions,
-            List<String> suggestions
+            List<String> suggestions,
+            long expectedHistoryVersion
     ) {
+        long currentHistoryVersion = getHistoryVersion(userId);
+        if (currentHistoryVersion != expectedHistoryVersion) {
+            log.info("대화 이력 저장 스킵 - 세션 버전 불일치 userId={} expected={} current={}",
+                    userId, expectedHistoryVersion, currentHistoryVersion);
+            return;
+        }
+
         List<ChatHistoryMessageResponse> history = getUiHistory(userId);
 
         history.add(ChatHistoryMessageResponse.builder()
@@ -121,6 +143,7 @@ public class ChatHistoryService {
 
     public void clearHistory(Long userId) {
         try {
+            stringRedisTemplate.opsForValue().increment(VERSION_KEY_PREFIX + userId);
             stringRedisTemplate.delete(KEY_PREFIX + userId);
         } catch (Exception e) {
             log.warn("대화 이력 삭제 실패 userId={}", userId, e);
