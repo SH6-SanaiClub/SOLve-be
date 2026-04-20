@@ -14,8 +14,8 @@ import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerApplicationResp
 import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerAttendanceResponse;
 import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerCheckInResponse;
 import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerCheckOutResponse;
-import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerItemResponse;
 import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerDetailResponse;
+import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerHistoryResponse;
 import com.shinhan.esg_be.domain.volunteer.dto.response.VolunteerResponse;
 import com.shinhan.esg_be.domain.volunteer.entity.UserVolunteer;
 import com.shinhan.esg_be.domain.volunteer.entity.Volunteer;
@@ -61,6 +61,14 @@ public class VolunteerService {
         Long userId = authContext.currentUserId();
         return new VolunteerApplicationResponse(
                 userVolunteerRepository.findApplicationVolunteersByUserId(userId, LocalDateTime.now())
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public VolunteerHistoryResponse getVolunteerHistory() {
+        Long userId = authContext.currentUserId();
+        return new VolunteerHistoryResponse(
+                userVolunteerRepository.findVolunteerHistoryByUserId(userId, LocalDateTime.now())
         );
     }
 
