@@ -1,6 +1,7 @@
 package com.shinhan.esg_be.domain.social.repository;
 
 import com.shinhan.esg_be.domain.recommendation.dto.DonationCountProjection;
+import com.shinhan.esg_be.domain.social.dto.response.DonationHistoryItemResponse;
 import com.shinhan.esg_be.domain.social.entity.UserDonation;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -84,4 +85,22 @@ public interface UserDonationRepository extends JpaRepository<UserDonation, Long
     List<DonationCountProjection> countGroupByDonationSince(
             @Param("since") LocalDateTime since
     );
+
+    @Query("""
+            select new com.shinhan.esg_be.domain.social.dto.response.DonationHistoryItemResponse(
+                ud.donationLogId,
+                d.donationId,
+                d.organization,
+                d.name,
+                d.imageUrl,
+                p.paidAt,
+                p.amount
+            )
+            from UserDonation ud
+            join ud.donation d
+            join ud.payment p
+            where ud.user.userId = :userId
+            order by p.paidAt desc
+            """)
+    List<DonationHistoryItemResponse> findDonationHistoryByUserId(@Param("userId") Long userId);
 }

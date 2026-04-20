@@ -1,6 +1,7 @@
 package com.shinhan.esg_be.domain.social.controller;
 
 import com.shinhan.esg_be.domain.social.dto.response.DonationDetailResponse;
+import com.shinhan.esg_be.domain.social.dto.response.DonationHistoryResponse;
 import com.shinhan.esg_be.domain.social.dto.response.DonationResponse;
 import com.shinhan.esg_be.domain.social.service.DonationService;
 import lombok.RequiredArgsConstructor;
@@ -25,5 +26,10 @@ public class DonationController {
     @GetMapping("/donations/{donationId}")
     public ResponseEntity<DonationDetailResponse> getDonation(@PathVariable Long donationId) {
         return ResponseEntity.ok(donationService.getDonation(donationId));
+    }
+
+    @GetMapping("/donations/history")
+    public ResponseEntity<DonationHistoryResponse> getDonationHistory() {
+        return ResponseEntity.ok(donationService.getDonationHistory());
     }
 }
