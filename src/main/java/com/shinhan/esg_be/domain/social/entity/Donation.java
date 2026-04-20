@@ -30,6 +30,9 @@ public class Donation extends BaseTimeEntity {
     @Column(nullable = false)
     private String summary;
 
+    @Column(name = "organization", nullable = false)
+    private String organization;
+
     @Column(nullable = false, columnDefinition = "TEXT")
     private String description;
 
@@ -54,6 +57,7 @@ public class Donation extends BaseTimeEntity {
     public static Donation create(
             String name,
             String summary,
+            String organization,
             String description,
             Long targetAmount,
             String imageUrl,
@@ -64,6 +68,7 @@ public class Donation extends BaseTimeEntity {
         Donation donation = new Donation();
         donation.name = name;
         donation.summary = summary;
+        donation.organization = organization;
         donation.description = description;
         donation.targetAmount = targetAmount;
         donation.currentAmount = 0L;
@@ -77,6 +82,7 @@ public class Donation extends BaseTimeEntity {
     public void update(
             String name,
             String summary,
+            String organization,
             String description,
             Long targetAmount,
             String imageUrl,
@@ -85,6 +91,7 @@ public class Donation extends BaseTimeEntity {
     ) {
         this.name = name;
         this.summary = summary;
+        this.organization = organization;
         this.description = description;
         this.targetAmount = targetAmount;
         this.imageUrl = imageUrl;

@@ -14,6 +14,7 @@ public class AdminDonationResponse {
     private Long donationId;
     private String name;
     private String summary;
+    private String organization;
     private String description;
     private Long targetAmount;
     private Long currentAmount;
@@ -35,6 +36,7 @@ public class AdminDonationResponse {
                 donation.getDonationId(),
                 donation.getName(),
                 donation.getSummary(),
+                donation.getOrganization(),
                 donation.getDescription(),
                 donation.getTargetAmount(),
                 donation.getCurrentAmount(),
