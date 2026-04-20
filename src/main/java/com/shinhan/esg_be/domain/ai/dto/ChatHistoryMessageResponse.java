@@ -15,4 +15,5 @@ public class ChatHistoryMessageResponse {
     private String role;
     private String content;
     private List<ChatAction> actions;
+    private List<String> suggestions;
 }

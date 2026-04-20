@@ -35,6 +35,16 @@ public interface UserEcoProductRepository extends JpaRepository<UserEcoProduct, 
             @Param("since") LocalDateTime since
     );
 
+    @Query("""
+            SELECT COUNT(uep) FROM UserEcoProduct uep
+            WHERE uep.user.userId = :userId
+              AND uep.createdAt >= :startOfDay
+            """)
+    long countTodayByUser(
+            @Param("userId") Long userId,
+            @Param("startOfDay") LocalDateTime startOfDay
+    );
+
     long countByUser_UserIdAndEcoProduct_ProductIdAndCreatedAtAfter(
             Long userId,
             Long productId,

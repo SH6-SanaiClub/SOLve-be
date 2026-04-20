@@ -16,6 +16,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -81,8 +83,11 @@ public class ChatContextService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BadRequestException("사용자를 찾을 수 없습니다."));
 
-        UserMonthlyStat latestStat = userMonthlyStatRepository
-                .findTop1ByUser_UserIdOrderByCreatedAtDesc(userId)
+        LocalDateTime monthStart = LocalDate.now().withDayOfMonth(1).atStartOfDay();
+        LocalDateTime nextMonthStart = monthStart.plusMonths(1);
+
+        UserMonthlyStat currentMonthStat = userMonthlyStatRepository
+                .findByUserAndMonth(userId, monthStart, nextMonthStart)
                 .orElse(null);
 
         List<String> activeSavings = userSavingRepository.findActiveProductNamesByUserId(userId);
@@ -90,22 +95,28 @@ public class ChatContextService {
 
         String gradeCode = user.getCurrentGrade().name();
         int nextScore = NEXT_GRADE_SCORE.getOrDefault(gradeCode, 1000);
-        int gScore = user.getGActivityScore() + user.getGRepaymentScore();
+        int gActivityScore = user.getGActivityScore();
+        int gRepaymentScore = user.getGRepaymentScore();
+        int gScore = gActivityScore + gRepaymentScore;
 
         return ChatUserContext.builder()
                 .name(user.getName())
+                .userType(user.getUserType().name())
                 .totalScore(user.getTotalScore())
                 .grade(GRADE_LABEL.getOrDefault(gradeCode, gradeCode))
                 .eScore(user.getEScore())
                 .sScore(user.getSScore())
+                .gActivityScore(gActivityScore)
+                .gRepaymentScore(gRepaymentScore)
                 .gScore(gScore)
                 .point(user.getTotalPoints())
-                .monthlyEScore(latestStat != null ? latestStat.getMonthlyEScore() : 0)
-                .monthlySScore(latestStat != null ? latestStat.getMonthlySScore() : 0)
-                .monthlyGScore(latestStat != null ? latestStat.getMonthlyGScore() : 0)
+                .monthlyEScore(currentMonthStat != null ? currentMonthStat.getMonthlyEScore() : 0)
+                .monthlySScore(currentMonthStat != null ? currentMonthStat.getMonthlySScore() : 0)
+                .monthlyGScore(currentMonthStat != null ? currentMonthStat.getMonthlyGScore() : 0)
                 .nextGradeScore(Math.max(nextScore - user.getTotalScore(), 0))
                 .activeSavings(activeSavings)
                 .hasActiveLoan(hasActiveLoan)
+                .loanBlocked(user.getIsLoanBlocked())
                 .build();
     }
 

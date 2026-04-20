@@ -54,6 +54,48 @@ public class RecommendationService {
         log.info("추천 캐시 삭제 - userId={}", userId);
     }
 
+    public ActivityRecommendResponse getRecommendationsByCategory(Long userId, String scoreCategory) {
+        LocalDateTime now = LocalDateTime.now();
+
+        UserFeatureDto feature = featureExtractor.extract(userId);
+        List<ActivityCandidateDto> candidates = candidateLoader.loadAll(now).stream()
+                .filter(candidate -> scoreCategory.equals(candidate.getScoreCategory()))
+                .collect(Collectors.toList());
+
+        List<ActivityCandidateDto> filtered = filterService.filter(candidates, feature);
+        List<ActivityCandidateDto> rankedPrimary = rankCandidates(filtered, feature);
+
+        List<ActivityCandidateDto> selected = new ArrayList<>(rankedPrimary.stream()
+                .limit(TOP_N)
+                .collect(Collectors.toList()));
+
+        if (selected.size() < TOP_N) {
+            List<ActivityCandidateDto> fallbackCandidates = filterService
+                    .filterIgnoringMonthlyLimit(candidates, feature)
+                    .stream()
+                    .filter(candidate -> activityAvailabilityService.evaluate(candidate, feature).monthlyLimitReached())
+                    .filter(candidate -> selected.stream().noneMatch(existing -> isSameActivity(existing, candidate)))
+                    .collect(Collectors.toList());
+
+            List<ActivityCandidateDto> rankedFallback = rankCandidates(fallbackCandidates, feature);
+            int remaining = TOP_N - selected.size();
+            selected.addAll(rankedFallback.stream()
+                    .limit(remaining)
+                    .collect(Collectors.toList()));
+        }
+
+        List<RecommendedActivity> activities = selected.stream()
+                .map(candidate -> toRecommendedActivity(candidate, feature))
+                .collect(Collectors.toList());
+
+        AIService.LLMResult llmResult = aiService.generateDescriptions(activities, feature);
+        return ActivityRecommendResponse.builder()
+                .activities(llmResult.activities())
+                .popularActivity(null)
+                .llmSummary(llmResult.summary())
+                .build();
+    }
+
     private ActivityRecommendResponse runPipelineAndCache(Long userId) {
         LocalDateTime now = LocalDateTime.now();
 

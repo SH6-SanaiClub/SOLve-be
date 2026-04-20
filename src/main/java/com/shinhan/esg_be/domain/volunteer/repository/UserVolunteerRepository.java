@@ -95,6 +95,17 @@ public interface UserVolunteerRepository extends JpaRepository<UserVolunteer, Lo
             @Param("since") LocalDateTime since
     );
 
+    @Query("""
+            SELECT COUNT(uv)
+            FROM UserVolunteer uv
+            WHERE uv.user.userId = :userId
+              AND uv.createdAt >= :startOfDay
+            """)
+    long countTodayByUser(
+            @Param("userId") Long userId,
+            @Param("startOfDay") LocalDateTime startOfDay
+    );
+
     long countByUser_UserIdAndVolunteer_VolunteerIdAndCreatedAtAfter(
             Long userId,
             Long volunteerId,

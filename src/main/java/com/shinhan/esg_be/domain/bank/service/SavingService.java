@@ -1,5 +1,6 @@
 package com.shinhan.esg_be.domain.bank.service;
 
+import com.shinhan.esg_be.domain.ai.service.ChatContextService;
 import com.shinhan.esg_be.domain.bank.dto.request.SavingApplyRequest;
 import com.shinhan.esg_be.domain.bank.dto.response.SavingApplyResponse;
 import com.shinhan.esg_be.domain.bank.entity.FinancialProduct;
@@ -29,6 +30,7 @@ public class SavingService {
     private final UserRepository userRepository;
     private final FinancialProductRepository financialProductRepository;
     private final UserSavingRepository userSavingRepository;
+    private final ChatContextService chatContextService;
 
     public SavingApplyResponse applySaving(String loginId, SavingApplyRequest request) {
         User user = userRepository.findByLoginId(loginId)
@@ -61,6 +63,7 @@ public class SavingService {
         );
 
         userSavingRepository.save(userSaving);
+        chatContextService.evict(user.getUserId());
         return new SavingApplyResponse(userSaving.getStatus().name());
     }
 

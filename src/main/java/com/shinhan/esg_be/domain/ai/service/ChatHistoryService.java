@@ -38,6 +38,44 @@ public class ChatHistoryService {
                 .toList();
     }
 
+    public String getLatestAssistantMetaPrompt(Long userId) {
+        List<ChatHistoryMessageResponse> history = getUiHistory(userId);
+
+        for (int index = history.size() - 1; index >= 0; index--) {
+            ChatHistoryMessageResponse message = history.get(index);
+            if (!"assistant".equals(message.getRole())) {
+                continue;
+            }
+
+            List<String> parts = new ArrayList<>();
+
+            if (message.getActions() != null && !message.getActions().isEmpty()) {
+                String actionSummary = message.getActions().stream()
+                        .map(ChatAction::getLabel)
+                        .distinct()
+                        .reduce((left, right) -> left + ", " + right)
+                        .orElse("");
+                if (!actionSummary.isBlank()) {
+                    parts.add("직전 액션: " + actionSummary);
+                }
+            }
+
+            if (message.getSuggestions() != null && !message.getSuggestions().isEmpty()) {
+                String suggestionSummary = message.getSuggestions().stream()
+                        .distinct()
+                        .reduce((left, right) -> left + " | " + right)
+                        .orElse("");
+                if (!suggestionSummary.isBlank()) {
+                    parts.add("직전 추천 질문: " + suggestionSummary);
+                }
+            }
+
+            return String.join("\n", parts);
+        }
+
+        return "";
+    }
+
     public List<ChatHistoryMessageResponse> getUiHistory(Long userId) {
         String key = KEY_PREFIX + userId;
         try {
@@ -57,7 +95,8 @@ public class ChatHistoryService {
             Long userId,
             String userMsg,
             String assistantMsg,
-            List<ChatAction> actions
+            List<ChatAction> actions,
+            List<String> suggestions
     ) {
         List<ChatHistoryMessageResponse> history = getUiHistory(userId);
 
@@ -70,6 +109,7 @@ public class ChatHistoryService {
                 .role("assistant")
                 .content(assistantMsg)
                 .actions(actions == null || actions.isEmpty() ? null : actions)
+                .suggestions(suggestions == null || suggestions.isEmpty() ? null : suggestions)
                 .build());
 
         while (history.size() > MAX_UI_MESSAGES) {
@@ -96,4 +136,5 @@ public class ChatHistoryService {
             log.warn("대화 이력 저장 실패 userId={}", userId, e);
         }
     }
+
 }

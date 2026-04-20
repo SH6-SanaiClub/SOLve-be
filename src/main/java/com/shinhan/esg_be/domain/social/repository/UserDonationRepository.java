@@ -58,6 +58,16 @@ public interface UserDonationRepository extends JpaRepository<UserDonation, Long
             @Param("startOfDay") LocalDateTime startOfDay
     );
 
+    @Query("""
+            SELECT COUNT(ud) FROM UserDonation ud
+            WHERE ud.user.userId = :userId
+              AND ud.createdAt >= :startOfDay
+            """)
+    long countTodayByUser(
+            @Param("userId") Long userId,
+            @Param("startOfDay") LocalDateTime startOfDay
+    );
+
     // 최근 N일 기부 횟수 (미활동 위험, 90일 횟수)
     @Query("""
             SELECT COUNT(ud) FROM UserDonation ud
