@@ -1182,7 +1182,9 @@ public class ChatService {
             } else if (requestedCategory != null) {
                 addCategoryDefaultAction(actions, requestedCategory);
             } else if (INTENT_GRADE.equals(intent)) {
-                addGradePreferredActions(actions, activityRecommend, userFeature, activitySnapshot);
+                if (isGradeStrategyQuestion(normalizedUserMessage)) {
+                    addGradePreferredActions(actions, activityRecommend, userFeature, activitySnapshot);
+                }
             } else if (shouldUseRecommendedActivityActions(normalizedUserMessage, intent)) {
                 addRecommendedActivityActions(actions, activityRecommend);
             }
@@ -1303,6 +1305,15 @@ public class ChatService {
         return containsAny(normalizedUserMessage,
                 "추천", "다음 활동", "다음 행동", "쉬운 활동", "할 수 있는 활동",
                 "오늘 할", "무슨 활동", "뭐 하지", "전략");
+    }
+
+    private boolean isGradeStrategyQuestion(String normalizedUserMessage) {
+        return containsAny(
+                normalizedUserMessage,
+                "올리", "올리는", "올리기",
+                "추천", "활동", "어떻게", "어떤 활동",
+                "무슨 활동", "뭐 해야", "전략", "부족"
+        );
     }
 
     private void addFinancePreferredActions(
