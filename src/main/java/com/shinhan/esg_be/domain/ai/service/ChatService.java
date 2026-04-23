@@ -59,6 +59,7 @@ public class ChatService {
     private static final int STREAM_MIN_FLUSH_CHARS = 24;
     private static final int STREAM_FORCE_FLUSH_CHARS = 72;
     private static final long SMALL_TALK_CHUNK_DELAY_MS = 120L;
+    private static final int LOAN_MIN_ESG_SCORE = 700;
     private static final List<String> ENVIRONMENT_ACTIVITY_NAMES = List.of(
             "텀블러 인증",
             "공유자전거 인증",
@@ -349,7 +350,7 @@ public class ChatService {
                 이름: %s
                 사용자 성향: %s
                 등급: %s / 총점: %d점
-                E점수: %d / S점수: %d / G점수: %d (활동 %d + 상환 %d)
+                E점수: %d / S점수: %d / G점수: %d
                 보유 포인트: %dP
                 이번달 E활동: %d/5점 | S활동: %d/25점 | G활동: %d/10점
                 다음 등급까지: %d점 필요
@@ -361,7 +362,6 @@ public class ChatService {
                 context.getUserType(),
                 context.getGrade(), context.getTotalScore(),
                 context.getEScore(), context.getSScore(), context.getGScore(),
-                context.getGActivityScore(), context.getGRepaymentScore(),
                 context.getPoint(),
                 context.getMonthlyEScore(), context.getMonthlySScore(), context.getMonthlyGScore(),
                 context.getNextGradeScore(),
@@ -453,6 +453,10 @@ public class ChatService {
     }
 
     private boolean shouldLoadFinanceRecommendation(String intent, String normalizedUserMessage) {
+        if (isLoanQuestion(normalizedUserMessage) && !containsAny(normalizedUserMessage, "적금")) {
+            return false;
+        }
+
         if (INTENT_FINANCE.equals(intent)) {
             return true;
         }
@@ -500,6 +504,7 @@ public class ChatService {
         }
 
         sections.add(buildUserStateFacts(context, userFeature, activitySnapshot));
+        sections.add(buildLoanEligibilityFacts(context, normalizedUserMessage));
         sections.add(buildMonthlyGapFacts(context, userFeature, activitySnapshot));
         sections.add(buildQuestionSignalFacts(intent, normalizedUserMessage, requestedCategory, popularRequested));
 
@@ -537,7 +542,8 @@ public class ChatService {
 
         return String.format("""
                 === 사용자 상태 고정 사실 ===
-                - 현재 총점 구성: E %d + S %d + G 활동 %d + G 상환 %d = 총 %d
+                - 현재 총점 구성: E %d + S %d + G %d = 총 %d
+                - 사용자가 E/S/G 점수나 대출 상품 가입 기준을 물으면 G를 활동/상환으로 나누어 설명하지 말고, 반드시 합산된 G 점수로만 설명할 것
                 - 이번 달 누적 점수: E %d/5, S %d/25, G %d/10
                 - 최근 90일 활동 횟수: E %d회, S %d회, G %d회, 총 %d회
                 - 최근 90일 가장 부족한 카테고리: %s
@@ -546,8 +552,7 @@ public class ChatService {
                 """,
                 context.getEScore(),
                 context.getSScore(),
-                context.getGActivityScore(),
-                context.getGRepaymentScore(),
+                context.getGScore(),
                 context.getTotalScore(),
                 context.getMonthlyEScore(),
                 context.getMonthlySScore(),
@@ -580,7 +585,59 @@ public class ChatService {
                 + (containsAny(normalizedUserMessage, "부족", "모자라", "남은", "잔여", "채우", "어디가 약") ? "예" : "아니오"));
         lines.add("- 오늘 가능 여부/현황을 함께 고려해야 하는 질문: "
                 + (containsAny(normalizedUserMessage, "오늘", "지금", "바로", "현황", "이번 달", "이번달") ? "예" : "아니오"));
+        lines.add("- 대출 가입/한도/불가 사유 질문: "
+                + (isLoanQuestion(normalizedUserMessage) ? "예" : "아니오"));
         return String.join("\n", lines);
+    }
+
+    private String buildLoanEligibilityFacts(ChatUserContext context, String normalizedUserMessage) {
+        int totalScore = context.getTotalScore();
+        int remainingScore = Math.max(0, LOAN_MIN_ESG_SCORE - totalScore);
+        String loanStatus;
+
+        if (context.isLoanBlocked()) {
+            loanStatus = "대출 가입 불가: 패널티/ABUSE 등으로 대출 가입 차단 상태";
+        } else if (context.isHasActiveLoan()) {
+            loanStatus = "대출 가입 불가: 이미 가입 중인 대출 상품이 있음";
+        } else if (totalScore < LOAN_MIN_ESG_SCORE) {
+            loanStatus = String.format(
+                    "현재는 대출 가입 기준에 조금 못 미침: ESG 총점 %d점으로 최소 기준 %d점보다 %d점 부족",
+                    totalScore,
+                    LOAN_MIN_ESG_SCORE,
+                    remainingScore
+            );
+        } else {
+            loanStatus = String.format(
+                    "대출 가입 가능권: ESG 총점 %d점으로 최소 기준 %d점 이상",
+                    totalScore,
+                    LOAN_MIN_ESG_SCORE
+            );
+        }
+
+        return String.format("""
+                === 대출 가입 가능 여부 고정 사실 ===
+                - 대출 최소 ESG 점수 기준: %d점 이상
+                - 현재 ESG 총점: %d점
+                - 대출 차단 여부: %s
+                - 활성 대출 보유 여부: %s
+                - 최종 판단: %s
+                - 주의: '대출 차단 여부 정상'은 ABUSE/패널티 차단이 없다는 뜻일 뿐, 점수 기준을 충족했다는 뜻이 아니다
+                - 대출 불가 사유를 묻는 질문이면 위 최종 판단을 우선 사용하고, 적금 추천 사유를 섞지 말 것
+                - 점수 미달로 대출 가입이 어려운 경우에는 딱딱하게 "불가"만 말하지 말고, "지금은 기준까지 조금 남았다"는 톤으로 설명할 것
+                - 점수 미달로 대출 가입이 어려운 경우에는 점수 구성(E %d점, S %d점, G %d점)만 설명하고, G를 활동/상환으로 나누어 설명하지 말 것
+                - 점수 미달로 대출 가입이 어려운 경우에는 부족한 %d점을 E/S/G 활동으로 차근히 올려보자는 짧은 격려 문장을 포함할 것
+                - 이 질문에서는 특정 활동명이나 특정 바로가기 추천보다, E/S/G 활동 전반으로 점수를 올릴 수 있다는 방향만 안내할 것
+                """,
+                LOAN_MIN_ESG_SCORE,
+                totalScore,
+                context.isLoanBlocked() ? "차단됨" : "정상",
+                context.isHasActiveLoan() ? "보유" : "없음",
+                loanStatus,
+                context.getEScore(),
+                context.getSScore(),
+                context.getGScore(),
+                remainingScore
+        ).trim();
     }
 
     private String buildMonthlyGapFacts(
@@ -1147,6 +1204,10 @@ public class ChatService {
         return false;
     }
 
+    private boolean isLoanQuestion(String normalizedUserMessage) {
+        return containsAny(normalizedUserMessage, "대출", "한도", "빌리", "상환");
+    }
+
     private List<ChatAction> buildPreferredActions(
             String userMessage,
             String intent,
@@ -1324,6 +1385,7 @@ public class ChatService {
     ) {
         SavingsRecommendResponse.RecommendItem recommendation =
                 financeRecommend != null ? financeRecommend.getRecommendation() : null;
+        boolean loanQuestion = isLoanQuestion(normalizedUserMessage);
 
         if (containsAny(normalizedUserMessage,
                 "가입 현황", "가입현황", "보유 적금", "내 적금", "가입한 적금")) {
@@ -1334,7 +1396,12 @@ public class ChatService {
             return;
         }
 
-        if (recommendation != null) {
+        if (loanQuestion) {
+            actions.add(ChatAction.builder()
+                    .label("대출 상품 보러가기")
+                    .path("/finance/esg-micro-loan")
+                    .build());
+        } else if (recommendation != null) {
             String detailPath = mapFinancePath(recommendation.getProductName());
             if (detailPath != null) {
                 actions.add(ChatAction.builder()
@@ -1348,13 +1415,6 @@ public class ChatService {
             actions.add(ChatAction.builder()
                     .label("금융 상품 전체 보기")
                     .path("/finance")
-                    .build());
-        }
-
-        if (containsAny(normalizedUserMessage, "대출") && !context.isLoanBlocked()) {
-            actions.add(ChatAction.builder()
-                    .label("대출 상품 보러가기")
-                    .path("/finance/esg-micro-loan")
                     .build());
         }
 
@@ -1498,7 +1558,7 @@ public class ChatService {
                 suggestions.add(activitySnapshot.quizDone()
                         ? "오늘은 다른 활동 뭐가 좋아?"
                         : "오늘 퀴즈 바로 하러가고 싶어");
-                suggestions.add("G 활동 점수 규칙 알려줘");
+                suggestions.add("G 점수 규칙 알려줘");
             } else {
                 suggestions.add("이번 달 부족한 활동이 뭐야?");
                 suggestions.add("점수 올리기 쉬운 활동으로 다시 추천해줘");
